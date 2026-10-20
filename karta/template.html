@@ -979,7 +979,7 @@ const W3=[50,30,20],W3C=[60,30,10],W4=[40,30,20,10],W4C=[40,30,20,10];
 function toTens(v,total){const sm=v.reduce((a,b)=>a+b,0),u=total/10,raw=v.map(x=>x/sm*u),f=raw.map(x=>Math.max(1,Math.floor(x)));let left=u-f.reduce((a,b)=>a+b,0);const ord=raw.map((x,i)=>[x-Math.floor(x),i]).sort((a,b)=>b[0]-a[0]);let k=0;while(left>0){f[ord[k%ord.length][1]]++;left--;k++}while(left<0){const i=f.indexOf(Math.max(...f));f[i]--;left++}return f.map(x=>x*10)}
 const ROLE3=["база","фон","акцент"],ROLE4=["база","фон","дополнение","акцент"];
 // Крепость вкуса по линейке бренда (шкала 10), крепость микса — по долям
-function flavStr(x){if(isCrud(x))return 10;const rows=strengthRows((BRANDS[x.b]||{}).strength);if(!rows.length)return 5;
+function flavStr(x){if(isCrud(x))return 10;if(x.st)return x.st;const rows=strengthRows((BRANDS[x.b]||{}).strength);if(!rows.length)return 5;
   const l=(x.l||"").toLowerCase();let r=l&&rows.find(r=>r.label.toLowerCase().includes(l));
   if(!r)r=rows.find(r=>!r.label||/основ|core|classic|стандарт|классич/i.test(r.label))||rows[0];
   return r.n}
@@ -1139,7 +1139,8 @@ w.tabIndex=0;w.addEventListener("keydown",e=>{if(e.key==="ArrowRight"){go(1);e.p
   const C=window.POLKA_CONFIG,H={apikey:C.anon,Authorization:"Bearer "+C.anon};
   const V=new URLSearchParams(location.search).get("v")||C.venue;
   const get=t=>fetch(C.url+"/rest/v1/"+t,{headers:H}).then(r=>r.ok?r.json():null);
-  const [st,mx]=await Promise.all([get("public_stock?select=flavor_id,slow&venue_id=eq."+V),get("public_mixes?select=*&venue_id=eq."+V)]);
+  const [st,mx,fs]=await Promise.all([get("public_stock?select=flavor_id,slow&venue_id=eq."+V),get("public_mixes?select=*&venue_id=eq."+V),get("flavors?select=id,strength&strength=not.is.null&limit=1000")]);
+  if(Array.isArray(fs)){const sm=new Map(fs.map(r=>[r.id,r.strength]));ALL.forEach(x=>{if(sm.has(x.id))x.st=sm.get(x.id)})}
   if(!Array.isArray(st))return;
   const on=new Map(st.map(r=>[r.flavor_id,!!r.slow]));
   DATA.splice(0,DATA.length,...ALL.filter(x=>on.has(x.id)).map(x=>{x.sl=on.get(x.id);return x}));

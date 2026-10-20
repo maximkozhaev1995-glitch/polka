@@ -10,12 +10,13 @@ def sql(q):
 root=os.path.join(os.path.dirname(__file__),'..')
 st=json.loads(re.search(r'const DATA=(\[.*?\]);\n',open(root+'/src/stoika.html').read()).group(1))
 status={x['id']:x.get('s') for x in st}
-rows=sql(f"select f.id,f.brand b,f.line l,f.name n,f.descr d,f.tags t,coalesce(s.bar and not s.stop and not s.retired,false) ob,coalesce(s.slow,false) sl from flavors f left join stock s on s.flavor_id=f.id and s.venue_id='{VENUE}' where not f.custom")
+rows=sql(f"select f.id,f.brand b,f.line l,f.name n,f.descr d,f.tags t,f.strength st,coalesce(s.bar and not s.stop and not s.retired,false) ob,coalesce(s.slow,false) sl from flavors f left join stock s on s.flavor_id=f.id and s.venue_id='{VENUE}' where not f.custom")
 G=[]
 for r in rows:
     d='' if status.get(r['id'])=='pend' else (r['d'] or '')
     g={'id':r['id'],'b':r['b'],'l':r['l'] or '','n':r['n'],'d':d,'t':r['t'] or [],'ob':bool(r['ob'])}
     if r['sl']:g['sl']=True
+    if r['st']:g['st']=r['st']
     g['c']=classify(g);G.append(g)
 s=open(root+'/karta/template.html').read().replace('__DATA__',json.dumps(G,ensure_ascii=False))
 open(root+'/karta/index.html','w').write(s)
