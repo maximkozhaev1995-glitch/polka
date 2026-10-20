@@ -1,0 +1,47 @@
+-- Размеры банок: общий каталог. Размер конкретной позиции хранится в flavors.pack_g.
+alter table flavors add column if not exists pack_g int check (pack_g is null or pack_g between 5 and 2000);
+create table if not exists pack_sizes (brand text primary key, sizes int[] not null);
+alter table pack_sizes enable row level security;
+drop policy if exists pack_sizes_read on pack_sizes;
+create policy pack_sizes_read on pack_sizes for select to authenticated using (true);
+grant select on pack_sizes to authenticated;
+delete from pack_sizes;
+insert into pack_sizes values ('Afzal', array[40]);
+insert into pack_sizes values ('Black Burn', array[100,200]);
+insert into pack_sizes values ('Bliss', array[100,250]);
+insert into pack_sizes values ('Chabacco', array[40,200]);
+insert into pack_sizes values ('Bonche', array[30,60,120]);
+insert into pack_sizes values ('Darkside', array[30,100,120,250]);
+insert into pack_sizes values ('Deus', array[30,40,100,200,250]);
+insert into pack_sizes values ('Dogma', array[20,80,160]);
+insert into pack_sizes values ('Duft', array[20,40,80,200]);
+insert into pack_sizes values ('Jent', array[20,100,200]);
+insert into pack_sizes values ('Kraken', array[30,80,100,250]);
+insert into pack_sizes values ('Morpheus', array[100]);
+insert into pack_sizes values ('Musthave', array[125]);
+insert into pack_sizes values ('Original Virginia', array[100]);
+insert into pack_sizes values ('Overdose', array[100,200]);
+insert into pack_sizes values ('Palitra', array[40,80,200]);
+insert into pack_sizes values ('Sapphire Crown', array[100,200]);
+insert into pack_sizes values ('Satyr', array[100,200]);
+insert into pack_sizes values ('Sebero', array[100,200]);
+insert into pack_sizes values ('Smoke Angels', array[100]);
+insert into pack_sizes values ('Snobless', array[100,200]);
+insert into pack_sizes values ('Spectrum', array[100,200]);
+insert into pack_sizes values ('Starline', array[250]);
+insert into pack_sizes values ('Tangiers', array[100,250]);
+insert into pack_sizes values ('Wave', array[200]);
+insert into pack_sizes values ('World Tobacco Original', array[20,250]);
+insert into pack_sizes values ('База', array[250]);
+insert into pack_sizes values ('Кобра', array[20,80,200]);
+insert into pack_sizes values ('Наш', array[30,40,100,120,200]);
+insert into pack_sizes values ('Сарма', array[40,100,120,200]);
+insert into pack_sizes values ('Северный', array[200]);
+insert into pack_sizes values ('Хулиган', array[80,200]);
+insert into pack_sizes values ('Trofimoff''s', array[125]);
+insert into pack_sizes values ('Mattpear', array[50,250]);
+-- размер позиции: если у бренда один размер, он у всех вкусов
+update flavors f set pack_g = p.sizes[1] from pack_sizes p where f.venue_id is null and f.brand = p.brand and array_length(p.sizes,1)=1 and f.pack_g is null;
+-- Tangiers и Mattpear: размеры отличаются по линиям, как заведено в каталоге
+update flavors set pack_g = case when line='100 г' then 100 else 250 end where venue_id is null and brand='Tangiers';
+update flavors set pack_g = case when line='50 г' then 50 else 250 end where venue_id is null and brand='Mattpear';

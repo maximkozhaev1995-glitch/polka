@@ -284,6 +284,7 @@ body.hasnav .chat{bottom:calc(64px + env(safe-area-inset-bottom,0px))}
     <button class="tab" id="t-team" type="button" hidden>Команда<small id="c-team"></small></button>
     <button class="tab" id="t-str" type="button" hidden>Крепость<small></small></button>
     <button class="tab" id="t-wish" type="button" hidden>Пожелания<small></small></button>
+    <button class="tab" id="t-pack" type="button" hidden>Граммовка<small></small></button>
     <button class="tab" id="t-log" type="button">Журнал<small></small></button>
     <button class="tab" id="t-or" type="button">Заказ<small id="c-or"></small></button>
     <button class="tab" id="t-stop" type="button">Стоп-лист<small id="c-stop"></small></button>
@@ -360,6 +361,10 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
     strength:{table:"flavors",key:"id",patch:true,
       list:()=>"flavors?select=id,strength&strength=not.is.null&limit=1000",
       toDoc:r=>({s:r.strength}),fromDoc:(id,o)=>({strength:o.s})},
+    pack:{table:"flavors",key:"id",patch:true,
+      list:()=>"flavors?select=id,pack_g&pack_g=not.is.null&limit=1500",
+      toDoc:r=>({g:r.pack_g}),fromDoc:(id,o)=>({pack_g:o.g||null})},
+    packsizes:{table:"pack_sizes",key:"brand",list:()=>"pack_sizes?select=brand,sizes",toDoc:r=>({sizes:r.sizes||[]}),fromDoc:()=>({})},
     wishes:{table:"wishes",key:"id",patch:true,
       list:()=>"wishes?select=id,flavor_id,brand,flavor,state,created_at&venue_id=eq."+V()+"&order=created_at.desc&limit=2000",
       toDoc:r=>({fid:r.flavor_id||"",b:r.brand,f:r.flavor,state:r.state,at:r.created_at}),fromDoc:(id,o)=>({state:o.state})},
@@ -470,7 +475,10 @@ const newWh=x=>wh(x)+dd(x);
 const newBar=x=>(draft[x.id]&&draft[x.id].bar!==undefined)?draft[x.id].bar:onBar(x);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const norm=s=>s.toLowerCase().replace(/ё/g,"е");
-const nm=x=>x?x.b+" "+x.n:"вкус";
+var packMap={},packSizes={};
+const multiSz=x=>!!x&&(packSizes[x.b]||[]).length>1&&!!packMap[x.id];
+const szTag=x=>multiSz(x)?'<span class="ln">'+packMap[x.id]+" г</span>":"";
+const nm=x=>x?x.b+" "+x.n+(multiSz(x)?" · "+packMap[x.id]+" г":""):"вкус";
 function hl(text){const t=esc(text);if(!st.q)return t;const q=esc(st.q).replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
   return t.replace(new RegExp(q.replace(/е/gi,"[её]"),"gi"),m=>"<mark>"+m+"</mark>")}
 function chip(label,count,on,fn){const b=document.createElement("button");b.type="button";b.className="chip";b.setAttribute("aria-pressed",on);
@@ -486,7 +494,7 @@ const inOrder=x=>stockLoaded&&(oq(x)>0||hint(x)||!!st.q);
 const flag=(x,k)=>!!(stock[x.id]&&stock[x.id][k]);
 const inTab=x=>st.q&&(st.tab==="bar"||st.tab==="wh")?true:st.tab==="smena"?(onBar(x)||wh(x)>0||!!st.q):st.tab==="inv"?stockLoaded&&(tracked(x)||!!st.q):st.tab==="bar"?onBar(x):st.tab==="order"?(stockLoaded&&!flag(x,"retired")):(st.tab==="stop"||st.tab==="slow")?stockLoaded&&(flag(x,st.tab)||!!st.q||!!st.brand):(wh(x)>0||!!draft[x.id]||!!st.q);
 const NEWUI=!!window.__demoDB;let invD={};const invEd=new Set();
-const TABS={wish:"Пожелания гостей",str:"Крепость табаков",team:"Команда",log:"Журнал",mixes:"Альбом миксов",smena:"Смена",inv:"Пересчёт",bar:"Стойка",wh:"Склад",order:"Заказ",stop:"Стоп-лист",slow:"Неликвид",ai:"Ассистент",sup:"Поставщики"};
+const TABS={pack:"Граммовка банок",wish:"Пожелания гостей",str:"Крепость табаков",team:"Команда",log:"Журнал",mixes:"Альбом миксов",smena:"Смена",inv:"Пересчёт",bar:"Стойка",wh:"Склад",order:"Заказ",stop:"Стоп-лист",slow:"Неликвид",ai:"Ассистент",sup:"Поставщики"};
 const fOK=(x,k)=>k==="low"?wh(x)===1:k==="pend"?x.s==="pend":x.t.includes(k);
 function renderChips(){
   const all=st.tab==="stop"||st.tab==="slow";
@@ -523,7 +531,9 @@ async function toBar(x,k){if(!db||busy)return;busy=true;const id=x.id,n=wh(x),at
   try{const d0=Object.assign({},stock[id]||{},{wh:n-take,bar:true});if(d0.stop&&d0.stopAuto){delete d0.stop;delete d0.stopAuto}await db.doc("stock/"+id).set(d0);await db.collection("moves").add({item:id,qty:-take,left:n-take,prev,at,barTo:true,kind:"tobar"})}catch(e){busy=false;setStatus("Не сохранилось",true);return}
   busy=false;const ao=take?autoOrder(x,n-take):0;toast('<b>'+esc(nm(x))+'</b>: взято '+take+', на стойке. На складе осталось '+(n-take)+(ao?" · в заказ "+ao+" шт.":""),()=>{if(ao){delete orderQ[id];saveOrder()}askUndo(id)});render()}
 const invDiff=()=>Object.keys(invD).filter(id=>byId[id]&&invD[id]!==wh(byId[id]));
-function openInv(){const D=invDiff();showDlg('<h2>Расхождения</h2>'+(D.length?'<ul>'+D.map(id=>{const x=byId[id],d=invD[id]-wh(x);return'<li><span>'+esc(nm(x))+'<br><small>было '+wh(x)+' → по факту '+invD[id]+'</small></span><span class="ch" style="color:'+(d<0?"var(--pend)":"var(--ok)")+'">'+(d>0?"+":"")+d+'</span><span></span></li>'}).join("")+'</ul><p class="muted small">Недостача попадёт в отчёт по сменам и не считается расходом для заказа.</p>':'<p>Всё сходится.</p>')
+function invSum(D){let sh=0,ov=0,gs=0,go=0,nog=0;D.forEach(id=>{const x=byId[id],d=invD[id]-wh(x);if(d<0)sh-=d;else ov+=d;const g=packMap[id];if(g){if(d<0)gs-=d*g;else go+=d*g}else nog++});return '<b>Итого:</b> недостача '+sh+' шт.'+(gs?' ('+(gs/1000).toFixed(2).replace(/\.?0+$/,"")+' кг)':'')+(ov?', излишек '+ov+' шт.'+(go?' ('+(go/1000).toFixed(2).replace(/\.?0+$/,"")+' кг)':''):'')+(nog?'. У '+nog+' поз. размер не указан, граммы не посчитаны.':'.')+'<br>'}
+function whWeight(){let n=0,g=0,no=0;DATA.forEach(x=>{const k=wh(x);if(!k)return;n+=k;if(packMap[x.id])g+=k*packMap[x.id];else no+=k});return {n,g,no}}
+function openInv(){const D=invDiff();showDlg('<h2>Расхождения</h2>'+(D.length?'<ul>'+D.map(id=>{const x=byId[id],d=invD[id]-wh(x);return'<li><span>'+esc(nm(x))+'<br><small>было '+wh(x)+' → по факту '+invD[id]+(packMap[x.id]?' · '+(d>0?"+":"")+d*packMap[x.id]+' г':'')+'</small></span><span class="ch" style="color:'+(d<0?"var(--pend)":"var(--ok)")+'">'+(d>0?"+":"")+d+'</span><span></span></li>'}).join("")+'</ul><p class="muted small">'+invSum(D)+'Недостача попадёт в отчёт по сменам и не считается расходом для заказа.</p>':'<p>Всё сходится.</p>')
   +'<div class="dlg-btns">'+(D.length?'<button class="btn go" type="button" id="inv-ok">Привести склад к факту</button>':'')+'<button class="btn" type="button" id="dlg-back">Закрыть</button></div>');
   $("#dlg-back").onclick=closeDlg;const ok=$("#inv-ok");if(ok)ok.onclick=async()=>{const at=new Date().toISOString();for(const id of D){const x=byId[id],n=wh(x),v=invD[id];
     try{await db.doc("stock/"+id).set(Object.assign({},stock[id]||{},{wh:v}));await db.collection("moves").add({item:id,qty:v-n,left:v,prev:{wh:n,bar:null},at,kind:"inv"})}catch(e){}}
@@ -597,7 +607,7 @@ function rowV2(x){const n=wh(x),ob=onBar(x),stp=flag(x,"stop"),sl=flag(x,"slow")
   const tags=x.t.length?'<span class="tags">'+x.t.map(t=>'<span class="tag">'+esc(t)+'</span>').join("")+'</span>':"";
   const bd=(stp?'<span class="bd stop">стоп</span>':"")+(flag(x,"retired")?'<span class="bd stop">выведен</span>':"")+(sl?'<span class="bd slow">неликвид</span>':"")+(st.tab!=="bar"&&ob?'<span class="bd on">на стойке</span>':"");
   const right=st.tab==="wh"?'<span class="big3'+(n<=1?" one":"")+'">'+n+'</span><small>шт.</small>':st.tab==="slow"?'<span class="st3">'+idleText(x)+'<br>'+(n?n+" на скл.":"нет на скл.")+'</span>':st.tab==="stop"?'<span class="st3">'+(ob?"на стойке":"не на стойке")+'</span>':'<span class="st3'+(n<=1?" one":"")+'">'+(n?n+" на скл.":"нет на скл.")+'</span>';
-  return '<div class="row r2'+(sel?" sel":"")+'" data-row="'+x.id+'"><i class="dot d-'+x.s+'"></i><div class="rb"><span class="nm">'+hl(x.l?x.n+" "+x.l:x.n)+'</span>'+tags+bd+(x.d?'<div class="ds'+(x.s!=="name"?" has":"")+'">'+hl(x.d)+'</div>':"")+'</div><div class="rc">'+right+'</div>'+(sel?actsV2(x):"")+'</div>'}
+  return '<div class="row r2'+(sel?" sel":"")+'" data-row="'+x.id+'"><i class="dot d-'+x.s+'"></i><div class="rb"><span class="nm">'+hl(x.l?x.n+" "+x.l:x.n)+'</span>'+szTag(x)+tags+bd+(x.d?'<div class="ds'+(x.s!=="name"?" has":"")+'">'+hl(x.d)+'</div>':"")+'</div><div class="rc">'+right+'</div>'+(sel?actsV2(x):"")+'</div>'}
 function renderV2(){
   ["#sup","#omanual","#chat","#logbox","#brands","#filters","#tray","#otray"].forEach(q=>{const e=$(q);if(e)e.hidden=true});
   $("#list").hidden=false;$(".search").hidden=false;$(".legend").hidden=true;$(".ttl .stats").hidden=false;document.body.classList.remove("ai-mode","has-tray");
@@ -631,15 +641,16 @@ function render(){
   const ordSel=DATA.filter(x=>stockLoaded&&oq(x)>0);
   const stopN=DATA.filter(x=>flag(x,"stop")).length,slowN=DATA.filter(x=>flag(x,"slow")).length,slowP=DATA.filter(x=>flag(x,"slow")).reduce((a,x)=>a+wh(x),0);
   $("#c-bar").textContent=barN;$("#c-wh").textContent=whPacks;$("#c-or").textContent=db?ordSel.length:"";$("#c-stop").textContent=stockLoaded?stopN:"";$("#c-slow").textContent=stockLoaded?slowN:"";
-  [["bar","t-bar"],["wh","t-wh"],["order","t-or"],["stop","t-stop"],["slow","t-slow"],["ai","t-ai"],["sup","t-sup"],["inv","t-inv"],["mixes","t-mix"],["log","t-log"],["team","t-team"],["str","t-str"],["wish","t-wish"]].forEach(([k,i])=>$("#"+i).setAttribute("aria-current",st.tab===k?"page":"false"));
+  [["bar","t-bar"],["wh","t-wh"],["order","t-or"],["stop","t-stop"],["slow","t-slow"],["ai","t-ai"],["sup","t-sup"],["inv","t-inv"],["mixes","t-mix"],["log","t-log"],["team","t-team"],["str","t-str"],["wish","t-wish"],["pack","t-pack"]].forEach(([k,i])=>$("#"+i).setAttribute("aria-current",st.tab===k?"page":"false"));
   $("#sect").textContent=TABS[st.tab]||"Стойка";
-  if(!isMgr&&(st.tab==="inv"||st.tab==="sup"||st.tab==="log"||st.tab==="team"||st.tab==="str"))st.tab="bar";
-  $("#t-str").hidden=!isMgr;$("#t-wish").hidden=!isMgr;$("#t-team").hidden=!isMgr;$("#t-log").hidden=!isMgr;$("#t-inv").hidden=!isMgr;$("#t-sup").hidden=!isMgr;$("#who").textContent=isMgr?"Управляющий":"Мастер";
+  if(!isMgr&&(st.tab==="inv"||st.tab==="sup"||st.tab==="log"||st.tab==="team"||st.tab==="str"||st.tab==="pack"||st.tab==="wish"))st.tab="bar";
+  $("#t-str").hidden=!isMgr;$("#t-wish").hidden=!isMgr;$("#t-pack").hidden=!isMgr;$("#t-team").hidden=!isMgr;$("#t-log").hidden=!isMgr;$("#t-inv").hidden=!isMgr;$("#t-sup").hidden=!isMgr;$("#who").textContent=isMgr?"Управляющий":"Мастер";
   if(st.tab==="mixes"){renderMixes();return}
   if(st.tab==="log"){renderJournal();return}
   if(st.tab==="team"){renderTeam();return}
   if(st.tab==="str"){renderStrength();return}
   if(st.tab==="wish"){renderWishes();return}
+  if(st.tab==="pack"){renderPack();return}
   if(V2.has(st.tab)){renderV2();retireWatch();return}
   const isAi=st.tab==="ai",isSup=st.tab==="sup";
   ["#list",".search","#brands","#filters",".legend"].forEach(q=>{$(q).hidden=isAi||isSup});$("#chat").hidden=!isAi;if(!isAi&&!isSup)$("#brands").hidden=!(st.tab==="stop"||st.tab==="slow");$(".ttl .stats").hidden=isAi||isSup;if(st.tab==="inv"||st.tab==="order")$("#filters").hidden=true;$("#sup").hidden=!isSup;$("#omanual").hidden=st.tab!=="order";
@@ -661,6 +672,7 @@ function render(){
   let html="";
   if(st.tab==="stop")html+='<details class="hint"><summary>Как это работает</summary><p class="hintline">Вкусы, которые сейчас нельзя предложить гостю, даже если на складе есть остаток. Выбери бренд, чтобы увидеть весь его ассортимент, или найди вкус через поиск, затем нажми «В стоп».</p></details>';
   if(st.tab==="slow")html+='<details class="hint"><summary>Как это работает</summary><p class="hintline">Вкусы, которые лежат без движения. Выбери бренд или найди вкус через поиск и нажми «В неликвид», чтобы не забыть пустить его в миксы или не заказывать.</p></details>';
+  if(st.tab==="inv"){const w=whWeight();html+='<p class="hintline" style="margin-top:8px"><b>На складе по учёту: '+w.n+' шт.'+(w.g?' · около '+(w.g/1000).toFixed(1)+' кг':'')+'</b>'+(w.no?'. У '+w.no+' шт. размер не указан (меню → «Граммовка»).':'.')+'</p>'}
   if(st.tab==="inv")html+='<details class="hint" open><summary>Как это работает</summary><p class="hintline">Пройди по полке. Если число штук как в списке — жми «✓ Сходится». Если нет — жми «≠» и впиши, сколько реально стоит. Внизу «Сверить» покажет расхождения.</p></details>';
   if(st.tab==="order")html+='<details class="hint"><summary>Как это работает</summary><p class="hintline">Нажми «+», чтобы добавить вкус в заказ. Здесь показаны вкусы, которых на складе 0–1 банка, и то, что уже в заказе. Любой другой вкус найдётся через поиск.</p></details>';
   const fr=(st.tab==="bar"||st.tab==="wh"||st.tab==="smena")&&!st.q&&!st.brand&&!st.f?freqList().filter(x=>items.includes(x)):[];
@@ -695,7 +707,7 @@ function render(){
       } else q='<div class="qty">'+(flag(x,"stop")?'<span class="cnt stopb">стоп</span>':'<span class="cnt'+(n?"":" zero")+'" title="штук на складе">'+(n?n+" на скл.":"нет")+'</span>')+(stockLoaded?(onBar(x)?'<button class="btn fin" type="button" data-a="fin" data-id="'+x.id+'"'+dis+' title="Банка на стойке закончилась">Закончилась</button>':'<button class="btn fin go" type="button" data-a="tobar" data-id="'+x.id+'"'+dis+'>На стойку</button>'):"")+'</div>';
       const bChanged=draft[x.id]&&draft[x.id].bar!==undefined;
       const where=st.tab==="wh"?'<button class="where'+(newBar(x)?" on":"")+(bChanged?" ch":"")+'" type="button" data-a="toggle" data-id="'+x.id+'" aria-pressed="'+newBar(x)+'"'+dis+'>'+(newBar(x)?"✓ на стойке":"нет на стойке")+'</button>':"";
-      html+='<div class="row'+((draft[x.id]&&st.tab==="wh")||(st.tab==="order"&&oq(x)>0)?" dirty":"")+'"><i class="dot d-'+x.s+'" title="'+({ok:"описание согласовано",src:"описание производителя",pend:"на согласовании",name:"по названию"}[x.s])+'"></i><div><span class="nm">'+hl(x.n)+'</span>'+(x.l?'<span class="ln">'+esc(x.l)+'</span>':"")+tags+where+'</div>'+q
+      html+='<div class="row'+((draft[x.id]&&st.tab==="wh")||(st.tab==="order"&&oq(x)>0)?" dirty":"")+'"><i class="dot d-'+x.s+'" title="'+({ok:"описание согласовано",src:"описание производителя",pend:"на согласовании",name:"по названию"}[x.s])+'"></i><div><span class="nm">'+hl(x.n)+'</span>'+(x.l?'<span class="ln">'+esc(x.l)+'</span>':"")+szTag(x)+tags+where+'</div>'+q
         +(x.d?'<div class="ds'+(x.s!=="name"?" has":"")+'">'+hl(x.d)+'</div>':"")+'</div>'});
     html+='</section>'});
   list.innerHTML=html;
@@ -946,7 +958,7 @@ let tx=null;drawer.addEventListener("touchstart",e=>{tx=e.touches[0].clientX},{p
 drawer.addEventListener("touchend",e=>{if(tx!==null&&tx-e.changedTouches[0].clientX>50)menu(false);tx=null},{passive:true});
 const go=t=>{st.tab=t;st.f="";st.q="";selId="";{const q=$("#q");if(q)q.value="";const c=$("#clear");if(c)c.hidden=true}if(t!=="stop"&&t!=="slow")st.brand="";save();render();menu(false);window.scrollTo(0,0)};
 $("#t-or").onclick=()=>go("order");
-$("#t-bar").onclick=()=>go("bar");$("#t-mix").onclick=()=>go("mixes");$("#t-log").onclick=()=>go("log");$("#t-team").onclick=()=>go("team");$("#t-str").onclick=()=>go("str");$("#t-wish").onclick=()=>go("wish");
+$("#t-bar").onclick=()=>go("bar");$("#t-mix").onclick=()=>go("mixes");$("#t-log").onclick=()=>go("log");$("#t-team").onclick=()=>go("team");$("#t-str").onclick=()=>go("str");$("#t-wish").onclick=()=>go("wish");$("#t-pack").onclick=()=>go("pack");
 $("#t-wh").onclick=()=>go("wh");
 $("#t-stop").onclick=()=>go("stop");
 $("#t-slow").onclick=()=>go("slow");
@@ -1066,6 +1078,8 @@ aiUi();
   db.collection("order").onSnapshot(s=>{const d=s.docs.find(x=>x.id==="current");const od=d&&d.data();if(!oTimer&&!(od&&lastOrderAt&&(od.at||"")<lastOrderAt)){orderQ=Object.assign({},od&&od.q);orderM=JSON.parse(JSON.stringify(od&&od.m||{}))}render()},()=>{});
   db.collection("items").onSnapshot(s=>{let ch=false;s.docs.forEach(d=>{if(byId[d.id])return;const o=Object.assign({l:"",d:"",s:"name",t:[],bar:false},d.data(),{id:d.id});DATA.push(o);byId[d.id]=o;ch=true});if(ch)render()},()=>{});
   db.collection("strength").onSnapshot(s=>{strMap={};s.docs.forEach(d=>{strMap[d.id]=d.data().s});if(st.tab==="str"&&!document.activeElement.matches("select,input"))render()},()=>{});
+  db.collection("pack").onSnapshot(s=>{packMap={};s.docs.forEach(d=>{packMap[d.id]=d.data().g});render()},()=>{});
+  db.collection("packsizes").onSnapshot(s=>{packSizes={};s.docs.forEach(d=>{packSizes[d.id]=d.data().sizes});render()},()=>{});
   db.collection("wishes").onSnapshot(s=>{wishes=s.docs.map(d=>Object.assign({id:d.id},d.data()));if(st.tab==="wish")render()},()=>{});
   db.collection("team").onSnapshot(s=>{team=s.docs.map(d=>Object.assign({id:d.id},d.data()));render()},()=>{});
   db.collection("invites").onSnapshot(s=>{invites=s.docs.map(d=>Object.assign({id:d.id},d.data()));render()},()=>{});
@@ -1130,6 +1144,30 @@ $("#list").addEventListener("click",async e=>{if(st.tab!=="wish"||!db)return;con
   if(a==="order"){const x=byId[b.dataset.wfid];if(x)orderQ[x.id]=Math.max(oq(x),1);else{const k="w"+norm(b.dataset.wb+" "+b.dataset.wf).replace(/\s+/g,"_");orderM[k]=orderM[k]||{b:b.dataset.wb,n:b.dataset.wf,q:1}}saveOrder()}
   try{if(a==="del")await Promise.all(ids.map(i=>db.doc("wishes/"+i).delete()));else await db.bulk("wishes",ids,{state:a});setStatus(a==="del"?"Удалено":"Сохранено")}
   catch(x){b.disabled=false;setStatus("Не сохранилось: "+(x&&x.message||"нет доступа"),true)}});
+var packOpen={},packQ="";
+function renderPack(){
+  if(!mixHide)return;mixHide.forEach(q=>{const e=$(q);if(e)e.hidden=true});$("#list").hidden=false;$(".ttl .stats").hidden=true;document.body.classList.remove("ai-mode","has-tray");
+  const t=norm(packQ),by={};DATA.filter(x=>!flag(x,"retired")).forEach(x=>{(by[x.b]=by[x.b]||[]).push(x)});
+  const opts=(b,v)=>'<option value="">размер?</option>'+(packSizes[b]||[]).map(g=>'<option value="'+g+'"'+(g===v?" selected":"")+'>'+g+' г</option>').join("");
+  const ctl=(b,x,v)=>(packSizes[b]||[]).length?'<select data-pf="'+x.id+'" aria-label="Размер банки '+esc(x.n)+'">'+opts(b,v)+'</select>':'<input data-pf="'+x.id+'" type="number" inputmode="numeric" min="5" max="2000" placeholder="г" value="'+(v||"")+'" style="width:84px;height:40px;font-size:16px">';
+  let h='<input id="pk-q" class="scq" placeholder="Найти бренд или вкус" autocomplete="off" value="'+esc(packQ)+'" style="margin-top:10px"><p class="hintline">Размер банки по каждому вкусу. Если у бренда один размер, он уже проставлен. Где размеров несколько, выбери нужный вкусу или сразу всем вкусам бренда или линейки. В заказе, на складе и в пересчёте он появится рядом с названием.</p>';
+  Object.keys(by).sort(abc).forEach(b=>{
+    const L=by[b].filter(x=>!t||norm(b+" "+x.n+" "+(x.l||"")).includes(t));if(!L.length)return;
+    const miss=L.filter(x=>!packMap[x.id]).length,open=!!t||packOpen[b];
+    h+='<section class="brand'+(open?" open":"")+'"><button class="bh" type="button" data-pb="'+esc(b)+'" aria-expanded="'+open+'"><h2><span class="chev" aria-hidden="true">›</span>'+esc(b)+'</h2><span>'+((packSizes[b]||[]).map(g=>g).join("/")||"размер вручную")+' г · '+(miss?miss+" без размера":"готово")+'</span></button>';
+    if(open){const lines={};L.forEach(x=>{(lines[x.l||"Основная"]=lines[x.l||"Основная"]||[]).push(x)});
+      Object.keys(lines).forEach(l=>{const g=lines[l],ids=g.map(x=>x.id).join(",");
+        h+='<div class="strl"><b>'+esc(l)+'</b><span class="muted small">'+g.length+' вкусов</span>'+((packSizes[b]||[]).length?'<label class="small">Всем в линейке <select data-pg="'+ids+'">'+opts(b,0)+'</select></label>':'')+'</div>'
+          +g.sort((p,q)=>abc(p.n,q.n)).map(x=>'<div class="strr"><span>'+esc(x.n)+'</span>'+ctl(b,x,packMap[x.id])+'</div>').join("")})}
+    h+='</section>'});
+  $("#list").innerHTML=h;
+  const q=$("#pk-q");if(q&&document.activeElement===document.body&&packQ){q.focus();q.setSelectionRange(packQ.length,packQ.length)}}
+$("#list").addEventListener("click",e=>{if(st.tab!=="pack")return;const b=e.target.closest("[data-pb]");if(b){packOpen[b.dataset.pb]=!packOpen[b.dataset.pb];render()}});
+$("#list").addEventListener("input",e=>{if(st.tab==="pack"&&e.target.id==="pk-q"){packQ=e.target.value;render();const q=$("#pk-q");q.focus();q.setSelectionRange(packQ.length,packQ.length)}});
+$("#list").addEventListener("change",async e=>{if(st.tab!=="pack"||!db)return;const f=e.target.dataset.pf,g=e.target.dataset.pg,v=Math.round(+e.target.value)||null;
+  try{if(f){await db.doc("pack/"+f).set({g:v});setStatus("Размер сохранён")}
+    else if(g&&v){const ids=g.split(",");await db.bulk("pack",ids,{g:v});setStatus("Размер линейки сохранён: "+ids.length)}}
+  catch(x){setStatus("Не сохранилось: "+(x&&x.message||"нет доступа"),true)}});
 /* Команда: приглашения и права мастеров */
 function renderTeam(){
   if(!mixHide)return;mixHide.forEach(q=>{const e=$(q);if(e)e.hidden=true});$("#list").hidden=false;$(".ttl .stats").hidden=true;document.body.classList.remove("ai-mode","has-tray");
