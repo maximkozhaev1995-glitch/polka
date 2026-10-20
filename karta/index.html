@@ -255,6 +255,7 @@ body.inbrand #kact,body.inbrand #kcards,body.inbrand .hero,body.inbrand #wiz-ope
 .lw{position:relative;display:block;width:100%}.lw .logo{width:100%}.gb{position:absolute;left:4px;bottom:4px;z-index:2;background:var(--ember);color:#fff;box-shadow:0 0 0 2px rgba(255,255,255,.9);font-size:9px;font-weight:700;line-height:1;letter-spacing:.05em;text-transform:uppercase;padding:4px 6px;border-radius:5px}.dotb{display:inline-flex;align-items:center;gap:6px;margin-top:4px;color:var(--ember);font-size:11px;font-weight:700;line-height:1;letter-spacing:.06em;text-transform:uppercase}.dotb::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--ember);box-shadow:0 0 0 3px color-mix(in srgb,var(--ember) 25%,transparent)}
 .lgm{display:inline-flex;width:34px;height:34px;flex:none}.lgm svg{width:100%;height:100%}
 .mtg{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.ktile[hidden]{display:none!important}.kact:has(#k-own[hidden]){grid-template-columns:1fr}.kact:has(#k-own[hidden]) .ktile{min-height:112px}
 </style>
 
 <div class="wrap">
@@ -264,7 +265,7 @@ body.inbrand #kact,body.inbrand #kcards,body.inbrand .hero,body.inbrand #wiz-ope
   <span class="upd">на 19.10.2026</span>
   <button type="button" class="thm" id="thm" aria-label="Тема">◐</button>
 </header>
-<div class="kact" id="kact"><button type="button" class="ktile" id="k-stat"><b id="kc-n">0</b><small>вкусов на стойке сейчас</small><i>↓</i></button><button type="button" class="ktile dark" id="k-own"><b>Владелец заведения?</b><small>такая карта для вашей кальянной</small><i>→</i></button></div>
+<div class="kact" id="kact"><button type="button" class="ktile" id="k-stat"><b id="kc-n">0</b><small>вкусов на стойке сейчас</small><i>↓</i></button><button type="button" class="ktile dark" id="k-own" hidden><b>Владелец заведения?</b><small>такая карта для вашей кальянной</small><i>→</i></button></div>
 <div class="kcards" id="kcards"><button type="button" class="kcard" id="kc-mix"><b id="kc-m">0</b><span>миксов мастера</span></button><button type="button" class="kcard" id="kc-me"><b id="kc-f">0</b><span>в избранном</span></button></div>
 
 
