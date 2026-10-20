@@ -476,7 +476,8 @@ const newBar=x=>(draft[x.id]&&draft[x.id].bar!==undefined)?draft[x.id].bar:onBar
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const norm=s=>s.toLowerCase().replace(/ё/g,"е");
 var packMap={},packSizes={};
-const multiSz=x=>!!x&&(packSizes[x.b]||[]).length>1&&!!packMap[x.id];
+const szOf=x=>packSizes[x.b+"|"+(x.l||"")]||packSizes[x.b]||[];
+const multiSz=x=>!!x&&szOf(x).length>1&&!!packMap[x.id];
 const szTag=x=>multiSz(x)?'<span class="ln">'+packMap[x.id]+" г</span>":"";
 const nm=x=>x?x.b+" "+x.n+(multiSz(x)?" · "+packMap[x.id]+" г":""):"вкус";
 function hl(text){const t=esc(text);if(!st.q)return t;const q=esc(st.q).replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
@@ -1148,16 +1149,16 @@ var packOpen={},packQ="";
 function renderPack(){
   if(!mixHide)return;mixHide.forEach(q=>{const e=$(q);if(e)e.hidden=true});$("#list").hidden=false;$(".ttl .stats").hidden=true;document.body.classList.remove("ai-mode","has-tray");
   const t=norm(packQ),by={};DATA.filter(x=>!flag(x,"retired")).forEach(x=>{(by[x.b]=by[x.b]||[]).push(x)});
-  const opts=(b,v)=>'<option value="">размер?</option>'+(packSizes[b]||[]).map(g=>'<option value="'+g+'"'+(g===v?" selected":"")+'>'+g+' г</option>').join("");
-  const ctl=(b,x,v)=>(packSizes[b]||[]).length?'<select data-pf="'+x.id+'" aria-label="Размер банки '+esc(x.n)+'">'+opts(b,v)+'</select>':'<input data-pf="'+x.id+'" type="number" inputmode="numeric" min="5" max="2000" placeholder="г" value="'+(v||"")+'" style="width:84px;height:40px;font-size:16px">';
+  const opts=(L0,v)=>'<option value="">размер?</option>'+L0.map(g=>'<option value="'+g+'"'+(g===v?" selected":"")+'>'+g+' г</option>').join("");
+  const ctl=(b,x,v)=>szOf(x).length?'<select data-pf="'+x.id+'" aria-label="Размер банки '+esc(x.n)+'">'+opts(szOf(x),v)+'</select>':'<input data-pf="'+x.id+'" type="number" inputmode="numeric" min="5" max="2000" placeholder="г" value="'+(v||"")+'" style="width:84px;height:40px;font-size:16px">';
   let h='<input id="pk-q" class="scq" placeholder="Найти бренд или вкус" autocomplete="off" value="'+esc(packQ)+'" style="margin-top:10px"><p class="hintline">Размер банки по каждому вкусу. Если у бренда один размер, он уже проставлен. Где размеров несколько, выбери нужный вкусу или сразу всем вкусам бренда или линейки. В заказе, на складе и в пересчёте он появится рядом с названием.</p>';
   Object.keys(by).sort(abc).forEach(b=>{
     const L=by[b].filter(x=>!t||norm(b+" "+x.n+" "+(x.l||"")).includes(t));if(!L.length)return;
     const miss=L.filter(x=>!packMap[x.id]).length,open=!!t||packOpen[b];
-    h+='<section class="brand'+(open?" open":"")+'"><button class="bh" type="button" data-pb="'+esc(b)+'" aria-expanded="'+open+'"><h2><span class="chev" aria-hidden="true">›</span>'+esc(b)+'</h2><span>'+((packSizes[b]||[]).map(g=>g).join("/")||"размер вручную")+' г · '+(miss?miss+" без размера":"готово")+'</span></button>';
-    if(open){const lines={};L.forEach(x=>{(lines[x.l||"Основная"]=lines[x.l||"Основная"]||[]).push(x)});
+    h+='<section class="brand'+(open?" open":"")+'"><button class="bh" type="button" data-pb="'+esc(b)+'" aria-expanded="'+open+'"><h2><span class="chev" aria-hidden="true">›</span>'+esc(b)+'</h2><span>'+([...new Set(L.flatMap(szOf))].sort((a,c)=>a-c).join("/")||"размер вручную")+' г · '+(miss?miss+" без размера":"готово")+'</span></button>';
+    if(open){const lines={};L.forEach(x=>{(lines[x.l||b]=lines[x.l||b]||[]).push(x)});
       Object.keys(lines).forEach(l=>{const g=lines[l],ids=g.map(x=>x.id).join(",");
-        h+='<div class="strl"><b>'+esc(l)+'</b><span class="muted small">'+g.length+' вкусов</span>'+((packSizes[b]||[]).length?'<label class="small">Всем в линейке <select data-pg="'+ids+'">'+opts(b,0)+'</select></label>':'')+'</div>'
+        h+='<div class="strl"><b>'+esc(l)+'</b><span class="muted small">'+g.length+' вкусов</span>'+(szOf(g[0]).length?'<label class="small">Всем в линейке <select data-pg="'+ids+'">'+opts(szOf(g[0]),0)+'</select></label>':'')+'</div>'
           +g.sort((p,q)=>abc(p.n,q.n)).map(x=>'<div class="strr"><span>'+esc(x.n)+'</span>'+ctl(b,x,packMap[x.id])+'</div>').join("")})}
     h+='</section>'});
   $("#list").innerHTML=h;
