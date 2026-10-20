@@ -46,7 +46,7 @@ async function askGemini(key: string, system: string, messages: any[], tools: an
   const body: Record<string, unknown> = {
     systemInstruction: { parts: [{ text: system }] },
     contents: toGeminiContents(messages),
-    generationConfig: { maxOutputTokens: 2500 },
+    generationConfig: { maxOutputTokens: 2500, thinkingConfig: { thinkingLevel: Deno.env.get("GEMINI_THINKING") || "minimal" } },
   };
   if (tools.length) body.tools = [{ functionDeclarations: tools.map((t) => ({ name: t.name, description: t.description, parametersJsonSchema: t.input_schema })) }];
   // Бесплатный уровень иногда перегружен (503) или молчит: пробуем модели по очереди, у каждой свой таймаут
@@ -58,6 +58,14 @@ async function askGemini(key: string, system: string, messages: any[], tools: an
         signal: AbortSignal.timeout(22000),
       });
       j = await r.json();
+      if (r.status === 400 && /thinking/i.test(j?.error?.message || "")) {
+        const plain = { ...body, generationConfig: { maxOutputTokens: 2500 } };
+        r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+          method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": key }, body: JSON.stringify(plain),
+          signal: AbortSignal.timeout(22000),
+        });
+        j = await r.json();
+      }
       if (r.ok || r.status === 429) break;
     } catch { r = null; }
   }
