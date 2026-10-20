@@ -1,3 +1,4 @@
+# © 2026 Максим Кожаев. Все права защищены. Копирование, распространение и использование без письменного согласия автора запрещены.
 # Собирает index.html из src/stoika.html: добавляет Telegram, настройки и слой базы
 import re
 cfg=open('app/config.js').read();shim=open('app/shim.js').read();s=open('src/stoika.html').read()

@@ -1,3 +1,4 @@
+// © 2026 Максим Кожаев. Все права защищены. Копирование, распространение и использование без письменного согласия автора запрещены.
 // ИИ-ассистент Полки: прокси к Claude API. Ключ лежит только здесь (секрет ANTHROPIC_API_KEY), в приложение не попадает.
 import Anthropic from "npm:@anthropic-ai/sdk";
 import { createClient } from "npm:@supabase/supabase-js@2";

@@ -1,1 +1,2 @@
+// © 2026 Максим Кожаев. Все права защищены. Копирование, распространение и использование без письменного согласия автора запрещены.
 window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3Y2d2d2ZtbGtlZ2Fxa2tzdWpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTU3MzAsImV4cCI6MjEwODA5MTczMH0.Zrf-0ohug-BE0PPbMgUkSF9TLSOu2gxMnoxEmBtZZcY"};
