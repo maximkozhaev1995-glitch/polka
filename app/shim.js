@@ -51,6 +51,12 @@
       list:()=>"mixes?select=id,title,kind,note,tags,parts,by_name,created_at,hidden,in_karta&venue_id=eq."+V(),
       toDoc:r=>{const d={title:r.title,kind:r.kind,note:r.note,tags:r.tags||[],parts:r.parts||[],by:r.by_name,at:r.created_at};if(r.hidden)d.hidden=true;if(r.in_karta)d.inKarta=true;return d},
       fromDoc:(id,o)=>{const b={venue_id:V(),title:o.title,kind:o.kind||"master",note:o.note||"",tags:o.tags||[],parts:o.parts||[],by_name:o.by||null,by_tg:session.user.tg_id,hidden:!!o.hidden,in_karta:!!o.inKarta};if(o.at)b.created_at=o.at;if(id)b.id=id;return b},conflict:"id"},
+    team:{table:"users",key:"tg_id",patch:true,
+      list:()=>"users?select=tg_id,name,role,perms&venue_id=eq."+V(),
+      toDoc:r=>({name:r.name,role:r.role,perms:r.perms||[]}),fromDoc:(id,o)=>({perms:o.perms||[]})},
+    invites:{table:"invites",key:"code",
+      list:()=>"invites?select=code,role,created_at&used_by=is.null&venue_id=eq."+V(),
+      toDoc:r=>({role:r.role,at:r.created_at}),fromDoc:(id,o)=>({code:id,venue_id:V(),role:o.role||"master"}),conflict:"code"},
     items:{table:"flavors",key:"id",
       list:()=>"flavors?select=id,brand,line,name,descr&custom=eq.true&venue_id=eq."+V(),
       toDoc:r=>({b:r.brand,l:r.line||"",n:r.name,d:r.descr||"",s:"name",t:[],bar:false}),
@@ -72,13 +78,14 @@
     doc:p=>{const [c,id]=p.split("/");return{
       set:async o=>{
         if(c==="order"){await rest("orders?on_conflict=venue_id",{method:"POST",headers:Object.assign(H(),{Prefer:"resolution=merge-duplicates"}),body:JSON.stringify({venue_id:V(),items:o,updated_at:new Date().toISOString()})});bump(c);return}
-        const m=MAP[c];await rest(m.table+"?on_conflict="+(m.conflict||m.key),{method:"POST",headers:Object.assign(H(),{Prefer:"resolution=merge-duplicates"}),body:JSON.stringify(m.fromDoc(id,o))});bump(c)},
+        const m=MAP[c];if(m.patch){await rest(m.table+"?"+m.key+"=eq."+encodeURIComponent(id)+"&venue_id=eq."+V(),{method:"PATCH",body:JSON.stringify(m.fromDoc(id,o))});bump(c);return}
+        await rest(m.table+"?on_conflict="+(m.conflict||m.key),{method:"POST",headers:Object.assign(H(),{Prefer:"resolution=merge-duplicates"}),body:JSON.stringify(m.fromDoc(id,o))});bump(c)},
       delete:async()=>{const m=MAP[c];await rest(m.table+"?"+m.key+"=eq."+encodeURIComponent(id)+"&venue_id=eq."+V(),{method:"DELETE"});bump(c)}}}
   };
   const downloads={save:async({filename,data})=>{const b=new Blob([data],{type:"application/octet-stream"}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download=filename;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(u);a.remove()},1500)}};
   window.claude={use:async k=>{
     if(k==="db"){await readyP;return db}
-    if(k==="user"){await readyP;return{canEdit:async()=>session.user.role==="manager",name:session.user.name,role:session.user.role}}
+    if(k==="user"){await readyP;window.__me=String(session.user.tg_id);return{canEdit:async()=>session.user.role==="manager",name:session.user.name,role:session.user.role,perms:session.user.perms||[]}}
     if(k==="downloads")return downloads;
     return null}};
 })();

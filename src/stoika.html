@@ -278,6 +278,7 @@ body.hasnav .chat{bottom:calc(64px + env(safe-area-inset-bottom,0px))}
     <button class="tab" id="t-bar" type="button">Стойка<small id="c-bar"></small></button>
     <button class="tab" id="t-wh" type="button">Склад<small id="c-wh"></small></button>
     <button class="tab" id="t-mix" type="button">Альбом миксов<small id="c-mix"></small></button>
+    <button class="tab" id="t-team" type="button" hidden>Команда<small id="c-team"></small></button>
     <button class="tab" id="t-log" type="button">Журнал<small></small></button>
     <button class="tab" id="t-or" type="button">Заказ<small id="c-or"></small></button>
     <button class="tab" id="t-stop" type="button">Стоп-лист<small id="c-stop"></small></button>
@@ -344,7 +345,7 @@ const inOrder=x=>stockLoaded&&(oq(x)>0||hint(x)||!!st.q);
 const flag=(x,k)=>!!(stock[x.id]&&stock[x.id][k]);
 const inTab=x=>st.q&&(st.tab==="bar"||st.tab==="wh")?true:st.tab==="smena"?(onBar(x)||wh(x)>0||!!st.q):st.tab==="inv"?stockLoaded&&(tracked(x)||!!st.q):st.tab==="bar"?onBar(x):st.tab==="order"?(stockLoaded&&!flag(x,"retired")):(st.tab==="stop"||st.tab==="slow")?stockLoaded&&(flag(x,st.tab)||!!st.q||!!st.brand):(wh(x)>0||!!draft[x.id]||!!st.q);
 const NEWUI=!!window.__demoDB;let invD={};const invEd=new Set();
-const TABS={log:"Журнал",mixes:"Альбом миксов",smena:"Смена",inv:"Пересчёт",bar:"Стойка",wh:"Склад",order:"Заказ",stop:"Стоп-лист",slow:"Неликвид",ai:"Ассистент",sup:"Поставщики"};
+const TABS={team:"Команда",log:"Журнал",mixes:"Альбом миксов",smena:"Смена",inv:"Пересчёт",bar:"Стойка",wh:"Склад",order:"Заказ",stop:"Стоп-лист",slow:"Неликвид",ai:"Ассистент",sup:"Поставщики"};
 const fOK=(x,k)=>k==="low"?wh(x)===1:k==="pend"?x.s==="pend":x.t.includes(k);
 function renderChips(){
   const all=st.tab==="stop"||st.tab==="slow";
@@ -439,9 +440,12 @@ function openWO(x){if(!isMgr||wh(x)<1)return;let q=1,why="Повреждена",
 let takeQ=1;
 function actsV2(x){const n=wh(x),ob=onBar(x),stp=flag(x,"stop"),sl=flag(x,"slow"),b=[],A=(k,t,c)=>b.push('<button type="button" class="ab'+(c?" "+c:"")+'" data-v="'+k+'" data-id="'+x.id+'">'+t+'</button>');
   if(flag(x,"retired")){if(isMgr)A("unretire","Вернуть в палитру","go");return b.length?'<div class="acts2">'+b.join("")+'</div>':""}
-  if(!isMgr){if((st.tab==="bar"||st.tab==="stop")&&!stp)A("stopon","В стоп-лист","go");return b.length?'<div class="acts2">'+b.join("")+'</div>':""}
   let top="";const tk=Math.max(1,Math.min(takeQ,n||1));
   const take=()=>{if(n>0)top='<div class="takerow"><button type="button" class="btn" data-v="tq-" data-id="'+x.id+'" aria-label="Меньше">−</button><b>'+tk+'</b><button type="button" class="btn" data-v="tq+" data-id="'+x.id+'" aria-label="Больше">+</button><button type="button" class="ab go" data-v="tobar" data-id="'+x.id+'">'+(ob?"Взять":"На стойку")+' '+tk+' со склада</button></div>';else if(!ob)top='<div class="acts2"><button type="button" class="ab go" data-v="tobar" data-id="'+x.id+'">На стойку (склад пуст)</button></div>'};
+  if(!isMgr){
+    if(st.tab==="bar"||st.tab==="stop"){if(!stp)A("stopon","В стоп-лист","go");else if(can("unstop"))A("stopoff","Вернуть из стопа","go");if(st.tab==="bar"){if(can("slow"))A(sl?"slowoff":"slowon",sl?"Снять неликвид":"В неликвид");if(ob&&can("offbar"))A("offbar","Убрать со стойки")}}
+    if(st.tab==="wh"||st.tab==="slow"){if(can("take"))take();if(can("add"))A("add","Пополнить")}
+    return top+(b.length?'<div class="acts2">'+b.join("")+'</div>':"")}
   const wrap=()=>top+(b.length?'<details class="more2"><summary>Ещё действия</summary><div class="acts2">'+b.join("")+'</div></details>':"");
   if(st.tab==="bar"){A(stp?"stopoff":"stopon",stp?"Вернуть из стопа":"В стоп-лист",stp?"go":"");A(sl?"slowoff":"slowon",sl?"Снять неликвид":"В неликвид");if(ob)A("offbar","Убрать со стойки");return '<div class="acts2">'+b.join("")+'</div>'}
   if(st.tab==="slow"){take();A("slowoff","Снять неликвид");A("add","Пополнить склад");return top+'<div class="acts2">'+b.join("")+'</div>'}
@@ -474,7 +478,7 @@ function renderV2(){
   list.innerHTML=html}
 document.addEventListener("click",e=>{if(!V2.has(st.tab))return;const lst=e.target.closest("#list");if(!lst)return;
   const v=e.target.closest("[data-v]");
-  if(v){e.stopPropagation();const k=v.dataset.v,x=byId[v.dataset.id];if(k==="low"){whLow=!whLow;render();return}if(k==="newpos"){openNew();return}if(k==="tq-"||k==="tq+"){if(x){takeQ=Math.max(1,Math.min(wh(x),takeQ+(k==="tq+"?1:-1)));render()}return}if(!x||!db||busy)return;if(!isMgr&&k!=="stopon")return;
+  if(v){e.stopPropagation();const k=v.dataset.v,x=byId[v.dataset.id];if(k==="low"){whLow=!whLow;render();return}if(k==="newpos"){openNew();return}if(k==="tq-"||k==="tq+"){if(x){takeQ=Math.max(1,Math.min(wh(x),takeQ+(k==="tq+"?1:-1)));render()}return}if(!x||!db||busy)return;if(!isMgr){const P={stopon:1,stopoff:"unstop",slowon:"slow",slowoff:"slow",offbar:"offbar",tobar:"take",add:"add"}[k];if(P!==1&&!(P&&myPerms.includes(P)))return}
     if(k==="fin")finish(x);else if(k==="tobar"){toBar(x,takeQ);takeQ=1}else if(k==="offbar")offBar(x);else if(k==="stopon")flagSet(x,"stop",true);else if(k==="stopoff")flagSet(x,"stop",false);
     else if(k==="delpos")askDelPos(x);else if(k==="tobarN")openTake(x);else if(k==="undo")askUndo(x.id);else if(k==="retire")retire(x);else if(k==="unretire")unretire(x);else if(k==="slowon")flagSet(x,"slow",true);else if(k==="slowoff")flagSet(x,"slow",false);else if(k==="add")openAdd(x);else if(k==="wo")openWO(x);return}
   if(e.target.closest("button.bh"))return;
@@ -486,12 +490,13 @@ function render(){
   const ordSel=DATA.filter(x=>stockLoaded&&oq(x)>0);
   const stopN=DATA.filter(x=>flag(x,"stop")).length,slowN=DATA.filter(x=>flag(x,"slow")).length,slowP=DATA.filter(x=>flag(x,"slow")).reduce((a,x)=>a+wh(x),0);
   $("#c-bar").textContent=barN;$("#c-wh").textContent=whPacks;$("#c-or").textContent=db?ordSel.length:"";$("#c-stop").textContent=stockLoaded?stopN:"";$("#c-slow").textContent=stockLoaded?slowN:"";
-  [["bar","t-bar"],["wh","t-wh"],["order","t-or"],["stop","t-stop"],["slow","t-slow"],["ai","t-ai"],["sup","t-sup"],["inv","t-inv"],["mixes","t-mix"],["log","t-log"]].forEach(([k,i])=>$("#"+i).setAttribute("aria-current",st.tab===k?"page":"false"));
+  [["bar","t-bar"],["wh","t-wh"],["order","t-or"],["stop","t-stop"],["slow","t-slow"],["ai","t-ai"],["sup","t-sup"],["inv","t-inv"],["mixes","t-mix"],["log","t-log"],["team","t-team"]].forEach(([k,i])=>$("#"+i).setAttribute("aria-current",st.tab===k?"page":"false"));
   $("#sect").textContent=TABS[st.tab]||"Стойка";
-  if(!isMgr&&(st.tab==="inv"||st.tab==="sup"||st.tab==="log"))st.tab="bar";
-  $("#t-log").hidden=!isMgr;$("#t-inv").hidden=!isMgr;$("#t-sup").hidden=!isMgr;$("#who").textContent=isMgr?"Управляющий":"Мастер";
+  if(!isMgr&&(st.tab==="inv"||st.tab==="sup"||st.tab==="log"||st.tab==="team"))st.tab="bar";
+  $("#t-team").hidden=!isMgr;$("#t-log").hidden=!isMgr;$("#t-inv").hidden=!isMgr;$("#t-sup").hidden=!isMgr;$("#who").textContent=isMgr?"Управляющий":"Мастер";
   if(st.tab==="mixes"){renderMixes();return}
   if(st.tab==="log"){renderJournal();return}
+  if(st.tab==="team"){renderTeam();return}
   if(V2.has(st.tab)){renderV2();retireWatch();return}
   const isAi=st.tab==="ai",isSup=st.tab==="sup";
   ["#list",".search","#brands","#filters",".legend"].forEach(q=>{$(q).hidden=isAi||isSup});$("#chat").hidden=!isAi;if(!isAi&&!isSup)$("#brands").hidden=!(st.tab==="stop"||st.tab==="slow");$(".ttl .stats").hidden=isAi||isSup;if(st.tab==="inv"||st.tab==="order")$("#filters").hidden=true;$("#sup").hidden=!isSup;$("#omanual").hidden=st.tab!=="order";
@@ -798,7 +803,7 @@ let tx=null;drawer.addEventListener("touchstart",e=>{tx=e.touches[0].clientX},{p
 drawer.addEventListener("touchend",e=>{if(tx!==null&&tx-e.changedTouches[0].clientX>50)menu(false);tx=null},{passive:true});
 const go=t=>{st.tab=t;st.f="";st.q="";selId="";{const q=$("#q");if(q)q.value="";const c=$("#clear");if(c)c.hidden=true}if(t!=="stop"&&t!=="slow")st.brand="";save();render();menu(false);window.scrollTo(0,0)};
 $("#t-or").onclick=()=>go("order");
-$("#t-bar").onclick=()=>go("bar");$("#t-mix").onclick=()=>go("mixes");$("#t-log").onclick=()=>go("log");
+$("#t-bar").onclick=()=>go("bar");$("#t-mix").onclick=()=>go("mixes");$("#t-log").onclick=()=>go("log");$("#t-team").onclick=()=>go("team");
 $("#t-wh").onclick=()=>go("wh");
 $("#t-stop").onclick=()=>go("stop");
 $("#t-slow").onclick=()=>go("slow");
@@ -909,13 +914,15 @@ aiUi();
 (async()=>{
   try{db=await window.claude?.use?.("db")}catch(e){db=null}
   if(window.__demoDB){try{isMgr=localStorage.getItem("demo-role")!=="mst"}catch(e){isMgr=true}const rs=$("#role-sw");rs.hidden=false;rs.onclick=()=>{isMgr=!isMgr;try{localStorage.setItem("demo-role",isMgr?"mgr":"mst")}catch(e){}render();menu(false)}}
-  else{try{const u=await window.claude?.use?.("user");isMgr=!!(u&&await u.canEdit())}catch(e){isMgr=false}}
+  else{try{const u=await window.claude?.use?.("user");isMgr=!!(u&&await u.canEdit());myPerms=(u&&u.perms)||[]}catch(e){isMgr=false}}
   render();
   if(!db){setStatus("Склад недоступен: открой страницу, войдя в claude.ai",true);render();return}
   setStatus("Склад подключён");
   db.collection("stock").onSnapshot(s=>{for(const k in stock)delete stock[k];s.docs.forEach(d=>{stock[d.id]=d.data()});stockLoaded=true;render()},e=>setStatus("Склад не загрузился: "+e.message,true));
   db.collection("order").onSnapshot(s=>{const d=s.docs.find(x=>x.id==="current");const od=d&&d.data();if(!oTimer&&!(od&&lastOrderAt&&(od.at||"")<lastOrderAt)){orderQ=Object.assign({},od&&od.q);orderM=JSON.parse(JSON.stringify(od&&od.m||{}))}render()},()=>{});
   db.collection("items").onSnapshot(s=>{let ch=false;s.docs.forEach(d=>{if(byId[d.id])return;const o=Object.assign({l:"",d:"",s:"name",t:[],bar:false},d.data(),{id:d.id});DATA.push(o);byId[d.id]=o;ch=true});if(ch)render()},()=>{});
+  db.collection("team").onSnapshot(s=>{team=s.docs.map(d=>Object.assign({id:d.id},d.data()));render()},()=>{});
+  db.collection("invites").onSnapshot(s=>{invites=s.docs.map(d=>Object.assign({id:d.id},d.data()));render()},()=>{});
   db.collection("mixes").onSnapshot(s=>{mixes=s.docs.map(d=>Object.assign({id:d.id},d.data()));seedMixes();render()},()=>{});
   db.collection("suppliers").onSnapshot(s=>{sups=s.docs.map(d=>Object.assign({id:d.id},d.data()));render()},()=>{});
   db.collection("moves").orderBy("at","desc").limit(400).onSnapshot(s=>{moves=s.docs.map(d=>Object.assign({id:d.id},d.data()));render()},()=>{});
@@ -935,6 +942,26 @@ function openNew(){if(!isMgr)return;const brands=[...new Set(DATA.map(x=>x.b))].
   ["np-b","np-n","np-d","np-q"].forEach(i=>$("#"+i).oninput=chk);
   $("#np-ok").onclick=async()=>{chk();if($("#np-ok").disabled||!db)return;const id="c"+Date.now().toString(36);const ex=brands.find(b=>norm(b)===norm(f.b));const o={b:ex||f.b,l:"",n:f.n,d:f.d,s:"name",t:[],bar:false};closeDlg();
     try{await db.doc("items/"+id).set(o);await db.doc("stock/"+id).set({wh:f.q});if(f.q>0)await db.collection("moves").add({item:id,qty:f.q,left:f.q,prev:{wh:0,bar:null},at:new Date().toISOString(),kind:"in"});setStatus("Позиция добавлена")}catch(e){setStatus("Не добавилось: "+(e&&e.message||"нет доступа"),true)}}}
+
+/* Команда: приглашения и права мастеров */
+function renderTeam(){
+  if(!mixHide)return;mixHide.forEach(q=>{const e=$(q);if(e)e.hidden=true});$("#list").hidden=false;$(".ttl .stats").hidden=true;document.body.classList.remove("ai-mode","has-tray");
+  const me=window.__me||"";
+  let h='<button type="button" class="btn go wide" id="tm-inv" style="margin-top:10px">＋ Пригласить мастера</button>';
+  if(invites.length)h+='<h3 class="sub">Ждут входа</h3>'+invites.map(i=>'<div class="hfeed"><span><b>'+esc(i.id)+'</b><br><small>код работает до первого входа</small></span><button type="button" class="btn sm" data-ivdel="'+esc(i.id)+'">Отозвать</button></div>').join("");
+  h+='<h3 class="sub">Команда</h3>'+(team.length?team.map(u=>{const mgr=u.role==="manager",pm=u.perms||[];
+    return '<article class="mcard"><div class="mtop"><span class="mk'+(mgr?' k-week':'')+'">'+(mgr?"Управляющий":"Мастер")+'</span></div><h3>'+esc(u.name)+'</h3>'
+     +(mgr?'<p class="muted small">Видит и меняет всё.</p>':'<p class="muted small">Всегда может добавить вкус в стоп-лист. Остальное по правам.</p><details class="more2"><summary>Права</summary><div class="qchips">'+PERMS.map(([k,t])=>'<button type="button" class="chip" data-pm="'+k+'" data-tid="'+esc(u.id)+'" aria-pressed="'+pm.includes(k)+'">'+t+'</button>').join("")+'</div><div class="acts2" style="margin-top:8px"><button type="button" class="ab bad" data-tdel="'+esc(u.id)+'">Убрать из команды</button></div></details>')
+     +'</article>'}).join(""):'<p class="hintline">Пока только вы.</p>');
+  $("#list").innerHTML=h}
+$("#list").addEventListener("click",e=>{if(st.tab!=="team"||!db)return;
+  if(e.target.closest("#tm-inv")){const A="abcdefghjkmnpqrstuvwxyz23456789";const a=new Uint32Array(8);crypto.getRandomValues(a);const code=[...a].map(n=>A[n%A.length]).join("");
+    db.doc("invites/"+code).set({role:"master"}).then(()=>{const txt="Открой в Telegram бота @PolkaHookahbot, нажми кнопку «Полка» и введи код: "+code;
+      showDlg('<h2>Код для мастера</h2><p class="muted small">Отправь мастеру. Код работает один раз.</p><p style="font:800 26px/1.1 var(--display);letter-spacing:.06em;text-align:center;margin:12px 0">'+code+'</p><textarea readonly rows="3" id="iv-t" style="width:100%">'+esc(txt)+'</textarea><div class="dlg-btns"><button class="btn go" type="button" id="iv-c">Скопировать</button><button class="btn" type="button" id="dlg-back">Закрыть</button></div>');
+      $("#dlg-back").onclick=closeDlg;$("#iv-c").onclick=async()=>{try{await navigator.clipboard.writeText(txt);$("#iv-c").textContent="Скопировано"}catch(x){$("#iv-t").select()}}}).catch(x=>setStatus("Код не создался: "+(x&&x.message||"нет доступа"),true));return}
+  const dv=e.target.closest("[data-ivdel]");if(dv){db.doc("invites/"+dv.dataset.ivdel).delete();return}
+  const pm=e.target.closest("[data-pm]");if(pm){const u=team.find(x=>x.id===pm.dataset.tid);if(!u)return;const p=new Set(u.perms||[]);const k=pm.dataset.pm;if(p.has(k))p.delete(k);else p.add(k);db.doc("team/"+u.id).set({name:u.name,role:u.role,perms:[...p]});return}
+  const td=e.target.closest("[data-tdel]");if(td){const u=team.find(x=>x.id===td.dataset.tdel);if(!u)return;showDlg('<h2>Убрать из команды?</h2><p><b>'+esc(u.name)+'</b> потеряет доступ. Вернуть можно новым приглашением.</p><div class="dlg-btns"><button class="btn danger" type="button" id="td-ok">Убрать</button><button class="btn" type="button" id="dlg-back">Отмена</button></div>');$("#dlg-back").onclick=closeDlg;$("#td-ok").onclick=async()=>{closeDlg();await db.doc("team/"+u.id).delete()}}});
 /* Журнал: все движения склада, в том числе списания */
 var logF="all";
 function renderJournal(){
@@ -950,7 +977,7 @@ function renderJournal(){
 $("#list").addEventListener("click",e=>{if(st.tab!=="log")return;const b=e.target.closest("[data-lf]");if(b){logF=b.dataset.lf;render()}});
 /* Миксы: мастера выставляют свои, управляющий отмечает микс недели и сезонные */
 var mixes=[];var MK={week:"Микс недели",season:"Сезонное предложение",master:"Микс мастера"};
-var mixSeeded=false;var MTAGS=["ягодный","цитрусовый","фруктовый","десертный","свежий","пряный","цветочный","напиточный","кислый","сладкий","крепкий","лёгкий"];var mixTag="";
+var myPerms=[];var can=p=>isMgr||myPerms.includes(p);var team=[],invites=[];var PERMS=[["take","Брать со склада на стойку"],["add","Пополнять склад"],["offbar","Убирать со стойки"],["slow","Отмечать неликвид"],["unstop","Возвращать вкус из стопа"]];var mixSeeded=false;var MTAGS=["ягодный","цитрусовый","фруктовый","десертный","свежий","пряный","цветочный","напиточный","кислый","сладкий","крепкий","лёгкий"];var mixTag="";
 function seedMixes(){if(!NEWUI||mixSeeded)return;mixSeeded=true;if(mixes.length)return;const pick=(...n)=>n.map(t=>DATA.find(x=>(x.b+" "+x.n).toLowerCase().includes(t))).filter(Boolean);
   const mk=(title,kind,note,items,pcts,by,tags)=>{const it=items;if(!it.length)return;db.collection("mixes").add({title,kind,note,by,tags:tags||[],at:new Date().toISOString(),parts:it.map((x,i)=>({id:x.id,pct:pcts[i]}))})};
   mk("Тёплый вечер","week","Мягкий десерт с ягодной кислинкой. Берём, когда хочется уюта.",pick("pan raas","red cherry","kesar"),[50,30,20],"Управляющий",["пряный","ягодный","сладкий"]);
@@ -1077,7 +1104,7 @@ if(true){
   const dayName=d=>{const t=new Date(),y=new Date(Date.now()-864e5),same=(a,b)=>a.toDateString()===b.toDateString();return same(d,t)?"Сегодня":same(d,y)?"Вчера":d.toLocaleDateString("ru-RU",{day:"numeric",month:"long"})};
   let feedOpen=false;
   const drawHome=()=>{
-    HIDE.forEach(q=>{const e=$(q);if(e)e.hidden=true});$("#list").hidden=false;$(".ttl .stats").hidden=true;document.body.classList.remove("ai-mode","has-tray");$("#sect").textContent="Главная";$("#t-log").hidden=!isMgr;$("#t-inv").hidden=!isMgr;$("#t-sup").hidden=!isMgr;$("#who").textContent=isMgr?"Управляющий":"Мастер";
+    HIDE.forEach(q=>{const e=$(q);if(e)e.hidden=true});$("#list").hidden=false;$(".ttl .stats").hidden=true;document.body.classList.remove("ai-mode","has-tray");$("#sect").textContent="Главная";$("#t-team").hidden=!isMgr;$("#t-log").hidden=!isMgr;$("#t-inv").hidden=!isMgr;$("#t-sup").hidden=!isMgr;$("#who").textContent=isMgr?"Управляющий":"Мастер";
     const barN=DATA.filter(onBar).length,low=DATA.filter(x=>tracked(x)&&wh(x)<=1&&wh(x)>0).length,ord=DATA.filter(x=>oq(x)>0).length,stp=DATA.filter(x=>flag(x,"stop")).length,slw=DATA.filter(x=>flag(x,"slow")).length,gn=DATA.filter(gone).length;
     const card=(n,l,t,x)=>'<button type="button" class="hcard" data-go="'+t+'"'+(x?' data-x="'+x+'"':"")+'><b>'+n+'</b><span>'+l+'</span></button>';
     const att=(n,l,t)=>n?'<button type="button" class="hrow" data-go="'+t+'"><span>'+l+'</span><b>'+n+'</b><i>›</i></button>':"";
