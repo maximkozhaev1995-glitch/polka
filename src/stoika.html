@@ -532,7 +532,7 @@ function render(){
   const list=$("#list");
   renderTray();renderLog();
   if(!items.length&&(st.tab==="stop"||st.tab==="slow")&&stockLoaded&&!st.q){list.innerHTML='<div class="empty"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></svg><p>'+(st.tab==="stop"?"В стоп-листе пока пусто.":"В неликвиде пока пусто.")+'<br>Выбери бренд выше или найди вкус через поиск.</p><button class="btn go" type="button" id="e-find">'+(st.tab==="stop"?"+ Найти вкус для стоп-листа":"+ Найти вкус")+'</button></div>';$("#e-find").onclick=()=>{$("#q").focus()};return}
-  if(!items.length){list.innerHTML='<p class="empty">'+(st.tab!=="bar"&&!stockLoaded?"Склад загружается или недоступен в этом окне.":"Ничего не нашлось. Попробуй другое слово или сбрось фильтры.")+'</p>';return}
+  if(!items.length&&!(st.tab==="inv"&&stockLoaded)){list.innerHTML='<p class="empty">'+(st.tab!=="bar"&&!stockLoaded?"Склад загружается или недоступен в этом окне.":"Ничего не нашлось. Попробуй другое слово или сбрось фильтры.")+'</p>';return}
   let html="";
   if(st.tab==="stop")html+='<details class="hint"><summary>Как это работает</summary><p class="hintline">Вкусы, которые сейчас нельзя предложить гостю, даже если на складе есть остаток. Выбери бренд, чтобы увидеть весь его ассортимент, или найди вкус через поиск, затем нажми «В стоп».</p></details>';
   if(st.tab==="slow")html+='<details class="hint"><summary>Как это работает</summary><p class="hintline">Вкусы, которые лежат без движения. Выбери бренд или найди вкус через поиск и нажми «В неликвид», чтобы не забыть пустить его в миксы или не заказывать.</p></details>';
@@ -574,6 +574,7 @@ function render(){
       html+='<div class="row'+((draft[x.id]&&st.tab==="wh")||(st.tab==="order"&&oq(x)>0)?" dirty":"")+'"><i class="dot d-'+x.s+'" title="'+({ok:"описание согласовано",src:"описание производителя",pend:"на согласовании",name:"по названию"}[x.s])+'"></i><div><span class="nm">'+hl(x.n)+'</span>'+(x.l?'<span class="ln">'+esc(x.l)+'</span>':"")+szTag(x)+tags+where+'</div>'+q
         +(x.d?'<div class="ds'+(x.s!=="name"?" has":"")+'">'+hl(x.d)+'</div>':"")+'</div>'});
     html+='</section>'});
+  if(st.tab==="inv"&&!items.length)html+='<p class="empty">'+(st.q?"Ничего не нашлось. Попробуй другое слово.":"В этой группе нет позиций с остатком. Выбери другую группу или найди вкус через поиск.")+'</p>';
   list.innerHTML=html;
 }
 function renderLog(){
