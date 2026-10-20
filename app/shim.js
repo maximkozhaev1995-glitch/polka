@@ -83,9 +83,43 @@
       delete:async()=>{const m=MAP[c];await rest(m.table+"?"+m.key+"=eq."+encodeURIComponent(id)+"&venue_id=eq."+V(),{method:"DELETE"});bump(c)}}}
   };
   const downloads={save:async({filename,data})=>{const b=new Blob([data],{type:"application/octet-stream"}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download=filename;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(u);a.remove()},1500)}};
+  // ИИ-ассистент: цикл «запрос → инструменты → ответ» выполняется здесь, ключ ИИ остаётся на сервере
+  const imgToBlock=file=>new Promise((res,rej)=>{const fr=new FileReader();fr.onerror=()=>rej({code:"image_rejected"});fr.onload=()=>{const im=new Image();im.onerror=()=>rej({code:"image_rejected"});im.onload=()=>{const k=Math.min(1,1568/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);res({type:"image",source:{type:"base64",media_type:"image/jpeg",data:c.toDataURL("image/jpeg",.85).split(",")[1]}})};im.src=fr.result};fr.readAsDataURL(file)});
+  async function callAI(body,signal){
+    const r=await fetch(CFG.url+"/functions/v1/ai",{method:"POST",signal,headers:H(),body:JSON.stringify(body)});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok){const e=j.error||(r.status===401?"session_expired":"server_error");throw {code:e==="not_configured"?"not_configured":e,text:""}}
+    return j}
+  const sample=async(turns,opts)=>{
+    opts=opts||{};
+    const first=turns[0]&&turns[0].role==="user"?turns[0].content:"";
+    let msgs=turns.slice(2).map(t=>({role:t.role,content:t.content}));
+    if(opts.images&&opts.images.length){
+      const blocks=await Promise.all(opts.images.map(imgToBlock));
+      const last=msgs[msgs.length-1];last.content=[...blocks,{type:"text",text:String(last.content)}]}
+    const tools=(opts.tools||[]).map(t=>({name:t.name,description:t.description,input_schema:t.inputSchema}));
+    const byName=Object.fromEntries((opts.tools||[]).map(t=>[t.name,t]));
+    let text="";
+    for(let step=0;step<8;step++){
+      if(opts.signal&&opts.signal.aborted)throw {code:"cancelled",text};
+      let r;try{r=await callAI({system:first,messages:msgs,tools},opts.signal)}catch(e){if(e&&e.name==="AbortError")throw {code:"cancelled",text};throw Object.assign({text},e)}
+      msgs.push({role:"assistant",content:r.content});
+      const part=r.content.filter(b=>b.type==="text").map(b=>b.text).join("");
+      if(part){text+=(text?"\n":"")+part;if(opts.onText)opts.onText({text})}
+      if(r.stop_reason==="refusal")throw {code:"refused",text};
+      if(r.stop_reason!=="tool_use")break;
+      const results=[];
+      for(const b of r.content.filter(b=>b.type==="tool_use")){
+        let content,err=false;
+        try{const t=byName[b.name];if(!t)throw new Error("нет такого инструмента");content=JSON.stringify(await t.execute(b.input||{}))}catch(e){err=true;content=String(e&&e.message||e)}
+        results.push({type:"tool_result",tool_use_id:b.id,content,is_error:err||undefined})}
+      msgs.push({role:"user",content:results})}
+    return {text:text||"Готово."}};
+  sample.limits=async()=>({images:{mediaTypes:["image/jpeg","image/png","image/webp"]}});
   window.claude={use:async k=>{
     if(k==="db"){await readyP;return db}
     if(k==="user"){await readyP;window.__me=String(session.user.tg_id);return{canEdit:async()=>session.user.role==="manager",name:session.user.name,role:session.user.role,perms:session.user.perms||[]}}
     if(k==="downloads")return downloads;
+    if(k==="sample"){await readyP;return sample}
     return null}};
 })();

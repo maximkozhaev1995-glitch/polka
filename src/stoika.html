@@ -877,7 +877,7 @@ function aiScroll(force){const l=$("#ai-log");if(force||l.scrollHeight-l.scrollT
 function fitChat(){requestAnimationFrame(()=>{const r=document.documentElement.style;r.setProperty("--chat-top",Math.max(0,$(".bar").getBoundingClientRect().bottom)+"px");const t=$("#tray");r.setProperty("--trayh",(t&&!t.hidden?t.offsetHeight:0)+"px");aiScroll(false)})}
 window.addEventListener("resize",()=>{if(st.tab==="ai")fitChat()});
 if(window.visualViewport)visualViewport.addEventListener("resize",()=>{if(st.tab==="ai")fitChat()});
-function aiErr(c){return({not_granted:"Ассистент не разрешён для этой страницы.",sampling_disabled:"Claude недоступен для этого аккаунта.",rate_limited:"Слишком много запросов. Попробуй чуть позже.",session_expired:"Нужно заново войти в claude.ai.",image_rejected:"Фото не подошло, попробуй другое.",refused:"Claude не стал отвечать на это. Сформулируй иначе.",prompt_too_large:"Слишком длинный разговор. Нажми «Новый разговор»."})[c]||"Не получилось. Попробуй ещё раз."}
+function aiErr(c){return({not_granted:"Ассистент не разрешён для этой страницы.",sampling_disabled:"Claude недоступен для этого аккаунта.",not_configured:"Ассистент ещё не подключён. Скажи управляющему.",rate_limited:"Слишком много запросов. Попробуй чуть позже.",session_expired:"Нужно заново войти в claude.ai.",image_rejected:"Фото не подошло, попробуй другое.",refused:"Claude не стал отвечать на это. Сформулируй иначе.",prompt_too_large:"Слишком длинный разговор. Нажми «Новый разговор»."})[c]||"Не получилось. Попробуй ещё раз."}
 async function aiSend(){
   const box=$("#ai-in"),t=box.value.trim();if((!t&&!aiImgs.length)||aiCtl||!sampleFn)return;
   const imgs=aiImgs;aiImgs=[];renderAiImgs();
@@ -890,7 +890,7 @@ async function aiSend(){
     out.classList.remove("wait");out.textContent=r.text;aiTurns.push({role:"assistant",content:r.text});
   }catch(e){out.classList.remove("wait");
     if(e&&e.code==="cancelled"){out.textContent=(e.text||"")+(e.text?"\n":"")+"(остановлено)"}
-    else{out.textContent=(e&&e.code!=="refused"&&e.text?e.text+"\n":"")+aiErr(e&&e.code);out.classList.add("err");if(e&&(e.code==="not_granted"||e.code==="sampling_disabled"))sampleFn=null}
+    else{out.textContent=(e&&e.code!=="refused"&&e.text?e.text+"\n":"")+aiErr(e&&e.code);out.classList.add("err");if(e&&(e.code==="not_granted"||e.code==="sampling_disabled"||e.code==="not_configured"))sampleFn=null}
     aiTurns.pop();
   }
   aiCtl=null;aiUi();render();
