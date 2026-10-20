@@ -949,13 +949,14 @@ let sampleFn=null,aiTurns=[],aiCtl=null,aiImgs=[],aiCanImg=false;
 const AI_RULES=`Ты — второй мастер за стойкой кальянной, правая рука кальянного мастера Максима (10 лет опыта). Говоришь как опытный коллега: по-русски, коротко, уверенно, по делу, без канцелярита и без markdown (списки — строками с «— », проценты пиши цифрами).
 
 ЧТО У ТЕБЯ ЕСТЬ
-— Ниже в этом сообщении — полный список того, что СЕЙЧАС на стойке (бренд, вкус, описание, банок на складе, стоп). Для миксов и советов гостю используй его сразу, без лишних вызовов функций.
+— Ниже в этом сообщении — полный список того, что СЕЙЧАС на стойке (бренд, вкус, описание, штук на складе, стоп). Для миксов и советов гостю используй его сразу, без лишних вызовов функций.
 — find_items — поиск по всему каталогу (стойка и склад), когда нужен склад, заказ или вкус не со стойки.
 — stage_stock — черновик списания/пополнения (минус — списание). Записывается только после того, как Максим нажмёт внизу «Списание / пополнение» → «Подтвердить»; напоминай об этом одной строкой.
 — set_order — количество к заказу; set_flag — стоп / неликвид.
 
 МИКСЫ — главное
-— Собирай как мастер: база (40–60%), поддержка (20–35%), акцент (10–20%); при желании холодок 5–10%. Всегда давай проценты, сумма 100.
+— Собирай как мастер. Доли только по десяткам, сумма 100: три вкуса 50/30/20, четыре вкуса 40/30/20/10. Холодок только Darkside Supernova и не больше 10%. Всегда давай проценты. Не пиши про колесо вкусов.
+— Вкусы с пометкой slow (неликвид) предлагай чаще, но не говори гостю и мастеру, что это неликвид.
 — Предлагай 2–3 готовых варианта, у каждого короткое название и 1–2 фразы: что впереди, что фоном, для кого.
 — Бери только то, что на стойке и не в стопе. Остаток на складе для микса не важен — не упоминай его.
 — Описания из каталога — факт о вкусе, но не цитируй их в кавычках; пиши своими словами. Общие знания о сочетаниях и характере известных вкусов (малина, лимон, мята, кола и т. п.) использовать можно. Чего не знаешь о конкретном табаке — не выдумывай, просто не бери его.
@@ -965,27 +966,27 @@ const AI_RULES=`Ты — второй мастер за стойкой каль�
 — Не задавай лишних вопросов: если запрос понятен, сразу давай результат. Уточняй только когда без ответа нельзя (например, «списал Cola» — а Cola у трёх брендов).
 
 СКЛАД
-— «Перенёс за стойку», «списал» = минус одна банка на каждую. «Пришло», «на склад» = плюс. «Поставил на стойку» без слова «со склада» — только toBar.
+— «Перенёс за стойку», «списал» = минус одна штука на каждую. «Пришло», «на склад» = плюс. «Поставил на стойку» без слова «со склада» — только toBar.
 — Неоднозначно или не найдено — ничего не меняй, переспроси одним вопросом. Новые вкусы в каталог добавляет Claude в основном чате.
-— Фото банок: прочитай бренд и вкус на каждой этикетке, посчитай банки, найди через find_items, коротко перечисли, что увидел, и подготовь пополнение. Неразборчивое не угадывай.`;
+— Фото штук: прочитай бренд и вкус на каждой этикетке, посчитай штуки, найди через find_items, коротко перечисли, что увидел, и подготовь пополнение. Неразборчивое не угадывай.`;
 function aiItem(x){const r={id:x.id,brand:x.b,name:x.n,wh:wh(x),onBar:onBar(x)};
   if(x.l)r.line=x.l;if(x.d)r.desc=x.d;if(x.t.length)r.tags=x.t;if(flag(x,"stop"))r.stop=true;if(flag(x,"slow"))r.slow=true;if(oq(x))r.order=oq(x);
   if(draft[x.id]){r.pending=draft[x.id].d||0;if(draft[x.id].bar!==undefined)r.pendingBar=draft[x.id].bar}return r}
 const AI_TOOLS=[
- {name:"find_items",description:"Ищет вкусы в каталоге. query — слова из бренда, линейки, названия или описания (можно пусто). where: all (по умолчанию), bar — на стойке, wh — есть на складе, low — на складе 0–1 банка, stop, slow, order, pending — в черновике. Возвращает до limit (по умолчанию 30, максимум 80) вкусов: id, brand, line, name, desc, tags, wh (банок на складе), onBar, stop, slow, order, pending, и total — сколько всего нашлось.",
+ {name:"find_items",description:"Ищет вкусы в каталоге. query — слова из бренда, линейки, названия или описания (можно пусто). where: all (по умолчанию), bar — на стойке, wh — есть на складе, low — на складе 0–1 шт., stop, slow, order, pending — в черновике. Возвращает до limit (по умолчанию 30, максимум 80) вкусов: id, brand, line, name, desc, tags, wh (банок на складе), onBar, stop, slow, order, pending, и total — сколько всего нашлось.",
   inputSchema:{type:"object",properties:{query:{type:"string"},where:{type:"string",enum:["all","bar","wh","low","stop","slow","order","pending"]},brand:{type:"string"},limit:{type:"number"}}},
   execute(i){const w=String(i.where||"all"),words=norm(String(i.query||"")).split(/\s+/).filter(Boolean),br=norm(String(i.brand||"")),lim=Math.min(80,Math.max(1,Number(i.limit)||30));
    const ok=x=>w==="bar"?onBar(x):w==="wh"?wh(x)>0:w==="low"?tracked(x)&&wh(x)<=1:w==="stop"?flag(x,"stop"):w==="slow"?flag(x,"slow"):w==="order"?oq(x)>0:w==="pending"?!!draft[x.id]:true;
    const r=DATA.filter(x=>ok(x)&&(!br||norm(x.b).includes(br))&&words.every(t=>norm([x.b,x.l,x.n,x.d,x.t.join(" ")].join(" ")).includes(t)));
    return{total:r.length,items:r.slice(0,lim).map(aiItem)}}},
- {name:"stage_stock",description:"Готовит изменение склада в черновике (без записи). id — из find_items. delta — на сколько банок изменить склад (минус — списание). toBar — true поставить на стойку, false убрать со стойки (необязательно). Возвращает новое состояние вкуса.",
+ {name:"stage_stock",description:"Готовит изменение склада в черновике (без записи). id — из find_items. delta — на сколько штук изменить склад (минус — списание). toBar — true поставить на стойку, false убрать со стойки (необязательно). Возвращает новое состояние вкуса.",
   inputSchema:{type:"object",properties:{id:{type:"string"},delta:{type:"number"},toBar:{type:"boolean"}},required:["id"]},
   execute(i){const x=byId[String(i.id)];if(!x)throw new Error("нет такого id, сначала find_items");
    const d=Math.round(Number(i.delta)||0),cur=draft[x.id]||{d:0};
    if(wh(x)+(cur.d||0)+d<0)throw new Error("на складе всего "+(wh(x)+(cur.d||0))+" шт., столько списать нельзя");
    cur.d=(cur.d||0)+d;if(typeof i.toBar==="boolean"){if(i.toBar===onBar(x))delete cur.bar;else cur.bar=i.toBar}
    draft[x.id]=cur;saveDraft();render();return aiItem(x)}},
- {name:"set_order",description:"Ставит, сколько банок вкуса заказать (qty, 0 — убрать из заказа). Сохраняется сразу.",
+ {name:"set_order",description:"Ставит, сколько штук вкуса заказать (qty, 0 — убрать из заказа). Сохраняется сразу.",
   inputSchema:{type:"object",properties:{id:{type:"string"},qty:{type:"number"}},required:["id","qty"]},
   execute(i){const x=byId[String(i.id)];if(!x)throw new Error("нет такого id");const k=Math.max(0,Math.round(Number(i.qty)||0));
    if(k)orderQ[x.id]=k;else delete orderQ[x.id];saveOrder();render();return aiItem(x)}},
@@ -1005,7 +1006,7 @@ function aiScroll(force){const l=$("#ai-log");if(force||l.scrollHeight-l.scrollT
 function fitChat(){requestAnimationFrame(()=>{const r=document.documentElement.style;r.setProperty("--chat-top",Math.max(0,$(".bar").getBoundingClientRect().bottom)+"px");const t=$("#tray");r.setProperty("--trayh",(t&&!t.hidden?t.offsetHeight:0)+"px");aiScroll(false)})}
 window.addEventListener("resize",()=>{if(st.tab==="ai")fitChat()});
 if(window.visualViewport)visualViewport.addEventListener("resize",()=>{if(st.tab==="ai")fitChat()});
-function aiErr(c){return({not_granted:"Ассистент не разрешён для этой страницы.",sampling_disabled:"Claude недоступен для этого аккаунта.",not_configured:"Ассистент ещё не подключён. Скажи управляющему.",rate_limited:"Слишком много запросов. Попробуй чуть позже.",session_expired:"Нужно заново войти в claude.ai.",image_rejected:"Фото не подошло, попробуй другое.",refused:"Claude не стал отвечать на это. Сформулируй иначе.",prompt_too_large:"Слишком длинный разговор. Нажми «Новый разговор»."})[c]||"Не получилось. Попробуй ещё раз."}
+function aiErr(c){return({not_granted:"Ассистент не разрешён для этой страницы.",sampling_disabled:"Claude недоступен для этого аккаунта.",not_configured:"Ассистент ещё не подключён. Скажи управляющему.",busy:"ИИ сейчас перегружен. Повтори вопрос через минуту.",rate_limited:"Слишком много запросов. Попробуй чуть позже.",session_expired:"Нужно заново войти в claude.ai.",image_rejected:"Фото не подошло, попробуй другое.",refused:"Claude не стал отвечать на это. Сформулируй иначе.",prompt_too_large:"Слишком длинный разговор. Нажми «Новый разговор»."})[c]||"Не получилось. Попробуй ещё раз."}
 async function aiSend(){
   const box=$("#ai-in"),t=box.value.trim();if((!t&&!aiImgs.length)||aiCtl||!sampleFn)return;
   const imgs=aiImgs;aiImgs=[];renderAiImgs();
