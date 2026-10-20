@@ -819,7 +819,7 @@ function renderWiz(){const hd='<div class="sh-h"><i class="handle"></i><button c
   const n=$("#wz-n");if(n)n.onclick=()=>{wz.step++;renderWiz()};const bk=$("#wz-b");if(bk)bk.onclick=()=>{wz.step--;renderWiz()};
   const r=$("#wz-r");if(r){r.oninput=()=>{wz.str=+r.value;$("#wz-v").textContent=r.value;$("#wz-w").textContent="/10 · "+WORD10(wz.str);r.classList.remove("off");$("#wz-any").setAttribute("aria-pressed","false")};$("#wz-any").onclick=()=>{wz.str=0;renderWiz()}}
   const mx=$("#wz-mix");if(mx)mx.onclick=()=>{genSel=wz.sel.slice();genStr=wz.str;genCold=false;genMix=makeMix();renderGen()};
-  const one=$("#wz-one");if(one)one.onclick=()=>{pickSel=wz.sel.slice();const keep=genStr;genStr=wz.str;const res=pickItems();genStr=keep;renderPick(res)};}
+  const one=$("#wz-one");if(one)one.onclick=()=>{if(wz.str===10){genSel=wz.sel.slice();genStr=10;genCold=false;genMix={meme:true};renderGen();return}pickSel=wz.sel.slice();const keep=genStr;genStr=wz.str;const res=pickItems();genStr=keep;renderPick(res)};}
 $("#wiz-open").onclick=openWiz;
 // Тема: вечером тёмная сама; кнопка переключает
 (function(){let t=null;try{t=localStorage.getItem("karta-theme")}catch(e){}const hr=new Date().getHours();if(!t&&(hr>=18||hr<6))t="dark";if(t)document.documentElement.dataset.theme=t;
