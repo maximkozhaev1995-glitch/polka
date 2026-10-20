@@ -980,16 +980,17 @@ $("#list").addEventListener("change",async e=>{if(st.tab!=="str"||!db)return;con
 var wishes=[];
 function renderWishes(){
   if(!mixHide)return;mixHide.forEach(q=>{const e=$(q);if(e)e.hidden=true});$("#list").hidden=false;$(".ttl .stats").hidden=true;document.body.classList.remove("ai-mode","has-tray");
-  const g={};wishes.forEach(w=>{const k=norm(w.b)+"|"+norm(w.f),o=g[k]=g[k]||{b:w.b,f:w.f,n:0,ids:[],st:{},cat:!!w.fid};o.n++;o.ids.push(w.id);o.st[w.state]=1;if(w.fid)o.cat=true});
+  const g={};wishes.forEach(w=>{const k=norm(w.b)+"|"+norm(w.f),o=g[k]=g[k]||{b:w.b,f:w.f,n:0,ids:[],st:{},cat:!!w.fid};o.n++;o.ids.push(w.id);o.st[w.state]=1;if(w.fid){o.cat=true;o.fid=w.fid}});
   const L=Object.values(g).map(o=>Object.assign(o,{s:o.st.new?"new":o.st.order?"order":"done"})).sort((a,b)=>b.n-a.n);
   const row=o=>'<div class="hfeed"><b style="min-width:28px;font-size:18px">'+o.n+'</b><span style="flex:1;min-width:0">'+esc(o.b+" "+o.f)+'<br><small>'+(o.cat?"есть в каталоге":"нет в каталоге")+'</small></span>'
-    +(o.s==="new"?'<button type="button" class="btn sm go" data-wa="order" data-wids="'+o.ids.join(",")+'">В заказ</button><button type="button" class="btn sm" data-wa="del" data-wids="'+o.ids.join(",")+'" aria-label="Удалить">✕</button>'
+    +(o.s==="new"?'<button type="button" class="btn sm go" data-wa="order" data-wids="'+o.ids.join(",")+'" data-wfid="'+esc(o.fid||"")+'" data-wb="'+esc(o.b)+'" data-wf="'+esc(o.f)+'">В заказ</button><button type="button" class="btn sm" data-wa="del" data-wids="'+o.ids.join(",")+'" aria-label="Удалить">✕</button>'
      :o.s==="order"?'<button type="button" class="btn sm go" data-wa="done" data-wids="'+o.ids.join(",")+'">Пришло</button><button type="button" class="btn sm" data-wa="new" data-wids="'+o.ids.join(",")+'">Вернуть</button>'
      :'<button type="button" class="btn sm" data-wa="new" data-wids="'+o.ids.join(",")+'">Вернуть</button><button type="button" class="btn sm" data-wa="del" data-wids="'+o.ids.join(",")+'" aria-label="Удалить">✕</button>')+'</div>';
   const part=(t,s,hint)=>{const a=L.filter(o=>o.s===s);return a.length?'<h3 class="sub">'+t+' · '+a.length+'</h3>'+a.map(row).join(""):(hint?'<h3 class="sub">'+t+'</h3><p class="hintline">'+hint+'</p>':"")};
-  $("#list").innerHTML='<p class="hintline" style="margin-top:10px">Что гости просят в карте. Число слева это число гостей. «В заказ» отмечает вкус для следующего заказа.</p>'
+  $("#list").innerHTML='<p class="hintline" style="margin-top:10px">Что гости просят в карте. Число слева это число гостей. «В заказ» кладёт вкус в список заказа (1 шт.), число потом можно поменять.</p>'
     +part("Просят сейчас","new","Пока пожеланий нет. Они появятся, когда гости нажмут «Хочу, чтобы был» в карте.")+part("В заказе","order")+part("Добавлено","done")}
 $("#list").addEventListener("click",async e=>{if(st.tab!=="wish"||!db)return;const b=e.target.closest("[data-wa]");if(!b)return;const ids=b.dataset.wids.split(","),a=b.dataset.wa;b.disabled=true;
+  if(a==="order"){const x=byId[b.dataset.wfid];if(x)orderQ[x.id]=Math.max(oq(x),1);else{const k="w"+norm(b.dataset.wb+" "+b.dataset.wf).replace(/\s+/g,"_");orderM[k]=orderM[k]||{b:b.dataset.wb,n:b.dataset.wf,q:1}}saveOrder()}
   try{if(a==="del")await Promise.all(ids.map(i=>db.doc("wishes/"+i).delete()));else await db.bulk("wishes",ids,{state:a});setStatus(a==="del"?"Удалено":"Сохранено")}
   catch(x){b.disabled=false;setStatus("Не сохранилось: "+(x&&x.message||"нет доступа"),true)}});
 /* Команда: приглашения и права мастеров */
