@@ -1,20 +1,19 @@
 бренд,линейка,размеры_г,в_каталоге
-Afzal,,50,да
-Afzal,,40,нет (уточнить)
-Black Burn,,25/100/200,да
+Afzal,,40,да
+Black Burn,,100/200,да
 Bliss,,100/250,да
-Chabacco,,200,да
+Chabacco,,40/200,да
 Bonche,,30/60/120,да
 Darkside,Core,30/100/250,да
 Darkside,Sabotage,30/250,да
-Darkside,Shot,25/30/120,да
-Darkside,Xperience,25/30/120/250,да
+Darkside,Shot,30/120,да
+Darkside,Xperience,30/120/250,да
 Deus,,30/100/250,да
 Deus,Perfume,40/200,да
 Dogma,100%,20/80/160,да
 Dogma,100% Неароматика,20/80/160,да
-Duft,,20/25/80/200,да
-Duft,New,25/200,да
+Duft,,20/80/200,да
+Duft,New,200,да
 Duft,Strong,40/200,да
 Duft,X The Hatters,40/200,да
 Hook,,200,нет
@@ -22,48 +21,47 @@ Adalya,,50/200,нет
 Antagonist,,100,нет
 Baccar,,20/50/100,нет
 Banger,,200,нет
-Blansh,,25/100/200,нет
-Blur Mos,,25/200,нет
-Jent,,25/100/200,да
-Jent,Cigar,не указан,да
+Blansh,,100/200,нет
+Blur Mos,,200,нет
+Jent,,100/200,да
+Jent,Cigar,20/100/200,да
 Kraken,Cigar,80,да
 Kraken,Medium,30/100/250,да
 Kraken,Strong,30/100/250,да
-MatchLine,,25/200,нет
-Morpheus,,25/100,да
-Mr.Brew,,25/200,нет
+MatchLine,,200,нет
+Morpheus,,100,да
+Mr.Brew,,200,нет
 Muassel,4/10,40/200,нет
 Muassel,6/10,40/200,нет
 Muassel,8/10,40/200,нет
-Musthave,,25/125,да
-Nuar,,25/100/200,нет
+Musthave,,125,да
+Nuar,,100/200,нет
 NUR,Horeca,200,нет
 Original Virginia,,100,да
 Original Virginia,Strong,100,да
 Oven,,100/200,нет
-Overdose,,25/100/200,да
-Palitra,,25/40/80/200,да
-Palitra,Heavy,25/200,да
-Ready,,25/100,нет
-Sapphire Crown,,25/100/200,да
-Satyr,,25/100/200,да
-Satyr,Brilliant Collection,25/100,да
+Overdose,,100/200,да
+Palitra,,40/80/200,да
+Palitra,Heavy,200,да
+Ready,,100,нет
+Sapphire Crown,,100/200,да
+Satyr,,100/200,да
+Satyr,Brilliant Collection,100,да
 Satyr,Hookah Cigar,100,да
 Satyr,Old School,100,да
 Satyr,Platinum Collection,100,да
-Sebero,,100/200,да
-Sebero,Arctic Mix,25/100,да
-Sebero,Гид,25/100,да
+Sebero,Arctic Mix,100,да
+Sebero,Гид,100,да
 Sebero,Black,100/200,да
 Smoke Angels,,100,да
 Snobless,,100/200,да
 Spectrum,Classic,100/200,да
 Starline,,250,да
-Take,,25/100/200,нет
+Take,,100/200,нет
 Tangiers,,100/250,да
 Wave,,200,да
 World Tobacco Original,Brazil,20/250,да
-World Tobacco Original,"Caribbean blend; Cuba; Dominicana; Italy; Mexico; Nicaragua; Perique; Tanzania; Ultimate Organic",не указан,да
+World Tobacco Original,Caribbean blend; Cuba; Dominicana; Italy; Mexico; Nicaragua; Perique; Tanzania; Ultimate Organic,20/250,да
 База,Покрепче,250,да
 База,Полегче,250,да
 Кобра,,20/80/200,да
@@ -71,7 +69,7 @@ World Tobacco Original,"Caribbean blend; Cuba; Dominicana; Italy; Mexico; Nicara
 Наш,Cigar,30/120,да
 Наш,White,40/100/200,да
 Сарма,,40/100/200,да
-Сарма,360 (крепкая),25/120/200,да
+Сарма,360 (крепкая),120/200,да
 Сарма,360 Легкая,200,да
 Северный,,200,да
 Северный,Professional,200,да
@@ -85,3 +83,7 @@ Trofimoff's,Cigarro,125,да
 Trofimoff's,Тубус,125,да
 Trofimoff's,Terror,125,да
 Trofimoff's,No Aroma,125,да
+Mattpear,,50/250,да
+Sebero,Classic,100/200,да
+Nuggle,,вручную,да
+Iskra,,вручную,да
