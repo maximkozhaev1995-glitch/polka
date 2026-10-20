@@ -51,6 +51,9 @@
       list:()=>"mixes?select=id,title,kind,note,tags,parts,by_name,created_at,hidden,in_karta&venue_id=eq."+V(),
       toDoc:r=>{const d={title:r.title,kind:r.kind,note:r.note,tags:r.tags||[],parts:r.parts||[],by:r.by_name,at:r.created_at};if(r.hidden)d.hidden=true;if(r.in_karta)d.inKarta=true;return d},
       fromDoc:(id,o)=>{const b={venue_id:V(),title:o.title,kind:o.kind||"master",note:o.note||"",tags:o.tags||[],parts:o.parts||[],by_name:o.by||null,by_tg:session.user.tg_id,hidden:!!o.hidden,in_karta:!!o.inKarta};if(o.at)b.created_at=o.at;if(id)b.id=id;return b},conflict:"id"},
+    strength:{table:"flavors",key:"id",patch:true,
+      list:()=>"flavors?select=id,strength&strength=not.is.null&limit=1000",
+      toDoc:r=>({s:r.strength}),fromDoc:(id,o)=>({strength:o.s})},
     team:{table:"users",key:"tg_id",patch:true,
       list:()=>"users?select=tg_id,name,role,perms&venue_id=eq."+V(),
       toDoc:r=>({name:r.name,role:r.role,perms:r.perms||[]}),fromDoc:(id,o)=>({perms:o.perms||[]})},
@@ -72,13 +75,14 @@
   const bump=c=>setTimeout(()=>refresh(c),150);
   const listen=c=>({onSnapshot:(f,err)=>{const s=subs[c]||(subs[c]={fns:[],errs:[],hash:""});s.fns.push(f);if(err)s.errs.push(err);refresh(c)}});
   const db={
+    bulk:async(c,ids,o)=>{const m=MAP[c];await rest(m.table+"?"+m.key+"=in.("+ids.map(encodeURIComponent).join(",")+")",{method:"PATCH",body:JSON.stringify(m.fromDoc(null,o))});setTimeout(()=>refresh(c),150)},
     collection:c=>Object.assign(listen(c),{
       orderBy:()=>({limit:()=>listen(c)}),
       add:async o=>{const m=MAP[c];const r=await rest(m.table,{method:"POST",headers:Object.assign(H(),{Prefer:"return=representation"}),body:JSON.stringify(m.fromDoc(null,o))});bump(c);return{id:String(r[0][m.key])}}}),
     doc:p=>{const [c,id]=p.split("/");return{
       set:async o=>{
         if(c==="order"){await rest("orders?on_conflict=venue_id",{method:"POST",headers:Object.assign(H(),{Prefer:"resolution=merge-duplicates"}),body:JSON.stringify({venue_id:V(),items:o,updated_at:new Date().toISOString()})});bump(c);return}
-        const m=MAP[c];if(m.patch){await rest(m.table+"?"+m.key+"=eq."+encodeURIComponent(id)+"&venue_id=eq."+V(),{method:"PATCH",body:JSON.stringify(m.fromDoc(id,o))});bump(c);return}
+        const m=MAP[c];if(m.patch){await rest(m.table+"?"+m.key+"=eq."+encodeURIComponent(id)+(m.table==="flavors"?"":"&venue_id=eq."+V()),{method:"PATCH",body:JSON.stringify(m.fromDoc(id,o))});bump(c);return}
         await rest(m.table+"?on_conflict="+(m.conflict||m.key),{method:"POST",headers:Object.assign(H(),{Prefer:"resolution=merge-duplicates"}),body:JSON.stringify(m.fromDoc(id,o))});bump(c)},
       delete:async()=>{const m=MAP[c];await rest(m.table+"?"+m.key+"=eq."+encodeURIComponent(id)+"&venue_id=eq."+V(),{method:"DELETE"});bump(c)}}}
   };

@@ -244,6 +244,7 @@ body.hasnav .chat{bottom:calc(64px + env(safe-area-inset-bottom,0px))}
 .lgm{width:44px;height:44px;margin-bottom:6px}.lgm svg{width:100%;height:100%}
 .hdet{border:1px solid var(--line);border-radius:16px;background:var(--surface);padding:0 14px;margin:18px 0 0}.hdet summary{cursor:pointer;font:700 17px/1.2 var(--display,inherit);padding:14px 0;list-style:none;display:flex;justify-content:space-between}.hdet summary::-webkit-details-marker{display:none}.hdet summary::after{content:"+";color:var(--muted);font-size:20px}.hdet[open] summary::after{content:"−"}.hdet[open]{padding-bottom:12px}
 .mtags{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 6px}.mtags .chip{min-height:30px;font-size:12px;padding:3px 10px}
+.strl{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding:10px 0;border-bottom:1px solid var(--line);margin-top:6px}.strl select,.strr select{height:40px;font:inherit;font-size:16px;border:1px solid var(--line-ctl);border-radius:8px;background:var(--surface);color:var(--fg);padding:0 8px}.strl label{margin-left:auto}.strr{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--line);font-size:14px}
 </style>
 
 <div class="wrap">
@@ -280,6 +281,7 @@ body.hasnav .chat{bottom:calc(64px + env(safe-area-inset-bottom,0px))}
     <button class="tab" id="t-wh" type="button">Склад<small id="c-wh"></small></button>
     <button class="tab" id="t-mix" type="button">Альбом миксов<small id="c-mix"></small></button>
     <button class="tab" id="t-team" type="button" hidden>Команда<small id="c-team"></small></button>
+    <button class="tab" id="t-str" type="button" hidden>Крепость<small></small></button>
     <button class="tab" id="t-log" type="button">Журнал<small></small></button>
     <button class="tab" id="t-or" type="button">Заказ<small id="c-or"></small></button>
     <button class="tab" id="t-stop" type="button">Стоп-лист<small id="c-stop"></small></button>
@@ -351,6 +353,9 @@ body.hasnav .chat{bottom:calc(64px + env(safe-area-inset-bottom,0px))}
       list:()=>"mixes?select=id,title,kind,note,tags,parts,by_name,created_at,hidden,in_karta&venue_id=eq."+V(),
       toDoc:r=>{const d={title:r.title,kind:r.kind,note:r.note,tags:r.tags||[],parts:r.parts||[],by:r.by_name,at:r.created_at};if(r.hidden)d.hidden=true;if(r.in_karta)d.inKarta=true;return d},
       fromDoc:(id,o)=>{const b={venue_id:V(),title:o.title,kind:o.kind||"master",note:o.note||"",tags:o.tags||[],parts:o.parts||[],by_name:o.by||null,by_tg:session.user.tg_id,hidden:!!o.hidden,in_karta:!!o.inKarta};if(o.at)b.created_at=o.at;if(id)b.id=id;return b},conflict:"id"},
+    strength:{table:"flavors",key:"id",patch:true,
+      list:()=>"flavors?select=id,strength&strength=not.is.null&limit=1000",
+      toDoc:r=>({s:r.strength}),fromDoc:(id,o)=>({strength:o.s})},
     team:{table:"users",key:"tg_id",patch:true,
       list:()=>"users?select=tg_id,name,role,perms&venue_id=eq."+V(),
       toDoc:r=>({name:r.name,role:r.role,perms:r.perms||[]}),fromDoc:(id,o)=>({perms:o.perms||[]})},
@@ -372,13 +377,14 @@ body.hasnav .chat{bottom:calc(64px + env(safe-area-inset-bottom,0px))}
   const bump=c=>setTimeout(()=>refresh(c),150);
   const listen=c=>({onSnapshot:(f,err)=>{const s=subs[c]||(subs[c]={fns:[],errs:[],hash:""});s.fns.push(f);if(err)s.errs.push(err);refresh(c)}});
   const db={
+    bulk:async(c,ids,o)=>{const m=MAP[c];await rest(m.table+"?"+m.key+"=in.("+ids.map(encodeURIComponent).join(",")+")",{method:"PATCH",body:JSON.stringify(m.fromDoc(null,o))});setTimeout(()=>refresh(c),150)},
     collection:c=>Object.assign(listen(c),{
       orderBy:()=>({limit:()=>listen(c)}),
       add:async o=>{const m=MAP[c];const r=await rest(m.table,{method:"POST",headers:Object.assign(H(),{Prefer:"return=representation"}),body:JSON.stringify(m.fromDoc(null,o))});bump(c);return{id:String(r[0][m.key])}}}),
     doc:p=>{const [c,id]=p.split("/");return{
       set:async o=>{
         if(c==="order"){await rest("orders?on_conflict=venue_id",{method:"POST",headers:Object.assign(H(),{Prefer:"resolution=merge-duplicates"}),body:JSON.stringify({venue_id:V(),items:o,updated_at:new Date().toISOString()})});bump(c);return}
-        const m=MAP[c];if(m.patch){await rest(m.table+"?"+m.key+"=eq."+encodeURIComponent(id)+"&venue_id=eq."+V(),{method:"PATCH",body:JSON.stringify(m.fromDoc(id,o))});bump(c);return}
+        const m=MAP[c];if(m.patch){await rest(m.table+"?"+m.key+"=eq."+encodeURIComponent(id)+(m.table==="flavors"?"":"&venue_id=eq."+V()),{method:"PATCH",body:JSON.stringify(m.fromDoc(id,o))});bump(c);return}
         await rest(m.table+"?on_conflict="+(m.conflict||m.key),{method:"POST",headers:Object.assign(H(),{Prefer:"resolution=merge-duplicates"}),body:JSON.stringify(m.fromDoc(id,o))});bump(c)},
       delete:async()=>{const m=MAP[c];await rest(m.table+"?"+m.key+"=eq."+encodeURIComponent(id)+"&venue_id=eq."+V(),{method:"DELETE"});bump(c)}}}
   };
@@ -473,7 +479,7 @@ const inOrder=x=>stockLoaded&&(oq(x)>0||hint(x)||!!st.q);
 const flag=(x,k)=>!!(stock[x.id]&&stock[x.id][k]);
 const inTab=x=>st.q&&(st.tab==="bar"||st.tab==="wh")?true:st.tab==="smena"?(onBar(x)||wh(x)>0||!!st.q):st.tab==="inv"?stockLoaded&&(tracked(x)||!!st.q):st.tab==="bar"?onBar(x):st.tab==="order"?(stockLoaded&&!flag(x,"retired")):(st.tab==="stop"||st.tab==="slow")?stockLoaded&&(flag(x,st.tab)||!!st.q||!!st.brand):(wh(x)>0||!!draft[x.id]||!!st.q);
 const NEWUI=!!window.__demoDB;let invD={};const invEd=new Set();
-const TABS={team:"Команда",log:"Журнал",mixes:"Альбом миксов",smena:"Смена",inv:"Пересчёт",bar:"Стойка",wh:"Склад",order:"Заказ",stop:"Стоп-лист",slow:"Неликвид",ai:"Ассистент",sup:"Поставщики"};
+const TABS={str:"Крепость табаков",team:"Команда",log:"Журнал",mixes:"Альбом миксов",smena:"Смена",inv:"Пересчёт",bar:"Стойка",wh:"Склад",order:"Заказ",stop:"Стоп-лист",slow:"Неликвид",ai:"Ассистент",sup:"Поставщики"};
 const fOK=(x,k)=>k==="low"?wh(x)===1:k==="pend"?x.s==="pend":x.t.includes(k);
 function renderChips(){
   const all=st.tab==="stop"||st.tab==="slow";
@@ -618,13 +624,14 @@ function render(){
   const ordSel=DATA.filter(x=>stockLoaded&&oq(x)>0);
   const stopN=DATA.filter(x=>flag(x,"stop")).length,slowN=DATA.filter(x=>flag(x,"slow")).length,slowP=DATA.filter(x=>flag(x,"slow")).reduce((a,x)=>a+wh(x),0);
   $("#c-bar").textContent=barN;$("#c-wh").textContent=whPacks;$("#c-or").textContent=db?ordSel.length:"";$("#c-stop").textContent=stockLoaded?stopN:"";$("#c-slow").textContent=stockLoaded?slowN:"";
-  [["bar","t-bar"],["wh","t-wh"],["order","t-or"],["stop","t-stop"],["slow","t-slow"],["ai","t-ai"],["sup","t-sup"],["inv","t-inv"],["mixes","t-mix"],["log","t-log"],["team","t-team"]].forEach(([k,i])=>$("#"+i).setAttribute("aria-current",st.tab===k?"page":"false"));
+  [["bar","t-bar"],["wh","t-wh"],["order","t-or"],["stop","t-stop"],["slow","t-slow"],["ai","t-ai"],["sup","t-sup"],["inv","t-inv"],["mixes","t-mix"],["log","t-log"],["team","t-team"],["str","t-str"]].forEach(([k,i])=>$("#"+i).setAttribute("aria-current",st.tab===k?"page":"false"));
   $("#sect").textContent=TABS[st.tab]||"Стойка";
-  if(!isMgr&&(st.tab==="inv"||st.tab==="sup"||st.tab==="log"||st.tab==="team"))st.tab="bar";
-  $("#t-team").hidden=!isMgr;$("#t-log").hidden=!isMgr;$("#t-inv").hidden=!isMgr;$("#t-sup").hidden=!isMgr;$("#who").textContent=isMgr?"Управляющий":"Мастер";
+  if(!isMgr&&(st.tab==="inv"||st.tab==="sup"||st.tab==="log"||st.tab==="team"||st.tab==="str"))st.tab="bar";
+  $("#t-str").hidden=!isMgr;$("#t-team").hidden=!isMgr;$("#t-log").hidden=!isMgr;$("#t-inv").hidden=!isMgr;$("#t-sup").hidden=!isMgr;$("#who").textContent=isMgr?"Управляющий":"Мастер";
   if(st.tab==="mixes"){renderMixes();return}
   if(st.tab==="log"){renderJournal();return}
   if(st.tab==="team"){renderTeam();return}
+  if(st.tab==="str"){renderStrength();return}
   if(V2.has(st.tab)){renderV2();retireWatch();return}
   const isAi=st.tab==="ai",isSup=st.tab==="sup";
   ["#list",".search","#brands","#filters",".legend"].forEach(q=>{$(q).hidden=isAi||isSup});$("#chat").hidden=!isAi;if(!isAi&&!isSup)$("#brands").hidden=!(st.tab==="stop"||st.tab==="slow");$(".ttl .stats").hidden=isAi||isSup;if(st.tab==="inv"||st.tab==="order")$("#filters").hidden=true;$("#sup").hidden=!isSup;$("#omanual").hidden=st.tab!=="order";
@@ -931,7 +938,7 @@ let tx=null;drawer.addEventListener("touchstart",e=>{tx=e.touches[0].clientX},{p
 drawer.addEventListener("touchend",e=>{if(tx!==null&&tx-e.changedTouches[0].clientX>50)menu(false);tx=null},{passive:true});
 const go=t=>{st.tab=t;st.f="";st.q="";selId="";{const q=$("#q");if(q)q.value="";const c=$("#clear");if(c)c.hidden=true}if(t!=="stop"&&t!=="slow")st.brand="";save();render();menu(false);window.scrollTo(0,0)};
 $("#t-or").onclick=()=>go("order");
-$("#t-bar").onclick=()=>go("bar");$("#t-mix").onclick=()=>go("mixes");$("#t-log").onclick=()=>go("log");$("#t-team").onclick=()=>go("team");
+$("#t-bar").onclick=()=>go("bar");$("#t-mix").onclick=()=>go("mixes");$("#t-log").onclick=()=>go("log");$("#t-team").onclick=()=>go("team");$("#t-str").onclick=()=>go("str");
 $("#t-wh").onclick=()=>go("wh");
 $("#t-stop").onclick=()=>go("stop");
 $("#t-slow").onclick=()=>go("slow");
@@ -1050,6 +1057,7 @@ aiUi();
   db.collection("stock").onSnapshot(s=>{for(const k in stock)delete stock[k];s.docs.forEach(d=>{stock[d.id]=d.data()});stockLoaded=true;render()},e=>setStatus("Склад не загрузился: "+e.message,true));
   db.collection("order").onSnapshot(s=>{const d=s.docs.find(x=>x.id==="current");const od=d&&d.data();if(!oTimer&&!(od&&lastOrderAt&&(od.at||"")<lastOrderAt)){orderQ=Object.assign({},od&&od.q);orderM=JSON.parse(JSON.stringify(od&&od.m||{}))}render()},()=>{});
   db.collection("items").onSnapshot(s=>{let ch=false;s.docs.forEach(d=>{if(byId[d.id])return;const o=Object.assign({l:"",d:"",s:"name",t:[],bar:false},d.data(),{id:d.id});DATA.push(o);byId[d.id]=o;ch=true});if(ch)render()},()=>{});
+  db.collection("strength").onSnapshot(s=>{strMap={};s.docs.forEach(d=>{strMap[d.id]=d.data().s});if(st.tab==="str"&&!document.activeElement.matches("select,input"))render()},()=>{});
   db.collection("team").onSnapshot(s=>{team=s.docs.map(d=>Object.assign({id:d.id},d.data()));render()},()=>{});
   db.collection("invites").onSnapshot(s=>{invites=s.docs.map(d=>Object.assign({id:d.id},d.data()));render()},()=>{});
   db.collection("mixes").onSnapshot(s=>{mixes=s.docs.map(d=>Object.assign({id:d.id},d.data()));seedMixes();render()},()=>{});
@@ -1072,6 +1080,31 @@ function openNew(){if(!isMgr)return;const brands=[...new Set(DATA.map(x=>x.b))].
   $("#np-ok").onclick=async()=>{chk();if($("#np-ok").disabled||!db)return;const id="c"+Date.now().toString(36);const ex=brands.find(b=>norm(b)===norm(f.b));const o={b:ex||f.b,l:"",n:f.n,d:f.d,s:"name",t:[],bar:false};closeDlg();
     try{await db.doc("items/"+id).set(o);await db.doc("stock/"+id).set({wh:f.q});if(f.q>0)await db.collection("moves").add({item:id,qty:f.q,left:f.q,prev:{wh:0,bar:null},at:new Date().toISOString(),kind:"in"});setStatus("Позиция добавлена")}catch(e){setStatus("Не добавилось: "+(e&&e.message||"нет доступа"),true)}}}
 
+
+/* Крепость табаков: правка по бренду, линейке и вкусу */
+var strMap={},strOpen={},strQ="";
+function renderStrength(){
+  if(!mixHide)return;mixHide.forEach(q=>{const e=$(q);if(e)e.hidden=true});$("#list").hidden=false;$(".ttl .stats").hidden=true;document.body.classList.remove("ai-mode","has-tray");
+  const opts=v=>Array.from({length:10},(_,i)=>'<option value="'+(i+1)+'"'+((i+1)===v?" selected":"")+'>'+(i+1)+'</option>').join("");
+  const t=norm(strQ),by={};DATA.filter(x=>!flag(x,"retired")).forEach(x=>{(by[x.b]=by[x.b]||[]).push(x)});
+  let h='<input id="str-q" class="scq" placeholder="Найти бренд или вкус" autocomplete="off" value="'+esc(strQ)+'" style="margin-top:10px"><p class="hintline">Крепость по шкале 1–10. Меняйте число у вкуса, либо «Всем в линейке» сразу у группы. Изменения сразу попадают в карту и в подбор миксов.</p>';
+  Object.keys(by).sort(abc).forEach(b=>{
+    const L=by[b].filter(x=>!t||norm(b+" "+x.n+" "+(x.l||"")).includes(t));if(!L.length)return;
+    const vals=L.map(x=>strMap[x.id]||0).filter(Boolean),mn=Math.min(...vals),mx=Math.max(...vals),open=!!t||strOpen[b];
+    h+='<section class="brand'+(open?" open":"")+'"><button class="bh" type="button" data-sb="'+esc(b)+'" aria-expanded="'+open+'"><h2><span class="chev" aria-hidden="true">›</span>'+esc(b)+'</h2><span>'+(vals.length?(mn===mx?mn:mn+"–"+mx):"—")+' · '+L.length+'</span></button>';
+    if(open){const lines={};L.forEach(x=>{(lines[x.l||"Основная"]=lines[x.l||"Основная"]||[]).push(x)});
+      Object.keys(lines).forEach(l=>{const g=lines[l],ids=g.map(x=>x.id).join(","),cur=Math.round(g.reduce((a,x)=>a+(strMap[x.id]||5),0)/g.length);
+        h+='<div class="strl"><b>'+esc(l)+'</b><span class="muted small">'+g.length+' вкусов</span><label class="small">Всем в линейке <select data-gs="'+ids+'">'+opts(cur)+'</select></label></div>'
+          +g.sort((p,q)=>abc(p.n,q.n)).map(x=>'<div class="strr"><span>'+esc(x.n)+'</span><select data-fs="'+x.id+'" aria-label="Крепость '+esc(x.n)+'">'+opts(strMap[x.id]||5)+'</select></div>').join("")})}
+    h+='</section>'});
+  $("#list").innerHTML=h;
+  const q=$("#str-q");if(q&&document.activeElement===document.body&&strQ){q.focus();q.setSelectionRange(strQ.length,strQ.length)}}
+$("#list").addEventListener("click",e=>{if(st.tab!=="str")return;const b=e.target.closest("[data-sb]");if(b){strOpen[b.dataset.sb]=!strOpen[b.dataset.sb];render()}});
+$("#list").addEventListener("input",e=>{if(st.tab==="str"&&e.target.id==="str-q"){strQ=e.target.value;render();const q=$("#str-q");q.focus();q.setSelectionRange(strQ.length,strQ.length)}});
+$("#list").addEventListener("change",async e=>{if(st.tab!=="str"||!db)return;const f=e.target.dataset.fs,g=e.target.dataset.gs,v=+e.target.value;
+  try{if(f){await db.doc("strength/"+f).set({s:v});setStatus("Крепость сохранена")}
+    else if(g){const ids=g.split(",");await db.bulk("strength",ids,{s:v});setStatus("Крепость линейки сохранена: "+ids.length)}}
+  catch(x){setStatus("Не сохранилось: "+(x&&x.message||"нет доступа"),true)}});
 /* Команда: приглашения и права мастеров */
 function renderTeam(){
   if(!mixHide)return;mixHide.forEach(q=>{const e=$(q);if(e)e.hidden=true});$("#list").hidden=false;$(".ttl .stats").hidden=true;document.body.classList.remove("ai-mode","has-tray");
@@ -1233,7 +1266,7 @@ if(true){
   const dayName=d=>{const t=new Date(),y=new Date(Date.now()-864e5),same=(a,b)=>a.toDateString()===b.toDateString();return same(d,t)?"Сегодня":same(d,y)?"Вчера":d.toLocaleDateString("ru-RU",{day:"numeric",month:"long"})};
   let feedOpen=false;
   const drawHome=()=>{
-    HIDE.forEach(q=>{const e=$(q);if(e)e.hidden=true});$("#list").hidden=false;$(".ttl .stats").hidden=true;document.body.classList.remove("ai-mode","has-tray");$("#sect").textContent="Главная";$("#t-team").hidden=!isMgr;$("#t-log").hidden=!isMgr;$("#t-inv").hidden=!isMgr;$("#t-sup").hidden=!isMgr;$("#who").textContent=isMgr?"Управляющий":"Мастер";
+    HIDE.forEach(q=>{const e=$(q);if(e)e.hidden=true});$("#list").hidden=false;$(".ttl .stats").hidden=true;document.body.classList.remove("ai-mode","has-tray");$("#sect").textContent="Главная";$("#t-str").hidden=!isMgr;$("#t-team").hidden=!isMgr;$("#t-log").hidden=!isMgr;$("#t-inv").hidden=!isMgr;$("#t-sup").hidden=!isMgr;$("#who").textContent=isMgr?"Управляющий":"Мастер";
     const barN=DATA.filter(onBar).length,low=DATA.filter(x=>tracked(x)&&wh(x)<=1&&wh(x)>0).length,ord=DATA.filter(x=>oq(x)>0).length,stp=DATA.filter(x=>flag(x,"stop")).length,slw=DATA.filter(x=>flag(x,"slow")).length,gn=DATA.filter(gone).length;
     const card=(n,l,t,x)=>'<button type="button" class="hcard" data-go="'+t+'"'+(x?' data-x="'+x+'"':"")+'><b>'+n+'</b><span>'+l+'</span></button>';
     const att=(n,l,t)=>n?'<button type="button" class="hrow" data-go="'+t+'"><span>'+l+'</span><b>'+n+'</b><i>›</i></button>':"";
