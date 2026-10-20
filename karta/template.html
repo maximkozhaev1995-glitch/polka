@@ -782,7 +782,7 @@ function render(){
       +(st.q||st.mood?'<p class="note">'+(st.mood?catName[st.mood]+": ":"")+'найдено '+g.length+'</p>':"")
       +(g.length?g.map(x=>itemRow(x,true)).join(""):'<p class="empty">По этому фильтру у бренда ничего нет.</p>');
   } else if(st.q||st.mood||st.str){
-    if(!items.length){$("#list").innerHTML='<p class="empty">Такого вкуса сейчас нет. Спроси мастера, он подберёт похожий.</p>';return}
+    if(!items.length){$("#list").innerHTML=(window.wishBlock?wishBlock(true):'<p class="empty">Такого вкуса сейчас нет.</p>');window.bindWish&&bindWish();return}
     const tg=st.q&&simTarget();h='<p class="note">'+(tg?'Похожие на «'+esc(tg.n)+'» ('+esc(tg.b)+'): ':"")+(st.str?"крепость около "+st.str+"/10 · ":"")+(st.mood?catName[st.mood]+": ":"")+'найдено '+items.length+'</p>';
     if(!st.q){h+='<div class="tiles">'+brands.filter(b=>items.some(x=>x.b===b)).map(b=>{const n=items.filter(x=>x.b===b).length;return'<button type="button" class="tile" data-brand="'+esc(b)+'">'+logoTile(b,false)+'<span class="tn">'+esc(b)+'</span><span class="tc">подходит '+n+'</span></button>'}).join("")+'</div>'}
     else brands.forEach(b=>{const g=sortG(items.filter(x=>x.b===b));if(!g.length)return;
@@ -790,7 +790,7 @@ function render(){
   } else {
     h='<h2 class="sect-h">Бренды на стойке</h2><div class="tiles">'+brands.map(b=>'<button type="button" class="tile" data-brand="'+esc(b)+'">'+'<span class="lw">'+logoTile(b,false)+brandBadge(b)+'</span>'+'<span class="tn">'+esc(b)+'</span><span class="tc">'+nV(DATA.filter(x=>x.b===b).length)+'</span></button>').join("")+'</div>';
   }
-  $("#list").innerHTML=h;
+  $("#list").innerHTML=h+(st.brand||!window.wishBlock?"":wishBlock(false));window.bindWish&&bindWish();
   const bb=$("#b-back");if(bb)bb.onclick=()=>{st.brand="";render();window.scrollTo(0,brandY)};
 }
 function renderSfil(){const el=$("#sfil");
@@ -1151,4 +1151,41 @@ w.tabIndex=0;w.addEventListener("keydown",e=>{if(e.key==="ArrowRight"){go(1);e.p
   }
   render();
 }catch(e){}})();
+</script>
+<style>
+.wish{margin:18px 0;padding:16px;border:1px solid var(--line);border-radius:18px;background:var(--surface);display:grid;gap:10px}
+.wish h3{margin:0;font-size:17px}.wish p{margin:0;color:var(--muted);font-size:14px}
+.wrow{display:flex;align-items:center;gap:10px;justify-content:space-between;border-top:1px solid var(--line);padding-top:10px}
+.wrow span{min-width:0;font-size:15px}.wrow small{color:var(--muted);display:block;font-size:12px}
+.wbtn{flex:none;min-height:44px;padding:0 14px;border-radius:999px;border:1.5px solid var(--ember);background:transparent;color:var(--ember-text);font:600 14px var(--body,inherit);cursor:pointer}
+.wbtn.on{background:var(--ember);color:#fff}
+.wfree{display:grid;grid-template-columns:1fr 1fr;gap:8px}.wfree input{min-width:0;min-height:44px;border:1px solid var(--line-ctl);border-radius:12px;padding:0 12px;font-size:16px;background:var(--bg);color:var(--fg)}
+.wfree .wbtn{grid-column:1/-1}
+.wmsg{color:var(--ember-text);font-size:14px}
+</style><script>
+(function(){
+var REAL=true,K="polka_wishes_v1";
+function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+var dev=lsGet("polka_dev");if(!dev||dev.length<8){dev=Array.from(crypto.getRandomValues(new Uint8Array(12))).map(function(n){return n.toString(36).padStart(2,"0")}).join("");lsSet("polka_dev",dev)}
+var mine={};try{mine=JSON.parse(lsGet(K)||"{}")}catch(e){}
+function key(b,f){return (b+"|"+f).toLowerCase().replace(/\s+/g," ").trim()}
+function lab(x){return (x.l?x.l+" ":"")+x.n}
+function found(){var q=(st.q||"").toLowerCase().split(/\s+/).filter(Boolean);if(!q.length)return[];var on=new Set(DATA.map(function(x){return x.id}));
+ return ALL.filter(function(x){return !on.has(x.id)&&q.every(function(t){return (x.b+" "+lab(x)).toLowerCase().indexOf(t)>=0})}).slice(0,6)}
+function send(b,f,fid){var k=key(b,f);if(mine[k])return Promise.resolve("ok");
+ function done(){mine[k]=1;lsSet(K,JSON.stringify(mine));return "ok"}
+ if(!REAL)return Promise.resolve(done());
+ var C=window.POLKA_CONFIG;return fetch(C.url+"/rest/v1/wishes",{method:"POST",headers:{apikey:C.anon,Authorization:"Bearer "+C.anon,"Content-Type":"application/json",Prefer:"return=minimal"},body:JSON.stringify({venue_id:C.venue,flavor_id:fid||null,brand:b.slice(0,60),flavor:f.slice(0,60),device:dev})})
+  .then(function(r){if(r.status===201||r.status===409)return done();return r.text().then(function(t){return t.indexOf("wish_limit")>=0?"limit":"err"})}).catch(function(){return "err"})}
+window.wishBlock=function(empty){var f=found(),h='<section class="wish"><h3>'+(empty?"Такого вкуса сейчас нет за стойкой":"Не нашли свой вкус?")+'</h3>';
+ h+='<p>Оставьте пожелание, его увидит заведение. Это не заказ и не обещание.</p>';
+ f.forEach(function(x){var on=mine[key(x.b,lab(x))];h+='<div class="wrow"><span>'+esc(x.b+" "+lab(x))+'<small>нет на стойке</small></span><button type="button" class="wbtn'+(on?" on":"")+'" data-wk="'+esc(x.id)+'"'+(on?" disabled":"")+'>'+(on?"Вы просили ✓":"Хочу, чтобы был")+'</button></div>'});
+ h+='<div class="wfree"><input id="wbr" maxlength="60" placeholder="Бренд" autocomplete="off" aria-label="Бренд"><input id="wfl" maxlength="60" placeholder="Вкус" autocomplete="off" aria-label="Вкус"><button type="button" class="wbtn" id="wsend">Отправить пожелание</button></div><div class="wmsg" id="wmsg" role="status"></div></section>';return h};
+function msg(t){var m=document.getElementById("wmsg");if(m)m.textContent=t}
+window.bindWish=function(){document.querySelectorAll("[data-wk]").forEach(function(b){b.onclick=function(){var x=ALL.find(function(y){return y.id===b.dataset.wk});if(!x)return;b.disabled=true;
+  send(x.b,lab(x),x.id).then(function(r){if(r==="ok"){b.classList.add("on");b.textContent="Вы просили ✓"}else{b.disabled=false;msg(r==="limit"?"На сегодня хватит пожеланий, попробуйте завтра.":"Не получилось отправить. Попробуйте позже.")}})}});
+ var s=document.getElementById("wsend");if(s)s.onclick=function(){var b=document.getElementById("wbr").value.trim(),f=document.getElementById("wfl").value.trim();
+  if(!b||!f){msg("Напишите и бренд, и вкус.");return}s.disabled=true;
+  send(b,f,null).then(function(r){s.disabled=false;if(r==="ok"){document.getElementById("wbr").value="";document.getElementById("wfl").value="";msg("Спасибо, пожелание принято.")}else msg(r==="limit"?"На сегодня хватит пожеланий, попробуйте завтра.":"Не получилось отправить. Попробуйте позже.")})}};
+})();
 </script>

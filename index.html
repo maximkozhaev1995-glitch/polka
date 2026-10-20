@@ -283,6 +283,7 @@ body.hasnav .chat{bottom:calc(64px + env(safe-area-inset-bottom,0px))}
     <button class="tab" id="t-mix" type="button">Альбом миксов<small id="c-mix"></small></button>
     <button class="tab" id="t-team" type="button" hidden>Команда<small id="c-team"></small></button>
     <button class="tab" id="t-str" type="button" hidden>Крепость<small></small></button>
+    <button class="tab" id="t-wish" type="button" hidden>Пожелания<small></small></button>
     <button class="tab" id="t-log" type="button">Журнал<small></small></button>
     <button class="tab" id="t-or" type="button">Заказ<small id="c-or"></small></button>
     <button class="tab" id="t-stop" type="button">Стоп-лист<small id="c-stop"></small></button>
@@ -359,6 +360,9 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
     strength:{table:"flavors",key:"id",patch:true,
       list:()=>"flavors?select=id,strength&strength=not.is.null&limit=1000",
       toDoc:r=>({s:r.strength}),fromDoc:(id,o)=>({strength:o.s})},
+    wishes:{table:"wishes",key:"id",patch:true,
+      list:()=>"wishes?select=id,flavor_id,brand,flavor,state,created_at&venue_id=eq."+V()+"&order=created_at.desc&limit=2000",
+      toDoc:r=>({fid:r.flavor_id||"",b:r.brand,f:r.flavor,state:r.state,at:r.created_at}),fromDoc:(id,o)=>({state:o.state})},
     team:{table:"users",key:"tg_id",patch:true,
       list:()=>"users?select=tg_id,name,role,perms&venue_id=eq."+V(),
       toDoc:r=>({name:r.name,role:r.role,perms:r.perms||[]}),fromDoc:(id,o)=>({perms:o.perms||[]})},
@@ -482,7 +486,7 @@ const inOrder=x=>stockLoaded&&(oq(x)>0||hint(x)||!!st.q);
 const flag=(x,k)=>!!(stock[x.id]&&stock[x.id][k]);
 const inTab=x=>st.q&&(st.tab==="bar"||st.tab==="wh")?true:st.tab==="smena"?(onBar(x)||wh(x)>0||!!st.q):st.tab==="inv"?stockLoaded&&(tracked(x)||!!st.q):st.tab==="bar"?onBar(x):st.tab==="order"?(stockLoaded&&!flag(x,"retired")):(st.tab==="stop"||st.tab==="slow")?stockLoaded&&(flag(x,st.tab)||!!st.q||!!st.brand):(wh(x)>0||!!draft[x.id]||!!st.q);
 const NEWUI=!!window.__demoDB;let invD={};const invEd=new Set();
-const TABS={str:"Крепость табаков",team:"Команда",log:"Журнал",mixes:"Альбом миксов",smena:"Смена",inv:"Пересчёт",bar:"Стойка",wh:"Склад",order:"Заказ",stop:"Стоп-лист",slow:"Неликвид",ai:"Ассистент",sup:"Поставщики"};
+const TABS={wish:"Пожелания гостей",str:"Крепость табаков",team:"Команда",log:"Журнал",mixes:"Альбом миксов",smena:"Смена",inv:"Пересчёт",bar:"Стойка",wh:"Склад",order:"Заказ",stop:"Стоп-лист",slow:"Неликвид",ai:"Ассистент",sup:"Поставщики"};
 const fOK=(x,k)=>k==="low"?wh(x)===1:k==="pend"?x.s==="pend":x.t.includes(k);
 function renderChips(){
   const all=st.tab==="stop"||st.tab==="slow";
@@ -627,14 +631,15 @@ function render(){
   const ordSel=DATA.filter(x=>stockLoaded&&oq(x)>0);
   const stopN=DATA.filter(x=>flag(x,"stop")).length,slowN=DATA.filter(x=>flag(x,"slow")).length,slowP=DATA.filter(x=>flag(x,"slow")).reduce((a,x)=>a+wh(x),0);
   $("#c-bar").textContent=barN;$("#c-wh").textContent=whPacks;$("#c-or").textContent=db?ordSel.length:"";$("#c-stop").textContent=stockLoaded?stopN:"";$("#c-slow").textContent=stockLoaded?slowN:"";
-  [["bar","t-bar"],["wh","t-wh"],["order","t-or"],["stop","t-stop"],["slow","t-slow"],["ai","t-ai"],["sup","t-sup"],["inv","t-inv"],["mixes","t-mix"],["log","t-log"],["team","t-team"],["str","t-str"]].forEach(([k,i])=>$("#"+i).setAttribute("aria-current",st.tab===k?"page":"false"));
+  [["bar","t-bar"],["wh","t-wh"],["order","t-or"],["stop","t-stop"],["slow","t-slow"],["ai","t-ai"],["sup","t-sup"],["inv","t-inv"],["mixes","t-mix"],["log","t-log"],["team","t-team"],["str","t-str"],["wish","t-wish"]].forEach(([k,i])=>$("#"+i).setAttribute("aria-current",st.tab===k?"page":"false"));
   $("#sect").textContent=TABS[st.tab]||"Стойка";
   if(!isMgr&&(st.tab==="inv"||st.tab==="sup"||st.tab==="log"||st.tab==="team"||st.tab==="str"))st.tab="bar";
-  $("#t-str").hidden=!isMgr;$("#t-team").hidden=!isMgr;$("#t-log").hidden=!isMgr;$("#t-inv").hidden=!isMgr;$("#t-sup").hidden=!isMgr;$("#who").textContent=isMgr?"Управляющий":"Мастер";
+  $("#t-str").hidden=!isMgr;$("#t-wish").hidden=!isMgr;$("#t-team").hidden=!isMgr;$("#t-log").hidden=!isMgr;$("#t-inv").hidden=!isMgr;$("#t-sup").hidden=!isMgr;$("#who").textContent=isMgr?"Управляющий":"Мастер";
   if(st.tab==="mixes"){renderMixes();return}
   if(st.tab==="log"){renderJournal();return}
   if(st.tab==="team"){renderTeam();return}
   if(st.tab==="str"){renderStrength();return}
+  if(st.tab==="wish"){renderWishes();return}
   if(V2.has(st.tab)){renderV2();retireWatch();return}
   const isAi=st.tab==="ai",isSup=st.tab==="sup";
   ["#list",".search","#brands","#filters",".legend"].forEach(q=>{$(q).hidden=isAi||isSup});$("#chat").hidden=!isAi;if(!isAi&&!isSup)$("#brands").hidden=!(st.tab==="stop"||st.tab==="slow");$(".ttl .stats").hidden=isAi||isSup;if(st.tab==="inv"||st.tab==="order")$("#filters").hidden=true;$("#sup").hidden=!isSup;$("#omanual").hidden=st.tab!=="order";
@@ -941,7 +946,7 @@ let tx=null;drawer.addEventListener("touchstart",e=>{tx=e.touches[0].clientX},{p
 drawer.addEventListener("touchend",e=>{if(tx!==null&&tx-e.changedTouches[0].clientX>50)menu(false);tx=null},{passive:true});
 const go=t=>{st.tab=t;st.f="";st.q="";selId="";{const q=$("#q");if(q)q.value="";const c=$("#clear");if(c)c.hidden=true}if(t!=="stop"&&t!=="slow")st.brand="";save();render();menu(false);window.scrollTo(0,0)};
 $("#t-or").onclick=()=>go("order");
-$("#t-bar").onclick=()=>go("bar");$("#t-mix").onclick=()=>go("mixes");$("#t-log").onclick=()=>go("log");$("#t-team").onclick=()=>go("team");$("#t-str").onclick=()=>go("str");
+$("#t-bar").onclick=()=>go("bar");$("#t-mix").onclick=()=>go("mixes");$("#t-log").onclick=()=>go("log");$("#t-team").onclick=()=>go("team");$("#t-str").onclick=()=>go("str");$("#t-wish").onclick=()=>go("wish");
 $("#t-wh").onclick=()=>go("wh");
 $("#t-stop").onclick=()=>go("stop");
 $("#t-slow").onclick=()=>go("slow");
@@ -1061,6 +1066,7 @@ aiUi();
   db.collection("order").onSnapshot(s=>{const d=s.docs.find(x=>x.id==="current");const od=d&&d.data();if(!oTimer&&!(od&&lastOrderAt&&(od.at||"")<lastOrderAt)){orderQ=Object.assign({},od&&od.q);orderM=JSON.parse(JSON.stringify(od&&od.m||{}))}render()},()=>{});
   db.collection("items").onSnapshot(s=>{let ch=false;s.docs.forEach(d=>{if(byId[d.id])return;const o=Object.assign({l:"",d:"",s:"name",t:[],bar:false},d.data(),{id:d.id});DATA.push(o);byId[d.id]=o;ch=true});if(ch)render()},()=>{});
   db.collection("strength").onSnapshot(s=>{strMap={};s.docs.forEach(d=>{strMap[d.id]=d.data().s});if(st.tab==="str"&&!document.activeElement.matches("select,input"))render()},()=>{});
+  db.collection("wishes").onSnapshot(s=>{wishes=s.docs.map(d=>Object.assign({id:d.id},d.data()));if(st.tab==="wish")render()},()=>{});
   db.collection("team").onSnapshot(s=>{team=s.docs.map(d=>Object.assign({id:d.id},d.data()));render()},()=>{});
   db.collection("invites").onSnapshot(s=>{invites=s.docs.map(d=>Object.assign({id:d.id},d.data()));render()},()=>{});
   db.collection("mixes").onSnapshot(s=>{mixes=s.docs.map(d=>Object.assign({id:d.id},d.data()));seedMixes();render()},()=>{});
@@ -1108,6 +1114,21 @@ $("#list").addEventListener("change",async e=>{if(st.tab!=="str"||!db)return;con
   try{if(f){await db.doc("strength/"+f).set({s:v});setStatus("Крепость сохранена")}
     else if(g){const ids=g.split(",");await db.bulk("strength",ids,{s:v});setStatus("Крепость линейки сохранена: "+ids.length)}}
   catch(x){setStatus("Не сохранилось: "+(x&&x.message||"нет доступа"),true)}});
+var wishes=[];
+function renderWishes(){
+  if(!mixHide)return;mixHide.forEach(q=>{const e=$(q);if(e)e.hidden=true});$("#list").hidden=false;$(".ttl .stats").hidden=true;document.body.classList.remove("ai-mode","has-tray");
+  const g={};wishes.forEach(w=>{const k=norm(w.b)+"|"+norm(w.f),o=g[k]=g[k]||{b:w.b,f:w.f,n:0,ids:[],st:{},cat:!!w.fid};o.n++;o.ids.push(w.id);o.st[w.state]=1;if(w.fid)o.cat=true});
+  const L=Object.values(g).map(o=>Object.assign(o,{s:o.st.new?"new":o.st.order?"order":"done"})).sort((a,b)=>b.n-a.n);
+  const row=o=>'<div class="hfeed"><b style="min-width:28px;font-size:18px">'+o.n+'</b><span style="flex:1;min-width:0">'+esc(o.b+" "+o.f)+'<br><small>'+(o.cat?"есть в каталоге":"нет в каталоге")+'</small></span>'
+    +(o.s==="new"?'<button type="button" class="btn sm go" data-wa="order" data-wids="'+o.ids.join(",")+'">В заказ</button><button type="button" class="btn sm" data-wa="del" data-wids="'+o.ids.join(",")+'" aria-label="Удалить">✕</button>'
+     :o.s==="order"?'<button type="button" class="btn sm go" data-wa="done" data-wids="'+o.ids.join(",")+'">Пришло</button><button type="button" class="btn sm" data-wa="new" data-wids="'+o.ids.join(",")+'">Вернуть</button>'
+     :'<button type="button" class="btn sm" data-wa="new" data-wids="'+o.ids.join(",")+'">Вернуть</button><button type="button" class="btn sm" data-wa="del" data-wids="'+o.ids.join(",")+'" aria-label="Удалить">✕</button>')+'</div>';
+  const part=(t,s,hint)=>{const a=L.filter(o=>o.s===s);return a.length?'<h3 class="sub">'+t+' · '+a.length+'</h3>'+a.map(row).join(""):(hint?'<h3 class="sub">'+t+'</h3><p class="hintline">'+hint+'</p>':"")};
+  $("#list").innerHTML='<p class="hintline" style="margin-top:10px">Что гости просят в карте. Число слева это число гостей. «В заказ» отмечает вкус для следующего заказа.</p>'
+    +part("Просят сейчас","new","Пока пожеланий нет. Они появятся, когда гости нажмут «Хочу, чтобы был» в карте.")+part("В заказе","order")+part("Добавлено","done")}
+$("#list").addEventListener("click",async e=>{if(st.tab!=="wish"||!db)return;const b=e.target.closest("[data-wa]");if(!b)return;const ids=b.dataset.wids.split(","),a=b.dataset.wa;b.disabled=true;
+  try{if(a==="del")await Promise.all(ids.map(i=>db.doc("wishes/"+i).delete()));else await db.bulk("wishes",ids,{state:a});setStatus(a==="del"?"Удалено":"Сохранено")}
+  catch(x){b.disabled=false;setStatus("Не сохранилось: "+(x&&x.message||"нет доступа"),true)}});
 /* Команда: приглашения и права мастеров */
 function renderTeam(){
   if(!mixHide)return;mixHide.forEach(q=>{const e=$(q);if(e)e.hidden=true});$("#list").hidden=false;$(".ttl .stats").hidden=true;document.body.classList.remove("ai-mode","has-tray");
