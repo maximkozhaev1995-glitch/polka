@@ -245,6 +245,7 @@ body.hasnav .chat{bottom:calc(64px + env(safe-area-inset-bottom,0px))}
 .lgm{width:44px;height:44px;margin-bottom:6px}.lgm svg{width:100%;height:100%}
 .hdet{border:1px solid var(--line);border-radius:16px;background:var(--surface);padding:0 14px;margin:18px 0 0}.hdet summary{cursor:pointer;font:700 17px/1.2 var(--display,inherit);padding:14px 0;list-style:none;display:flex;justify-content:space-between}.hdet summary::-webkit-details-marker{display:none}.hdet summary::after{content:"+";color:var(--muted);font-size:20px}.hdet[open] summary::after{content:"−"}.hdet[open]{padding-bottom:12px}
 .mtags{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 6px}.mtags .chip{min-height:30px;font-size:12px;padding:3px 10px}
+.sback{margin:10px 0 0;min-height:44px;background:transparent;border:1px solid var(--line);color:var(--fg)}
 .strl{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding:10px 0;border-bottom:1px solid var(--line);margin-top:6px}.strl select,.strr select{height:40px;font:inherit;font-size:16px;border:1px solid var(--line-ctl);border-radius:8px;background:var(--surface);color:var(--fg);padding:0 8px}.strl label{margin-left:auto}.strr{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--line);font-size:14px}
 </style>
 
@@ -1361,7 +1362,12 @@ if(true){
   const guide=()=>'<h2 class="hh">Как пользоваться</h2><div class="guide">'+GUIDE.filter((g,i)=>(isMgr||![4,5,6,7,10].includes(i))&&(NEWUI||i!==2)).map(g=>'<details><summary>'+g[0]+'</summary>'+g[1]+'</details>').join("")+'</div>';
   $("#list").addEventListener("click",e=>{if(st.tab!=="home")return;if(e.target.closest("#h-photo")){const f=$("#scan-fab");if(f){f.hidden=false;f.click()}return}
     const g=e.target.closest("[data-go]");if(g){if(g.dataset.x==="low")whLow=true;go(g.dataset.go)}});
-  const r1=render;render=function(){if(st.tab==="home"){drawHome();navSync();return}r1.apply(this,arguments);navSync()};
+  const SUB=new Set(["wish","pack","str","team","log","mixes","inv","sup","stop","slow","smena"]);
+  const tgw=window.Telegram&&window.Telegram.WebApp;let tgBack=false;
+  const backSync=()=>{const sub=st.tab!=="home";if(tgw&&tgw.BackButton){try{if(!tgBack){tgw.BackButton.onClick(()=>go("home"));tgBack=true}sub?tgw.BackButton.show():tgw.BackButton.hide()}catch(e){}}
+    const l=$("#list");if(SUB.has(st.tab)&&!l.hidden&&!l.querySelector("#s-back"))l.insertAdjacentHTML("afterbegin",'<button type="button" class="btn sback" id="s-back">← На главную</button>')};
+  $("#list").addEventListener("click",e=>{if(e.target.closest("#s-back"))go("home")});
+  const r1=render;render=function(){if(st.tab==="home"){drawHome();navSync();backSync();return}r1.apply(this,arguments);navSync();backSync()};
   st.tab="home";render();
 }
 </script>
