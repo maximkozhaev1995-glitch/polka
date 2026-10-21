@@ -257,6 +257,8 @@ body.inv-mode .row .ln{white-space:nowrap;margin-left:6px;font-size:11px;color:v
 body.inv-mode .btn.iok{min-width:44px;padding:0;font-size:18px;border-color:var(--line-ctl);color:var(--fg)}
 body.inv-mode .btn.iok.done{background:transparent;border-color:var(--ok);color:var(--ok)}
 body.inv-mode .chip[aria-pressed="true"]{background:var(--fg);border-color:var(--fg);color:var(--bg)}
+.ochips{margin:8px 0 4px;gap:6px}.ochips .chip{min-height:38px}
+.chip[data-os][aria-pressed="true"]{background:var(--fg);border-color:var(--fg);color:var(--bg)}
 .ichips{margin:8px 0 4px;gap:6px}.ichips .chip{min-height:38px}.ihelp{margin-left:auto;border-style:dashed;color:var(--muted)}
 .isum{margin:2px 0 6px}.hl{margin:0;padding-left:18px;display:grid;gap:8px}
 .sback{margin:10px 0 0;min-height:44px;background:transparent;border:1px solid var(--line);color:var(--fg)}
@@ -302,7 +304,7 @@ body.inv-mode .chip[aria-pressed="true"]{background:var(--fg);border-color:var(-
     <p class="dgrp">Ещё</p>
     <button class="tab" id="t-mix" type="button">Альбом миксов<small id="c-mix"></small></button>
     <button class="tab" id="t-log" type="button">Журнал<small></small></button>
-    <button class="tab" id="t-sup" type="button">Поставщики<small id="c-sup"></small></button>
+    <button class="tab" id="t-sup" type="button" hidden style="display:none">Поставщики<small id="c-sup"></small></button>
     <button class="tab" id="t-ai" type="button">Ассистент<small>ИИ</small></button>
     <details class="dset" id="d-set" hidden><summary>Каталог и команда</summary>
       <button class="tab" id="t-wish" type="button" hidden>Пожелания гостей<small></small></button>
@@ -478,6 +480,7 @@ const save=()=>{try{localStorage.setItem("stoika",JSON.stringify({brand:st.brand
 let flip={};try{flip=JSON.parse(localStorage.getItem("stoika-fold")||"{}")||{}}catch(e){flip={}}
 const foldDefault=()=>st.tab==="bar"||st.tab==="wh"||st.tab==="smena"||st.tab==="inv";
 const fk=b=>st.tab+(st.brand?"|sel|":"|")+b;
+const ordSw=on=>isMgr?'<div class="qchips ochips"><button type="button" class="chip" data-os="order" aria-pressed="'+(on==="order")+'">Заказ</button><button type="button" class="chip" data-os="sup" aria-pressed="'+(on==="sup")+'">Поставщики · '+sups.length+'</button></div>':"";
 const isOpen=b=>!!st.q||(st.tab==="order"&&!st.brand?(()=>{const d=DATA.some(x=>x.b===b&&(oq(x)>0||hint(x)));return flip[fk(b)]?!d:d})():(foldDefault()&&!st.brand)?!!flip[fk(b)]:!flip[fk(b)]);
 const cyr=t=>/^[а-яё]/i.test(t)?1:0;
 const abc=(a,b)=>(cyr(a)-cyr(b))||a.localeCompare(b,"ru",{sensitivity:"base",numeric:true});
@@ -700,6 +703,7 @@ function render(){
   if(st.tab==="inv"){const w=whWeight(),cnt=sec=>DATA.filter(x=>tracked(x)&&wh(x)>0&&invSec(x)===sec).length;
     html+='<div class="qchips ichips"><button type="button" class="chip" data-ig="main" aria-pressed="'+(st.ig==="main")+'">Классические табаки · '+cnt("main")+'</button><button type="button" class="chip" data-ig="prem" aria-pressed="'+(st.ig==="prem")+'">Премиум · '+cnt("prem")+'</button><button type="button" class="chip ihelp" id="inv-help">Как это работает</button></div>'
       +'<p class="hintline isum"><b>'+(st.ig==="prem"?"Премиум":"Классические табаки")+': '+w.n+' шт.'+(w.g?' · около '+(w.g/1000).toFixed(1)+' кг':'')+'</b>'+(w.no?' · у '+w.no+' шт. не указан размер':'')+'</p>'}
+  if(st.tab==="order")html+=ordSw("order");
   if(st.tab==="order")html+='<details class="hint"><summary>Как это работает</summary><p class="hintline">Нажми «+», чтобы добавить вкус в заказ. Здесь показаны вкусы, которых на складе 0–1 банка, и то, что уже в заказе. Любой другой вкус найдётся через поиск.</p></details>';
   const fr=(st.tab==="bar"||st.tab==="wh"||st.tab==="smena")&&!st.q&&!st.brand&&!st.f?freqList().filter(x=>items.includes(x)):[];
   const PRL=Object.fromEntries(IGROUPS),secKey=x=>(st.tab==="inv"&&st.ig==="prem"&&!st.q)?PRL[invGroupOf(x)]:x.b,secList=(st.tab==="inv"&&st.ig==="prem"&&!st.q)?IGROUPS.slice(1).map(g=>g[1]).filter(l=>items.some(x=>secKey(x)===l)):brands;
@@ -926,7 +930,7 @@ function addManual(){const bs=[...new Set(DATA.map(x=>x.b))].sort(abc);
     if(hit){orderQ[hit.id]=(orderQ[hit.id]||0)+q}else orderM["m"+Date.now().toString(36)]={b,n,q};saveOrder();closeDlg();render()}}
 // Поставщики (кабинет управляющего): у кого какие бренды заказываем и куда слать заказ
 function renderSup(){const el=$("#sup"),all=[...new Set(DATA.map(x=>x.b))],free=all.filter(b=>!supOf(b)).sort(abc);
-  el.innerHTML='<details class="hint"><summary>Как это работает</summary><p class="hintline">Укажи, у какого поставщика какие бренды заказываете. Заказ сам разобьётся по поставщикам: у каждого свой список, Excel и контакт.</p></details>'
+  el.innerHTML=ordSw("sup")+'<details class="hint"><summary>Как это работает</summary><p class="hintline">Укажи, у какого поставщика какие бренды заказываете. Заказ сам разобьётся по поставщикам: у каждого свой список, Excel и контакт.</p></details>'
     +'<div style="margin-top:12px"><button class="btn go wide" type="button" id="s-add"'+(db?"":" disabled")+'>+ Добавить поставщика</button></div>'
     +sups.slice().sort((p,q)=>abc(p.name,q.name)).map(s=>'<div class="scard"><h3>'+esc(s.name)+'<button class="btn sm" type="button" data-sedit="'+s.id+'">Изменить</button></h3><div class="ct">'+(s.contact?contactHtml(s.contact):'<span class="muted">контакт не указан</span>')+'</div><div class="bchips">'+((s.brands||[]).slice().sort(abc).map(b=>'<span>'+esc(b)+'</span>').join("")||'<span class="muted">бренды не выбраны</span>')+'</div></div>').join("")
     +(free.length?'<div class="scard"><h3>Без поставщика</h3><p class="muted small" style="margin:4px 0 8px">Нажми на бренд, чтобы привязать его к поставщику.</p><div class="bchips">'+free.map(b=>'<button type="button" class="bfree" data-free="'+esc(b)+'">'+esc(b)+' +</button>').join("")+'</div></div>':"")}
@@ -994,6 +998,7 @@ $("#t-stop").onclick=()=>go("stop");
 $("#t-slow").onclick=()=>go("slow");
 $("#t-ai").onclick=()=>go("ai");
 $("#t-sup").onclick=()=>go("sup");
+document.addEventListener("click",e=>{const c=e.target.closest("[data-os]");if(c)go(c.dataset.os)});
 $("#t-inv").onclick=()=>go("inv");
 if(st.tab==="smena")st.tab="bar";
 const q=$("#q");
@@ -1353,7 +1358,7 @@ if(true){
   nav.innerHTML=NAV.map(([k,t])=>'<button type="button" data-n="'+k+'"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+IC[k]+'</svg><span>'+t+'</span></button>').join("");
   document.body.appendChild(nav);document.body.classList.add("hasnav");
   nav.onclick=e=>{const b=e.target.closest("button");if(!b)return;const k=b.dataset.n;if(k==="more"){menu(true);return}go(k==="or"?"order":k)};
-  const navSync=()=>{const cur=st.tab==="order"?"or":st.tab;nav.querySelectorAll("button").forEach(b=>{const k=b.dataset.n;b.setAttribute("aria-current",(k===cur||(k==="more"&&!["home","bar","wh","order"].includes(st.tab)))?"page":"false")});
+  const navSync=()=>{const cur=(st.tab==="order"||st.tab==="sup")?"or":st.tab;nav.querySelectorAll("button").forEach(b=>{const k=b.dataset.n;b.setAttribute("aria-current",(k===cur||(k==="more"&&!["home","bar","wh","order","sup"].includes(st.tab)))?"page":"false")});
     const f=$("#scan-fab");if(f&&st.tab==="home")f.hidden=true};
   const HIDE=[".search","#brands","#filters",".legend","#chat","#sup","#logbox","#omanual","#tray","#otray"];
   const dayName=d=>{const t=new Date(),y=new Date(Date.now()-864e5),same=(a,b)=>a.toDateString()===b.toDateString();return same(d,t)?"Сегодня":same(d,y)?"Вчера":d.toLocaleDateString("ru-RU",{day:"numeric",month:"long"})};
@@ -1388,7 +1393,7 @@ if(true){
     const g=e.target.closest("[data-go]");if(g){if(g.dataset.x==="low")whLow=true;go(g.dataset.go)}});
   const SUB=new Set(["wish","pack","str","team","log","mixes","inv","sup","stop","slow","smena"]);
   const tgw=window.Telegram&&window.Telegram.WebApp;let tgBack=false;
-  const navVis=()=>{["t-str","t-wish","t-pack","t-team","t-log","t-inv","t-sup"].forEach(i=>{const e=$("#"+i);if(e)e.hidden=!isMgr});const ds=$("#d-set");if(ds){ds.hidden=!isMgr;if(["wish","pack","str","team"].includes(st.tab))ds.open=true}};
+  const navVis=()=>{["t-str","t-wish","t-pack","t-team","t-log","t-inv"].forEach(i=>{const e=$("#"+i);if(e)e.hidden=!isMgr});const ds=$("#d-set");if(ds){ds.hidden=!isMgr;if(["wish","pack","str","team"].includes(st.tab))ds.open=true}};
   const TH=[["auto","авто"],["dark","тёмная"],["light","светлая"]];let thm="auto";try{thm=localStorage.getItem("polka_theme")||"auto"}catch(e){}
   const thApply=()=>{const r=document.documentElement;let t=thm;if(t==="auto"){t=tgw&&tgw.colorScheme?tgw.colorScheme:""}if(t)r.setAttribute("data-theme",t);else r.removeAttribute("data-theme");const b=$("#theme-sw");if(b)b.textContent="Тема: "+TH.find(x=>x[0]===thm)[1]};
   thApply();$("#theme-sw").onclick=()=>{thm=TH[(TH.findIndex(x=>x[0]===thm)+1)%3][0];try{localStorage.setItem("polka_theme",thm)}catch(e){}thApply()};
