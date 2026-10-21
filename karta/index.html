@@ -257,6 +257,8 @@ body.inbrand #kact,body.inbrand #kcards,body.inbrand .hero,body.inbrand #wiz-ope
 .lgm{display:inline-flex;width:34px;height:34px;flex:none}.lgm svg{width:100%;height:100%}
 .mtg{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
 .ktile[hidden]{display:none!important}.kact:has(#k-own[hidden]){grid-template-columns:1fr}.kact:has(#k-own[hidden]) .ktile{min-height:112px}
+footer a{color:inherit;opacity:.6;text-decoration:underline;text-underline-offset:2px}
+#pv{border:0;border-radius:16px;background:var(--surface);color:var(--fg);max-width:min(360px,calc(100vw - 32px));padding:0}#pv::backdrop{background:rgba(0,0,0,.4)}.pv-in{padding:18px;display:grid;gap:10px;font-size:14px;line-height:1.45}.pv-in h2{margin:0;font-size:16px}.pv-in p{margin:0;color:var(--muted)}.pv-x{justify-self:end;min-height:40px;padding:0 16px;border-radius:999px;border:1px solid var(--line-ctl);background:none;color:var(--fg);cursor:pointer}
 </style>
 
 <div class="wrap">
@@ -285,7 +287,9 @@ body.inbrand #kact,body.inbrand #kcards,body.inbrand .hero,body.inbrand #wiz-ope
 </div>
 <main id="mixes" hidden></main>
 <main id="me" hidden></main>
-<footer>Наличие может меняться в течение вечера, уточняй у мастера.<br>Карта работает на «Полке».</footer>
+<footer>Наличие может меняться в течение вечера, уточняй у мастера.<br>Карта работает на «Полке». <a href="#privacy" id="pv-open">Конфиденциальность</a></footer>
+<dialog id="pv" aria-label="Конфиденциальность"><div class="pv-in"><h2>Конфиденциальность</h2><p>Карта не просит имени, телефона и почты. Избранное, миксы и выбор темы хранятся только в браузере на вашем устройстве. Пожелания гостей передаются в базу без имени и телефона: бренд, вкус, дата и случайный идентификатор браузера, чтобы один телефон не голосовал много раз. Пожелания видит только управляющий заведения.</p><p>Чтобы стереть свои данные, очистите данные сайта в браузере. Вопросы: <span id="pv-c">[контакт]</span>. Оператор: Максим Кожаев.</p><button type="button" class="pv-x" id="pv-close">Понятно</button></div></dialog>
+
 </div>
 
 <nav class="dock" aria-label="Разделы"><div class="in">
@@ -1188,4 +1192,4 @@ window.bindWish=function(){document.querySelectorAll("[data-wk]").forEach(functi
   if(!b||!f){msg("Напишите и бренд, и вкус.");return}s.disabled=true;
   send(b,f,null).then(function(r){s.disabled=false;if(r==="ok"){document.getElementById("wbr").value="";document.getElementById("wfl").value="";msg("Спасибо, пожелание принято.")}else msg(r==="limit"?"На сегодня хватит пожеланий, попробуйте завтра.":"Не получилось отправить. Попробуйте позже.")})}};
 })();
-</script>
+</script><script>(function(){const d=document.getElementById("pv");document.getElementById("pv-open").onclick=e=>{e.preventDefault();try{d.showModal()}catch(x){d.setAttribute("open","")}};document.getElementById("pv-close").onclick=()=>d.close();d.addEventListener("click",e=>{if(e.target===d)d.close()})})();</script>
