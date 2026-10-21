@@ -251,7 +251,7 @@ svg.ico{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;st
 body.hasnav #t-bar,body.hasnav #t-wh,body.hasnav #t-or{display:none}.hai{width:100%;margin:0 0 10px;border:1px solid var(--line);border-radius:16px;background:var(--surface)}.hai small{color:var(--muted)}
 .mk.k-karta{background:#dbe7f7;color:#173a66}.comph3,.mrow3{display:grid;grid-template-columns:1fr 1.2fr 64px 40px;gap:6px;align-items:center;margin:4px 0}.comph3{font-size:12px;color:var(--muted)}.pk{height:44px;border:1px solid var(--line-ctl);border-radius:10px;background:var(--surface);color:var(--fg);font:inherit;font-size:14px;text-align:left;padding:0 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}.mrow3 input{height:44px;font:inherit;font-size:16px;border:1px solid var(--line-ctl);border-radius:10px;text-align:center;background:var(--surface);color:var(--fg);width:100%}.pklist{display:grid;max-height:50vh;overflow:auto;margin:8px 0}.pklist button{display:flex;align-items:baseline;gap:8px;justify-content:space-between;border:0;border-bottom:1px solid var(--line);background:none;color:var(--fg);font:inherit;padding:12px 4px;text-align:left;cursor:pointer}.pklist small{color:var(--muted);flex:1;text-align:right;font-size:12px}.mfsum{display:grid;gap:4px;font-size:13px;margin:8px 0}.mfsum .mbar{height:8px;background:var(--line);border-radius:4px;overflow:hidden}.mfsum .mbar i{display:block;height:100%;background:var(--accent)}.mfsum.ok{color:var(--ok)}.mfsum.over{color:var(--pend)}
 body.hasnav .chat{bottom:calc(64px + env(safe-area-inset-bottom,0px))}
-.lgm{width:44px;height:44px;margin-bottom:6px}.lgm svg{width:100%;height:100%}
+.lgrow{display:flex;align-items:center;gap:12px;margin-bottom:6px}.lgrow .dtitle{margin:0}.lgm{width:44px;height:44px}.lgm svg{width:100%;height:100%}
 .hdet{border:1px solid var(--line);border-radius:16px;background:var(--surface);padding:0 14px;margin:18px 0 0}.hdet summary{cursor:pointer;font:700 17px/1.2 var(--display,inherit);padding:14px 0;list-style:none;display:flex;justify-content:space-between}.hdet summary::-webkit-details-marker{display:none}.hdet summary::after{content:"+";color:var(--muted);font-size:20px}.hdet[open] summary::after{content:"−"}.hdet[open]{padding-bottom:12px}
 .mtags{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 6px}.mtags .chip{min-height:30px;font-size:12px;padding:3px 10px}
 body.inv-mode .row .ds,body.inv-mode .row .dot,body.inv-mode .row .tags{display:none}
@@ -297,28 +297,28 @@ body.inv-mode .chip[aria-pressed="true"]{background:var(--fg);border-color:var(-
 </div>
 <div class="scrim" id="scrim" hidden></div>
 <nav class="drawer" id="drawer" aria-label="Разделы" aria-hidden="true">
-  <div class="lgm"><svg viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="46" width="48" height="6" rx="3" fill="var(--fg)"/><rect x="9" y="26" width="14" height="16" rx="3.5" fill="var(--accent)"/><rect x="25" y="26" width="14" height="16" rx="3.5" fill="var(--accent)"/><rect x="41" y="26" width="14" height="16" rx="3.5" fill="var(--accent)"/></svg></div>
+  <div class="lgrow"><div class="lgm"><svg viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="46" width="48" height="6" rx="3" fill="var(--fg)"/><rect x="9" y="26" width="14" height="16" rx="3.5" fill="var(--accent)"/><rect x="25" y="26" width="14" height="16" rx="3.5" fill="var(--accent)"/><rect x="41" y="26" width="14" height="16" rx="3.5" fill="var(--accent)"/></svg></div><span class="dtitle">Полка</span></div>
   <p class="who" id="who"></p>
-  <p class="dtitle">Полка <span>склад</span></p>
   <div class="nav">
-    <p class="dgrp">Работа</p>
+    <p class="dgrp" id="dg1">Управление</p>
     <button class="tab" id="t-bar" type="button">Стойка<small id="c-bar"></small></button>
     <button class="tab" id="t-wh" type="button">Склад<small id="c-wh"></small></button>
     <button class="tab" id="t-or" type="button">Заказ<small id="c-or"></small></button>
-    <button class="tab" id="t-inv" type="button" hidden>Инвентаризация<small></small></button>
     <button class="tab" id="t-stop" type="button">Стоп-лист<small id="c-stop"></small></button>
-    <button class="tab" id="t-slow" type="button">Неликвид<small id="c-slow"></small></button>
+    <button class="tab" id="t-inv" type="button" hidden>Инвентаризация<small></small></button>
+    <button class="tab" id="t-pack" type="button" hidden>Граммовка<small></small></button>
+    <button class="tab" id="t-str" type="button" hidden>Крепость<small></small></button>
     <p class="dgrp">Ещё</p>
+    <button class="tab" id="t-slow" type="button">Неликвид<small id="c-slow"></small></button>
     <button class="tab" id="t-mix" type="button">Альбом миксов<small id="c-mix"></small></button>
     <button class="tab" id="t-log" type="button">Журнал<small></small></button>
-    <button class="tab" id="t-sup" type="button" hidden style="display:none">Поставщики<small id="c-sup"></small></button>
     <button class="tab" id="t-ai" type="button">Ассистент<small>ИИ</small></button>
-    <details class="dset" id="d-set" hidden><summary>Каталог и команда</summary>
+    <button class="tab" id="t-sup" type="button" hidden style="display:none">Поставщики<small id="c-sup"></small></button>
+    <div id="d-set" hidden>
+      <p class="dgrp">Гости и команда</p>
       <button class="tab" id="t-wish" type="button" hidden>Пожелания гостей<small></small></button>
-      <button class="tab" id="t-pack" type="button" hidden>Граммовка<small></small></button>
-      <button class="tab" id="t-str" type="button" hidden>Крепость<small></small></button>
       <button class="tab" id="t-team" type="button" hidden>Команда<small id="c-team"></small></button>
-    </details>
+    </div>
   </div>
   <button class="btn" type="button" id="view-sw" hidden style="margin-top:14px;width:100%">Вид: управляющий</button>
   <button class="btn" type="button" id="theme-sw" style="margin-top:14px;width:100%">Тема: авто</button>
@@ -1389,21 +1389,21 @@ if(true){
     const tasks=[];
     if(isMgr){
       if(ord>0)tasks.push(trow("cart","В заказе "+ord+" "+(ord===1?"позиция":"позиций"),"проверь и отправь поставщику","Открыть","order"));
-      else if(low>0)tasks.push(trow("cart","Нет запаса на складе: "+low+" поз.","на стойке есть, на складе нет","Заказ","order"));
+      else if(low>0)tasks.push(trow("cart","Нет на складе: "+low+" поз.","на стойке есть, на складе нет","Заказ","order"));
       if(invDays===null||invDays>=7)tasks.push(trow("chk","Инвентаризация",invDays===null?"ещё не проводилась":"последняя "+invDays+" "+(invDays%10===1&&invDays!==11?"день":invDays%10>=2&&invDays%10<=4&&(invDays<10||invDays>20)?"дня":"дней")+" назад","Начать","inv"));
       if(wn>0)tasks.push(trow("heart","Пожелания гостей: "+wn,"гости просят вкусы, которых нет","Смотреть","wish"));
       if(gn>0)tasks.push(trow("clock","Закончилось везде: "+gn,"вывести из палитры?","Решить","slow"));
       if(stp>0)tasks.push(trow("stop","В стоп-листе: "+stp,"скрыты из табачной карты","Открыть","stop"));
     }else{
-      if(low>0)tasks.push(trow("box","Нет запаса на складе: "+low+" поз.","на стойке есть, на складе нет","Склад","wh","low"));
-      if(stp>0)tasks.push(trow("stop","В стоп-листе: "+stp,"скрыты из табачной карты","Открыть","stop"));
+      if(low>0)tasks.push(trow("box","Нет на складе: "+low+" поз.","на стойке есть, на складе нет","Склад","wh","low"));
     }
-    const acts='<div class="hbtns"'+(NEWUI?'':' style="grid-template-columns:1fr"')+'>'+(NEWUI?'<button type="button" class="hbig go" id="h-photo"><span>'+ic("cam")+'</span>Сфоткать банки<small>одним фото со склада</small></button>':'')+'<button type="button" class="hbig'+(NEWUI?'':' go')+'" data-go="wh"><span>'+ic("box")+'</span>Взять со склада<small>найти вкус, взять штуки</small></button></div>';
+    const photoOn=NEWUI&&!isMgr;
+    const acts='<div class="hbtns"'+(photoOn?'':' style="grid-template-columns:1fr"')+'>'+(photoOn?'<button type="button" class="hbig go" id="h-photo"><span>'+ic("cam")+'</span>Сфоткать банки<small>одним фото со склада</small></button>':'')+'<button type="button" class="hbig'+(photoOn?'':' go')+'" data-go="wh"><span>'+ic("box")+'</span>Взять со склада<small>найти вкус, взять штуки</small></button></div>';
     const strip='<div class="hs">'+tile(barN,"на стойке","bar")+tile(whN,"шт. на складе"+(ww?" · "+Math.round(ww/1000)+" кг":""),"wh")+(isMgr?tile(ord,"к заказу","order"):tile(stp,"в стопе","stop"))+'</div>';
     const ai='<button type="button" class="trow hai" data-go="ai"><span class="ti">'+ic("spark")+'</span><span class="tt"><b>Ассистент</b><small>спроси про склад, заказ, миксы</small></span><span class="ta">›</span></button>';
     const tl=tasks.length?'<h3 class="sub">'+(isMgr?"Сегодня":"Обрати внимание")+'</h3><div class="hlist">'+tasks.join("")+'</div>':'<p class="hintline hok">'+ic("chk")+' Всё спокойно, срочных дел нет.</p>';
     const fd='<details class="hdet"'+(feedOpen?' open':'')+'><summary>Последние действия</summary>'+(feed.length?feed.join(""):'<p class="hintline">Пока ничего не происходило.</p>')+(isMgr?'<button type="button" class="btn wide" data-go="log" style="margin-top:8px">Весь журнал и списания</button>':"")+'</details>';
-    $("#list").innerHTML=(isMgr?strip+tl+acts+ai:strip+acts+tl+ai)+fd+guide()}
+    $("#list").innerHTML=(isMgr?tl+acts+ai:acts+tl+ai)+fd+guide()}
   $("#list").addEventListener("toggle",e=>{if(e.target.matches&&e.target.matches("details.hdet"))feedOpen=e.target.open},true);;
   const GUIDE=[
    ["Как это устроено","<p><b>Стойка</b> — то, что стоит в работе сейчас. <b>Склад</b> — запас, который лежит в подсобке. <b>Стоп-лист</b> — вкус временно скрыт из табачной карты. <b>Неликвид</b> — вкус, который нужно «прогнать» и убрать с полки.</p><p>Любой вкус можно найти через поиск. Он ищет по всему каталогу, даже если вкуса сейчас нет на стойке или на складе.</p>"],
@@ -1422,7 +1422,7 @@ if(true){
     const g=e.target.closest("[data-go]");if(g){if(g.dataset.x==="low")whLow=true;go(g.dataset.go)}});
   const SUB=new Set(["wish","pack","str","team","log","mixes","inv","sup","stop","slow","smena"]);
   const tgw=window.Telegram&&window.Telegram.WebApp;let tgBack=false;
-  const navVis=()=>{["t-str","t-wish","t-pack","t-team","t-log","t-inv"].forEach(i=>{const e=$("#"+i);if(e)e.hidden=!isMgr});const ds=$("#d-set");if(ds){ds.hidden=!isMgr;if(["wish","pack","str","team"].includes(st.tab))ds.open=true}};
+  const navVis=()=>{["t-str","t-wish","t-pack","t-team","t-log","t-inv"].forEach(i=>{const e=$("#"+i);if(e)e.hidden=!isMgr});const ds=$("#d-set");if(ds)ds.hidden=!isMgr;const g1=$("#dg1");if(g1)g1.textContent=isMgr?"Управление":"Работа"};
   const TH=[["auto","авто"],["dark","тёмная"],["light","светлая"]];let thm="auto";try{thm=localStorage.getItem("polka_theme")||"auto"}catch(e){}
   const thApply=()=>{const r=document.documentElement;let t=thm;if(t==="auto"){t=tgw&&tgw.colorScheme?tgw.colorScheme:""}if(t)r.setAttribute("data-theme",t);else r.removeAttribute("data-theme");const b=$("#theme-sw");if(b)b.textContent="Тема: "+TH.find(x=>x[0]===thm)[1]};
   thApply();$("#theme-sw").onclick=()=>{thm=TH[(TH.findIndex(x=>x[0]===thm)+1)%3][0];try{localStorage.setItem("polka_theme",thm)}catch(e){}thApply()};
