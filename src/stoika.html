@@ -144,6 +144,8 @@ dialog textarea{resize:none;width:100%;font:inherit;font-size:13px;background:va
 .dtitle{font-family:var(--display);font-weight:800;font-size:22px;text-transform:uppercase;margin:0 0 18px;line-height:1.05}
 .dtitle span{color:var(--accent)}
 .nav{display:grid;gap:4px}
+.dgrp{margin:14px 12px 2px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}.nav .dgrp:first-child{margin-top:4px}
+.dset{margin-top:10px;border-top:1px solid var(--line)}.dset summary{list-style:none;cursor:pointer;margin:10px 12px 2px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;display:flex;justify-content:space-between}.dset summary::-webkit-details-marker{display:none}.dset summary::after{content:"▾"}.dset[open] summary::after{content:"▴"}
 .nav .tab{text-align:left;font-size:16px;padding:12px 12px;display:flex;justify-content:space-between;align-items:center;color:var(--fg);font-weight:600}
 .nav .tab[aria-current="page"]{background:var(--accent);color:#fff}
 .nav .tab small{font-weight:500;opacity:.75}
@@ -186,7 +188,7 @@ html,body{overflow-x:hidden;max-width:100%;-webkit-text-size-adjust:100%;touch-a
 .btn.wide{width:100%;height:48px}.bfree{font:inherit;font-size:13px;min-height:36px;border:1px dashed var(--line-ctl);background:none;color:var(--fg);border-radius:999px;padding:0 12px;cursor:pointer}
 details.dnote summary{cursor:pointer;font-weight:600;color:var(--fg);list-style:none}details.dnote summary::-webkit-details-marker{display:none}details.dnote summary::after{content:" ▾"}
 .qty.sm2{align-items:center}.st2{display:grid;text-align:right;font-size:11px;line-height:1.25;white-space:nowrap;margin-right:4px}.st2 b{color:var(--muted);font-weight:500}.st2 b.on{color:var(--ok);font-weight:700}.st2 i{font-style:normal;color:var(--muted)}.st2 i.one{color:var(--pend)}.btn.fin.go{background:var(--fg);color:var(--bg);border-color:var(--fg)}.btn.fin.on{color:var(--ok);border-color:var(--ok)}
-input.iin{width:64px}.btn.iok{min-width:112px;font-weight:600;border-color:var(--accent);color:var(--accent)}.btn.iok.done{background:var(--accent-soft);border-color:var(--ok);color:var(--ok)}input.iin.diff{border-color:var(--pend);background:#fff4e5}
+input.iin{width:64px}.btn.iok{min-width:112px;font-weight:600;border-color:var(--accent);color:var(--accent)}.btn.iok.done{background:var(--accent-soft);border-color:var(--ok);color:var(--ok)}input.iin.diff{border-color:var(--pend);background:var(--accent-soft)}
 .who{margin:0 0 6px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);font-weight:700}
 .row.r2{grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:12px 0;cursor:pointer;align-items:start}
 .row.r2>.dot{display:none}.r2 .rb{min-width:0}.r2 .rb .ds{grid-column:auto;margin-top:2px}.r2 .rc{text-align:right;white-space:nowrap}
@@ -289,21 +291,26 @@ body.inv-mode .chip[aria-pressed="true"]{background:var(--fg);border-color:var(-
   <p class="who" id="who"></p>
   <p class="dtitle">Полка <span>склад</span></p>
   <div class="nav">
-        <button class="tab" id="t-inv" type="button" hidden>Инвентаризация<small></small></button>
+    <p class="dgrp">Работа</p>
     <button class="tab" id="t-bar" type="button">Стойка<small id="c-bar"></small></button>
     <button class="tab" id="t-wh" type="button">Склад<small id="c-wh"></small></button>
-    <button class="tab" id="t-mix" type="button">Альбом миксов<small id="c-mix"></small></button>
-    <button class="tab" id="t-team" type="button" hidden>Команда<small id="c-team"></small></button>
-    <button class="tab" id="t-str" type="button" hidden>Крепость<small></small></button>
-    <button class="tab" id="t-wish" type="button" hidden>Пожелания<small></small></button>
-    <button class="tab" id="t-pack" type="button" hidden>Граммовка<small></small></button>
-    <button class="tab" id="t-log" type="button">Журнал<small></small></button>
     <button class="tab" id="t-or" type="button">Заказ<small id="c-or"></small></button>
+    <button class="tab" id="t-inv" type="button" hidden>Инвентаризация<small></small></button>
     <button class="tab" id="t-stop" type="button">Стоп-лист<small id="c-stop"></small></button>
     <button class="tab" id="t-slow" type="button">Неликвид<small id="c-slow"></small></button>
-    <button class="tab" id="t-ai" type="button">Ассистент<small>ИИ</small></button>
+    <p class="dgrp">Ещё</p>
+    <button class="tab" id="t-mix" type="button">Альбом миксов<small id="c-mix"></small></button>
+    <button class="tab" id="t-log" type="button">Журнал<small></small></button>
     <button class="tab" id="t-sup" type="button">Поставщики<small id="c-sup"></small></button>
+    <button class="tab" id="t-ai" type="button">Ассистент<small>ИИ</small></button>
+    <details class="dset" id="d-set" hidden><summary>Каталог и команда</summary>
+      <button class="tab" id="t-wish" type="button" hidden>Пожелания гостей<small></small></button>
+      <button class="tab" id="t-pack" type="button" hidden>Граммовка<small></small></button>
+      <button class="tab" id="t-str" type="button" hidden>Крепость<small></small></button>
+      <button class="tab" id="t-team" type="button" hidden>Команда<small id="c-team"></small></button>
+    </details>
   </div>
+  <button class="btn" type="button" id="theme-sw" style="margin-top:14px;width:100%">Тема: авто</button>
   <button class="btn" type="button" id="role-sw" hidden style="margin-top:14px;width:100%">Демо: сменить роль</button>
   <details class="dnote"><summary>Подсказка и обозначения</summary>
     <p>На складе отметь «+», «−» и метку «на стойке», потом нажми «Списание / пополнение» внизу. Ничего не записывается, пока не подтвердишь список.</p>
@@ -367,7 +374,7 @@ const inOrder=x=>stockLoaded&&(oq(x)>0||hint(x)||!!st.q);
 const flag=(x,k)=>!!(stock[x.id]&&stock[x.id][k]);
 const inTab=x=>st.q&&(st.tab==="bar"||st.tab==="wh")?true:st.tab==="smena"?(onBar(x)||wh(x)>0||!!st.q):st.tab==="inv"?stockLoaded&&((tracked(x)&&wh(x)>0&&invSec(x)===st.ig)||!!st.q):st.tab==="bar"?onBar(x):st.tab==="order"?(stockLoaded&&!flag(x,"retired")):(st.tab==="stop"||st.tab==="slow")?stockLoaded&&(flag(x,st.tab)||!!st.q||!!st.brand):(wh(x)>0||!!draft[x.id]||!!st.q);
 const NEWUI=!!window.__demoDB;let invD={};const invEd=new Set();
-const TABS={pack:"Граммовка банок",wish:"Пожелания гостей",str:"Крепость табаков",team:"Команда",log:"Журнал",mixes:"Альбом миксов",smena:"Смена",inv:"Инвентаризация",bar:"Стойка",wh:"Склад",order:"Заказ",stop:"Стоп-лист",slow:"Неликвид",ai:"Ассистент",sup:"Поставщики"};
+const TABS={pack:"Граммовка",wish:"Пожелания гостей",str:"Крепость табаков",team:"Команда",log:"Журнал",mixes:"Альбом миксов",smena:"Смена",inv:"Инвентаризация",bar:"Стойка",wh:"Склад",order:"Заказ",stop:"Стоп-лист",slow:"Неликвид",ai:"Ассистент",sup:"Поставщики"};
 const fOK=(x,k)=>k==="low"?wh(x)===1:k==="pend"?x.s==="pend":x.t.includes(k);
 function renderChips(){
   const all=st.tab==="stop"||st.tab==="slow";
@@ -521,7 +528,7 @@ function render(){
   [["bar","t-bar"],["wh","t-wh"],["order","t-or"],["stop","t-stop"],["slow","t-slow"],["ai","t-ai"],["sup","t-sup"],["inv","t-inv"],["mixes","t-mix"],["log","t-log"],["team","t-team"],["str","t-str"],["wish","t-wish"],["pack","t-pack"]].forEach(([k,i])=>$("#"+i).setAttribute("aria-current",st.tab===k?"page":"false"));
   $("#sect").textContent=TABS[st.tab]||"Стойка";document.body.classList.toggle("inv-mode",st.tab==="inv");
   if(!isMgr&&(st.tab==="inv"||st.tab==="sup"||st.tab==="log"||st.tab==="team"||st.tab==="str"||st.tab==="pack"||st.tab==="wish"))st.tab="bar";
-  $("#t-str").hidden=!isMgr;$("#t-wish").hidden=!isMgr;$("#t-pack").hidden=!isMgr;$("#t-team").hidden=!isMgr;$("#t-log").hidden=!isMgr;$("#t-inv").hidden=!isMgr;$("#t-sup").hidden=!isMgr;$("#who").textContent=isMgr?"Управляющий":"Мастер";
+  $("#t-str").hidden=!isMgr;$("#t-wish").hidden=!isMgr;$("#t-pack").hidden=!isMgr;{const ds=$("#d-set");ds.hidden=!isMgr;if(["wish","pack","str","team"].includes(st.tab))ds.open=true}$("#t-team").hidden=!isMgr;$("#t-log").hidden=!isMgr;$("#t-inv").hidden=!isMgr;$("#t-sup").hidden=!isMgr;$("#who").textContent=isMgr?"Управляющий":"Мастер";
   if(st.tab==="mixes"){renderMixes();return}
   if(st.tab==="log"){renderJournal();return}
   if(st.tab==="team"){renderTeam();return}
@@ -1036,7 +1043,7 @@ function renderPack(){
   Object.keys(by).sort(abc).forEach(b=>{
     const L=by[b].filter(x=>!t||norm(b+" "+x.n+" "+(x.l||"")).includes(t));if(!L.length)return;
     const miss=L.filter(x=>!packMap[x.id]).length,open=!!t||packOpen[b];
-    h+='<section class="brand'+(open?" open":"")+'"><button class="bh" type="button" data-pb="'+esc(b)+'" aria-expanded="'+open+'"><h2><span class="chev" aria-hidden="true">›</span>'+esc(b)+'</h2><span>'+([...new Set(L.flatMap(szOf))].sort((a,c)=>a-c).join("/")||"размер вручную")+' г · '+(miss?miss+" без размера":"готово")+'</span></button>';
+    h+='<section class="brand'+(open?" open":"")+'"><button class="bh" type="button" data-pb="'+esc(b)+'" aria-expanded="'+open+'"><h2><span class="chev" aria-hidden="true">›</span>'+esc(b)+'</h2><span>'+([...new Set(L.flatMap(szOf))].sort((a,c)=>a-c).join("/")||"размер вручную")+(L.some(x=>szOf(x).length)?" г":"")+' · '+(miss?miss+" без размера":"готово")+'</span></button>';
     if(open){const lines={};L.forEach(x=>{(lines[x.l||b]=lines[x.l||b]||[]).push(x)});
       Object.keys(lines).forEach(l=>{const g=lines[l],ids=g.map(x=>x.id).join(",");
         h+='<div class="strl"><b>'+esc(l)+'</b><span class="muted small">'+g.length+' вкусов</span>'+(szOf(g[0]).length?'<label class="small">Всем в линейке <select data-pg="'+ids+'">'+opts(szOf(g[0]),0)+'</select></label>':'')+'</div>'
@@ -1240,7 +1247,11 @@ if(true){
     const g=e.target.closest("[data-go]");if(g){if(g.dataset.x==="low")whLow=true;go(g.dataset.go)}});
   const SUB=new Set(["wish","pack","str","team","log","mixes","inv","sup","stop","slow","smena"]);
   const tgw=window.Telegram&&window.Telegram.WebApp;let tgBack=false;
-  const backSync=()=>{const sub=st.tab!=="home";if(tgw&&tgw.BackButton){try{if(!tgBack){tgw.BackButton.onClick(()=>go("home"));tgBack=true}sub?tgw.BackButton.show():tgw.BackButton.hide()}catch(e){}}
+  const navVis=()=>{["t-str","t-wish","t-pack","t-team","t-log","t-inv","t-sup"].forEach(i=>{const e=$("#"+i);if(e)e.hidden=!isMgr});const ds=$("#d-set");if(ds){ds.hidden=!isMgr;if(["wish","pack","str","team"].includes(st.tab))ds.open=true}};
+  const TH=[["auto","авто"],["dark","тёмная"],["light","светлая"]];let thm="auto";try{thm=localStorage.getItem("polka_theme")||"auto"}catch(e){}
+  const thApply=()=>{const r=document.documentElement;let t=thm;if(t==="auto"){t=tgw&&tgw.colorScheme?tgw.colorScheme:""}if(t)r.setAttribute("data-theme",t);else r.removeAttribute("data-theme");const b=$("#theme-sw");if(b)b.textContent="Тема: "+TH.find(x=>x[0]===thm)[1]};
+  thApply();$("#theme-sw").onclick=()=>{thm=TH[(TH.findIndex(x=>x[0]===thm)+1)%3][0];try{localStorage.setItem("polka_theme",thm)}catch(e){}thApply()};
+  const backSync=()=>{navVis();const sub=st.tab!=="home";if(tgw&&tgw.BackButton){try{if(!tgBack){tgw.BackButton.onClick(()=>go("home"));tgBack=true}sub?tgw.BackButton.show():tgw.BackButton.hide()}catch(e){}}
     const l=$("#list");if(SUB.has(st.tab)&&!l.hidden&&!l.querySelector("#s-back"))l.insertAdjacentHTML("afterbegin",'<button type="button" class="btn sback" id="s-back">← На главную</button>')};
   $("#list").addEventListener("click",e=>{if(e.target.closest("#s-back"))go("home")});
   const r1=render;render=function(){if(st.tab==="home"){drawHome();navSync();backSync();return}r1.apply(this,arguments);navSync();backSync()};
