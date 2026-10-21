@@ -297,7 +297,7 @@ body.inv-mode .chip[aria-pressed="true"]{background:var(--fg);border-color:var(-
 <section class="omanual" id="omanual" hidden></section>
 <main id="list"></main>
 <section class="chat" id="chat" hidden>
-  <div class="ai-top"><span class="muted small">Отвечает Claude на твоём аккаунте. Склад меняется только после «Подтвердить».</span><button class="btn sm" type="button" id="ai-new">Заново</button></div>
+  <div class="ai-top"><span class="muted small">Отвечает ИИ. Склад меняется только после «Подтвердить».</span><button class="btn sm" type="button" id="ai-new">Заново</button></div>
   <div class="ai-log" id="ai-log" aria-live="polite"></div>
   <p class="small aioff" id="ai-off" hidden>Ассистент недоступен в этом окне. Открой страницу в claude.ai.</p>
   <button class="ai-imgs" id="ai-imgs" type="button" hidden></button>
@@ -955,7 +955,7 @@ function aiScroll(force){const l=$("#ai-log");if(force||l.scrollHeight-l.scrollT
 function fitChat(){requestAnimationFrame(()=>{const r=document.documentElement.style;r.setProperty("--chat-top",Math.max(0,$(".bar").getBoundingClientRect().bottom)+"px");const t=$("#tray");r.setProperty("--trayh",(t&&!t.hidden?t.offsetHeight:0)+"px");aiScroll(false)})}
 window.addEventListener("resize",()=>{if(st.tab==="ai")fitChat()});
 if(window.visualViewport)visualViewport.addEventListener("resize",()=>{if(st.tab==="ai")fitChat()});
-function aiErr(c){return({not_granted:"Ассистент не разрешён для этой страницы.",sampling_disabled:"Claude недоступен для этого аккаунта.",not_configured:"Ассистент ещё не подключён. Скажи управляющему.",busy:"ИИ сейчас перегружен. Повтори вопрос через минуту.",rate_limited:"Слишком много запросов. Попробуй чуть позже.",session_expired:"Нужно заново войти в claude.ai.",image_rejected:"Фото не подошло, попробуй другое.",refused:"Claude не стал отвечать на это. Сформулируй иначе.",prompt_too_large:"Слишком длинный разговор. Нажми «Новый разговор»."})[c]||"Не получилось. Попробуй ещё раз."}
+function aiErr(c){return({not_granted:"Ассистент не разрешён для этой страницы.",sampling_disabled:"Claude недоступен для этого аккаунта.",not_configured:"Ассистент ещё не подключён. Скажи управляющему.",busy:"ИИ сейчас перегружен. Повтори вопрос через минуту.",rate_limited:"ИИ сейчас перегружен. Подожди минуту и повтори.",session_expired:"Нужно заново войти в claude.ai.",image_rejected:"Фото не подошло, попробуй другое.",refused:"Claude не стал отвечать на это. Сформулируй иначе.",prompt_too_large:"Слишком длинный разговор. Нажми «Новый разговор»."})[c]||"Не получилось. Попробуй ещё раз."}
 async function aiSend(){
   const box=$("#ai-in"),t=box.value.trim();if((!t&&!aiImgs.length)||aiCtl||!sampleFn)return;
   const imgs=aiImgs;aiImgs=[];renderAiImgs();

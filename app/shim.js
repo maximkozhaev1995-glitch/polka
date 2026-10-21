@@ -96,12 +96,17 @@
   };
   const downloads={save:async({filename,data})=>{const b=new Blob([data],{type:"application/octet-stream"}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download=filename;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(u);a.remove()},1500)}};
   // ИИ-ассистент: цикл «запрос → инструменты → ответ» выполняется здесь, ключ ИИ остаётся на сервере
-  const imgToBlock=file=>new Promise((res,rej)=>{const fr=new FileReader();fr.onerror=()=>rej({code:"image_rejected"});fr.onload=()=>{const im=new Image();im.onerror=()=>rej({code:"image_rejected"});im.onload=()=>{const k=Math.min(1,1568/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);res({type:"image",source:{type:"base64",media_type:"image/jpeg",data:c.toDataURL("image/jpeg",.85).split(",")[1]}})};im.src=fr.result};fr.readAsDataURL(file)});
-  async function callAI(body,signal){
-    const r=await fetch(CFG.url+"/functions/v1/ai",{method:"POST",signal,headers:H(),body:JSON.stringify(body)});
-    const j=await r.json().catch(()=>({}));
-    if(!r.ok){const e=j.error||(r.status===401?"session_expired":"server_error");throw {code:e==="not_configured"?"not_configured":e,text:""}}
-    return j}
+  const imgToBlock=file=>new Promise((res,rej)=>{const fr=new FileReader();fr.onerror=()=>rej({code:"image_rejected"});fr.onload=()=>{const im=new Image();im.onerror=()=>rej({code:"image_rejected"});im.onload=()=>{const k=Math.min(1,1280/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);res({type:"image",source:{type:"base64",media_type:"image/jpeg",data:c.toDataURL("image/jpeg",.75).split(",")[1]}})};im.src=fr.result};fr.readAsDataURL(file)});
+  const wait=(ms,signal)=>new Promise((res,rej)=>{const t=setTimeout(res,ms);if(signal)signal.addEventListener("abort",()=>{clearTimeout(t);rej({name:"AbortError"})},{once:true})});
+  async function callAI(body,signal,onWait){
+    // Бесплатный Gemini иногда отвечает «занят» или «слишком много запросов»: ждём и пробуем ещё два раза
+    for(let a=0;;a++){
+      const r=await fetch(CFG.url+"/functions/v1/ai",{method:"POST",signal,headers:H(),body:JSON.stringify(body)});
+      const j=await r.json().catch(()=>({}));
+      if(r.ok)return j;
+      const e=j.error||(r.status===401?"session_expired":"server_error");
+      if((e==="busy"||(e==="rate_limited"&&j.scope!=="daily"))&&a<2){if(onWait)onWait(a);await wait(a?9000:5000,signal);continue}
+      throw {code:e==="not_configured"?"not_configured":e,text:""}}}
   const sample=async(turns,opts)=>{
     opts=opts||{};
     const first=turns[0]&&turns[0].role==="user"?turns[0].content:"";
@@ -114,7 +119,8 @@
     let text="";
     for(let step=0;step<8;step++){
       if(opts.signal&&opts.signal.aborted)throw {code:"cancelled",text};
-      let r;try{r=await callAI({system:first,messages:msgs,tools},opts.signal)}catch(e){if(e&&e.name==="AbortError")throw {code:"cancelled",text};throw Object.assign({text},e)}
+      let r;try{r=await callAI({system:first,messages:msgs,tools},opts.signal,()=>{if(opts.onText)opts.onText({text:(text?text+"\n":"")+"ИИ занят, жду очередь…"})})}catch(e){if(e&&e.name==="AbortError")throw {code:"cancelled",text};throw Object.assign({text},e)}
+      if(step===0)msgs.forEach(m=>{if(Array.isArray(m.content))m.content=m.content.map(b=>b.type==="image"?{type:"text",text:"[фото уже разобрано выше]"}:b)});
       msgs.push({role:"assistant",content:r.content});
       const part=r.content.filter(b=>b.type==="text").map(b=>b.text).join("");
       if(part){text+=(text?"\n":"")+part;if(opts.onText)opts.onText({text})}

@@ -1,5 +1,5 @@
 // © 2026 Максим Кожаев. Все права защищены. Копирование, распространение и использование без письменного согласия автора запрещены.
-// ИИ-ассистент Полки: прокси к Claude API. Ключ лежит только здесь (секрет ANTHROPIC_API_KEY), в приложение не попадает.
+// ИИ-ассистент Полки: прокси к Gemini (или Claude API). Ключ лежит только здесь (секрет ANTHROPIC_API_KEY), в приложение не попадает.
 import Anthropic from "npm:@anthropic-ai/sdk";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -51,8 +51,10 @@ async function askGemini(key: string, system: string, messages: any[], tools: an
   };
   if (tools.length) body.tools = [{ functionDeclarations: tools.map((t) => ({ name: t.name, description: t.description, parametersJsonSchema: t.input_schema })) }];
   // Бесплатный уровень иногда перегружен (503) или молчит: пробуем модели по очереди, у каждой свой таймаут
-  let r: Response | null = null, j: any = null;
+  let r: Response | null = null, j: any = null, served = "";
+  const tried: string[] = [];
   for (const model of models) {
+    const t0 = Date.now();
     try {
       r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
         method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": key }, body: JSON.stringify(body),
@@ -67,8 +69,9 @@ async function askGemini(key: string, system: string, messages: any[], tools: an
         });
         j = await r.json();
       }
-      if (r.ok || r.status === 429) break;
-    } catch { r = null; }
+      tried.push(model + ":" + r.status + ":" + (Date.now() - t0) + "ms");
+      if (r.ok) { served = model; break; } // 429 и 503: у каждой модели свой лимит, пробуем следующую
+    } catch { tried.push(model + ":timeout:" + (Date.now() - t0) + "ms"); r = null; }
   }
   if (!r) { const e: any = new Error("busy"); e.status = 503; throw e; }
   if (!r.ok) { const e: any = new Error(j?.error?.message || "gemini_error"); e.status = r.status === 429 ? 429 : r.status === 400 ? 400 : r.status === 503 ? 503 : 500; throw e; }
@@ -80,7 +83,8 @@ async function askGemini(key: string, system: string, messages: any[], tools: an
     if (p.functionCall) { calls++; content.push({ type: "tool_use", id: "g" + crypto.randomUUID().slice(0, 8), name: p.functionCall.name, input: p.functionCall.args || {}, sig: p.thoughtSignature }); }
   }
   const blocked = j?.promptFeedback?.blockReason || j?.candidates?.[0]?.finishReason === "SAFETY";
-  return { content, stop_reason: blocked ? "refusal" : calls ? "tool_use" : "end_turn", usage: j?.usageMetadata };
+  console.log("gemini", tried.join(" "));
+  return { content, stop_reason: blocked ? "refusal" : calls ? "tool_use" : "end_turn", usage: j?.usageMetadata, model: served, tried };
 }
 
 Deno.serve(async (req) => {
@@ -96,7 +100,7 @@ Deno.serve(async (req) => {
     const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const hit = await db.rpc("ai_hit", { p: tg });
     if (hit.error) return out({ error: "server_error" }, 500);
-    if (Number(hit.data) > DAILY_LIMIT) return out({ error: "rate_limited" }, 429);
+    if (Number(hit.data) > DAILY_LIMIT) return out({ error: "rate_limited", scope: "daily" }, 429);
 
     const { system, messages, tools } = await req.json();
     if (useGemini) return out(await askGemini(geminiKey!, String(system || ""), messages, tools || []));
