@@ -918,7 +918,7 @@ async function pollGuestMix(){const C=window.POLKA_CONFIG;if(!C||gmBusy)return;g
     if(st.tab==="me")render()
   }catch(e){}finally{gmBusy=false}}
 pollGuestMix();
-async function openQR(){const url="polka-guest:"+gid;
+async function openQR(){const url="https://t.me/PolkaHookahbot/PolkaSklad?startapp=guest_"+gid;
   clearInterval(gmTimer);gmTimer=setInterval(pollGuestMix,4000);
   const d=$("#qrd");d.innerHTML='<div class="sh-h"><i class="handle"></i><button class="x-close" type="button" data-qx aria-label="Закрыть">×</button></div><h2>Покажи QR мастеру</h2><p class="note" style="margin:0">Мастер наведёт камеру и внесёт микс. Он появится в твоём избранном.</p><div class="qrbox" id="qrbox"><span class="muted">Рисую код…</span></div><div class="qrid">Код гостя: <b>'+esc(gid)+'</b></div><p class="muted small" style="margin:6px 0 0">Если мастер не отсканирует сразу, скажи ему код — он впишет его вручную.</p>';
   try{d.showModal()}catch(e){d.setAttribute("open","")}

@@ -1145,6 +1145,8 @@ aiUi();
   render();
   if(!db){setStatus("Склад недоступен: открой страницу, войдя в claude.ai",true);render();return}
   setStatus("Склад подключён");
+  {const tgw=window.Telegram&&window.Telegram.WebApp,sp=tgw&&tgw.initDataUnsafe&&tgw.initDataUnsafe.start_param;
+   if(sp&&/^guest_/i.test(sp)){const gid=parseGuestCode(sp);if(gid)setTimeout(()=>openGuestMix(gid),400)}}
   db.collection("stock").onSnapshot(s=>{for(const k in stock)delete stock[k];s.docs.forEach(d=>{stock[d.id]=d.data()});stockLoaded=true;render()},e=>setStatus("Склад не загрузился: "+e.message,true));
   db.collection("order").onSnapshot(s=>{const d=s.docs.find(x=>x.id==="current");const od=d&&d.data();if(!oTimer&&!(od&&lastOrderAt&&(od.at||"")<lastOrderAt)){orderQ=Object.assign({},od&&od.q);orderM=JSON.parse(JSON.stringify(od&&od.m||{}))}render()},()=>{});
   db.collection("items").onSnapshot(s=>{let ch=false;s.docs.forEach(d=>{if(byId[d.id])return;const o=Object.assign({l:"",d:"",s:"name",t:[],bar:false},d.data(),{id:d.id});DATA.push(o);byId[d.id]=o;ch=true});if(ch)render()},()=>{});
@@ -1342,9 +1344,13 @@ function openMix(m){const mx=m?{id:m.id,title:m.title,kind:m.kind||"master",note
       if(isMgr&&d.kind==="week")for(const o of mixes){if(o.kind==="week"&&(!m||o.id!==m.id)){const c=Object.assign({},o);delete c.id;c.kind="master";await db.doc("mixes/"+o.id).set(c)}}
       if(m)await db.doc("mixes/"+m.id).set(d);else await db.collection("mixes").add(d);closeDlg()}};
   draw()}
+function parseGuestCode(raw){const s=String(raw||"").trim();
+  let m=s.match(/[?&]startapp=guest_([A-Za-z0-9_-]+)/i);if(m)return m[1];
+  m=s.match(/^polka-guest:(.+)$/i);if(m)return m[1].trim();
+  return s.replace(/^guest_/i,"").slice(0,40)}
 function scanGuestMix(){
   const tgw=window.Telegram&&window.Telegram.WebApp;
-  const go=code=>{const gid=String(code||"").replace(/^polka-guest:/i,"").trim().slice(0,40);if(gid)openGuestMix(gid)};
+  const go=code=>{const gid=parseGuestCode(code);if(gid)openGuestMix(gid)};
   if(tgw&&tgw.showScanQrPopup){try{tgw.showScanQrPopup({text:"Наведи камеру на QR гостя"},text=>{tgw.closeScanQrPopup&&tgw.closeScanQrPopup();go(text);return true});return}catch(e){}}
   showDlg('<h2>Код гостя</h2><p class="muted small">Спроси код у гостя (под QR в его карте) и впиши сюда.</p><input id="gm-code" class="scq" placeholder="Например: gr1namq" autocomplete="off" maxlength="40"><div class="dlg-btns"><button class="btn go" type="button" id="gm-go">Далее</button><button class="btn" type="button" id="dlg-back">Отмена</button></div>');
   $("#dlg-back").onclick=closeDlg;$("#gm-go").onclick=()=>{const v=$("#gm-code").value.trim();if(v){closeDlg();go(v)}};
