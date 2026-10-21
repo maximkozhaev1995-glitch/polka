@@ -415,6 +415,8 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
       list:()=>"flavors?select=id,pack_g&pack_g=not.is.null&limit=1500",
       toDoc:r=>({g:r.pack_g}),fromDoc:(id,o)=>({pack_g:o.g||null})},
     packsizes:{table:"pack_sizes",key:"brand",list:()=>"pack_sizes?select=brand,sizes",toDoc:r=>({sizes:r.sizes||[]}),fromDoc:()=>({})},
+    guestmix:{table:"guest_mixes",key:"id",
+      fromDoc:(id,o)=>({venue_id:V(),gid:o.gid,name:o.name||null,parts:o.parts||[],note:o.note||null,by_name:o.by||null})},
     wishes:{table:"wishes",key:"id",patch:true,
       list:()=>"wishes?select=id,flavor_id,brand,flavor,state,created_at&venue_id=eq."+V()+"&order=created_at.desc&limit=2000",
       toDoc:r=>({fid:r.flavor_id||"",b:r.brand,f:r.flavor,state:r.state,at:r.created_at}),fromDoc:(id,o)=>({state:o.state})},
@@ -1293,8 +1295,8 @@ function renderMixes(){
   const html=sec("Микс недели",m=>m.kind==="week"&&!m.hidden)+sec("Сезонные предложения",m=>m.kind==="season"&&!m.hidden)+sec("Альбом мастеров",m=>(m.kind==="master"||!m.kind)&&!m.hidden)+(isMgr?sec("Скрытые",m=>m.hidden):"");
   const nk=mixes.filter(m=>m.inKarta&&!m.hidden).length;
   const usedT=[...new Set(mixes.filter(m=>!m.hidden).flatMap(m=>m.tags||[]))];
-  $("#list").innerHTML=(usedT.length?'<div class="chips" style="margin:10px 0 0"><button type="button" class="chip" data-mt="" aria-pressed="'+!mixTag+'">Все</button>'+usedT.map(t=>'<button type="button" class="chip" data-mt="'+esc(t)+'" aria-pressed="'+(mixTag===t)+'">#'+esc(t)+'</button>').join("")+'</div>':'')+'<p class="hintline" style="margin:10px 0 0">Здесь мастера хранят свои миксы.'+(isMgr?' Управляющий выбирает, какие показать гостям в табачной карте (сейчас '+nk+').':'')+'</p><button type="button" class="btn go wide" id="mx-new" style="margin-top:10px">＋ Добавить микс</button>'+(html||'<p class="hintline" style="margin-top:14px">Миксов пока нет. Добавь первый.</p>')}
-$("#list").addEventListener("click",e=>{if(st.tab!=="mixes")return;if(e.target.closest("#mx-new")){openMix();return}
+  $("#list").innerHTML=(usedT.length?'<div class="chips" style="margin:10px 0 0"><button type="button" class="chip" data-mt="" aria-pressed="'+!mixTag+'">Все</button>'+usedT.map(t=>'<button type="button" class="chip" data-mt="'+esc(t)+'" aria-pressed="'+(mixTag===t)+'">#'+esc(t)+'</button>').join("")+'</div>':'')+'<p class="hintline" style="margin:10px 0 0">Здесь мастера хранят свои миксы.'+(isMgr?' Управляющий выбирает, какие показать гостям в табачной карте (сейчас '+nk+').':'')+'</p><button type="button" class="btn go wide" id="mx-new" style="margin-top:10px">＋ Добавить микс</button><button type="button" class="btn wide" id="mx-guest" style="margin-top:8px">📷 Внести микс гостю по QR</button>'+(html||'<p class="hintline" style="margin-top:14px">Миксов пока нет. Добавь первый.</p>')}
+$("#list").addEventListener("click",e=>{if(st.tab!=="mixes")return;if(e.target.closest("#mx-new")){openMix();return}if(e.target.closest("#mx-guest")){scanGuestMix();return}
   const mt=e.target.closest("[data-mt]");if(mt){mixTag=mixTag===mt.dataset.mt?"":mt.dataset.mt;render();return}
   const b=e.target.closest("[data-mx]");if(!b||!db)return;const m=mixes.find(x=>x.id===b.dataset.id);if(!m)return;const k=b.dataset.mx;const put=(id,d)=>db.doc("mixes/"+id).set(d);const cp=o=>{const d=Object.assign({},o);delete d.id;return d};
   if(k==="edit")return openMix(m);
@@ -1339,6 +1341,45 @@ function openMix(m){const mx=m?{id:m.id,title:m.title,kind:m.kind||"master",note
     $("#mx-ok").onclick=async()=>{keep();if(!okSave())return;const d={title:mx.title.trim(),kind:isMgr?mx.kind:"master",note:mx.note.trim(),tags:mx.tags,parts:mx.parts.map(p=>({id:p.id,pct:+p.pct})),by:m?m.by:(isMgr?"Управляющий":"Мастер"),at:m?m.at:new Date().toISOString()};if(m&&m.hidden)d.hidden=true;if(m&&m.inKarta)d.inKarta=true;
       if(isMgr&&d.kind==="week")for(const o of mixes){if(o.kind==="week"&&(!m||o.id!==m.id)){const c=Object.assign({},o);delete c.id;c.kind="master";await db.doc("mixes/"+o.id).set(c)}}
       if(m)await db.doc("mixes/"+m.id).set(d);else await db.collection("mixes").add(d);closeDlg()}};
+  draw()}
+function scanGuestMix(){
+  const tgw=window.Telegram&&window.Telegram.WebApp;
+  const go=code=>{const gid=String(code||"").replace(/^polka-guest:/i,"").trim().slice(0,40);if(gid)openGuestMix(gid)};
+  if(tgw&&tgw.showScanQrPopup){try{tgw.showScanQrPopup({text:"Наведи камеру на QR гостя"},text=>{tgw.closeScanQrPopup&&tgw.closeScanQrPopup();go(text);return true});return}catch(e){}}
+  showDlg('<h2>Код гостя</h2><p class="muted small">Спроси код у гостя (под QR в его карте) и впиши сюда.</p><input id="gm-code" class="scq" placeholder="Например: gr1namq" autocomplete="off" maxlength="40"><div class="dlg-btns"><button class="btn go" type="button" id="gm-go">Далее</button><button class="btn" type="button" id="dlg-back">Отмена</button></div>');
+  $("#dlg-back").onclick=closeDlg;$("#gm-go").onclick=()=>{const v=$("#gm-code").value.trim();if(v){closeDlg();go(v)}};
+}
+function openGuestMix(gid){const mx={title:"",note:"",parts:[{id:"",b:"",pct:""},{id:"",b:"",pct:""}]};
+  let step="form",ri=0,q="";const sum=()=>mx.parts.reduce((a,p)=>a+(+p.pct||0),0);
+  const okSave=()=>mx.parts.length>=2&&mx.parts.length<=6&&mx.parts.every(p=>p.id&&+p.pct>0)&&sum()===100;
+  const keep=()=>{const t=$("#mx-t");if(t)mx.title=t.value;const n=$("#mx-n");if(n)mx.note=n.value};
+  const alive=x=>!flag(x,"retired");
+  const draw=()=>{
+    if(step==="b"){const t=norm(q),L=[...new Set(DATA.filter(alive).map(x=>x.b))].sort(abc).filter(b=>!t||norm(b).includes(t));
+      showDlg('<h2>Выбери бренд</h2><input id="mx-q" class="scq" placeholder="Найти бренд" autocomplete="off" value="'+esc(q)+'"><div class="pklist">'+L.map(b=>'<button type="button" data-br="'+esc(b)+'"><b>'+esc(b)+'</b><small>'+DATA.filter(x=>x.b===b&&alive(x)).length+' вкусов</small><i>›</i></button>').join("")+'</div><div class="dlg-btns"><button class="btn" type="button" id="mx-back">Назад</button></div>');
+      $("#mx-back").onclick=()=>{step="form";q="";draw()};document.querySelectorAll("[data-br]").forEach(e=>e.onclick=()=>{mx.parts[ri].b=e.dataset.br;mx.parts[ri].id="";step="f";q="";draw()});
+      $("#mx-q").oninput=e=>{q=e.target.value;draw();const n=$("#mx-q");n.focus();n.setSelectionRange(q.length,q.length)};return}
+    if(step==="f"){const t=norm(q),b=mx.parts[ri].b,L=DATA.filter(x=>x.b===b&&alive(x)&&(!t||norm(nm(x)+" "+(x.d||"")).includes(t))).sort((p,r)=>abc(p.n,r.n));
+      showDlg('<h2>'+esc(b)+'</h2><input id="mx-q" class="scq" placeholder="Найти вкус" autocomplete="off" value="'+esc(q)+'"><div class="pklist">'+L.map(x=>'<button type="button" data-fl="'+x.id+'"><b>'+esc(x.l?x.l+" "+x.n:x.n)+'</b><small>'+esc(x.d||"")+(onBar(x)&&!flag(x,"stop")?"":" · нет на стойке")+'</small></button>').join("")+'</div><div class="dlg-btns"><button class="btn" type="button" id="mx-back">← Бренды</button></div>');
+      $("#mx-back").onclick=()=>{step="b";q="";draw()};document.querySelectorAll("[data-fl]").forEach(e=>e.onclick=()=>{mx.parts[ri].id=e.dataset.fl;step="form";q="";draw();});
+      $("#mx-q").oninput=e=>{q=e.target.value;draw();const n=$("#mx-q");n.focus();n.setSelectionRange(q.length,q.length)};return}
+    const t=sum();
+    showDlg('<h2>Микс для гостя</h2><p class="muted small">Код гостя: <b>'+esc(gid)+'</b>. Как сохранишь — микс сам появится у него в «Избранном».</p><label class="f">Название (необязательно)<input id="mx-t" value="'+esc(mx.title)+'" maxlength="60"></label>'
+     +'<p class="muted small">Нажми «Бренд», выбери из списка или найди поиском. Потом вкус и часть.</p><div class="comph3"><span>Бренд</span><span>Вкус</span><span>Часть, %</span><span></span></div>'
+     +mx.parts.map((p,i)=>{const x=byId[p.id];return'<div class="mrow3"><button type="button" class="pk" data-pb="'+i+'">'+(p.b?esc(p.b):"Бренд")+'</button><button type="button" class="pk" data-pf="'+i+'">'+(x?esc(x.l?x.l+" "+x.n:x.n):"Вкус")+'</button><input type="number" inputmode="numeric" min="0" max="100" placeholder="%" value="'+esc(p.pct)+'" data-pi="'+i+'" aria-label="Часть, %"><button type="button" class="btn sm" data-pd="'+i+'" aria-label="Убрать">✕</button></div>'}).join("")
+     +'<div class="mfsum'+(t===100?" ok":t>100?" over":"")+'" id="mx-sum"><span class="mbar"><i style="width:'+Math.min(100,t)+'%"></i></span>'+(t===100?"✓ Чаша заполнена: 100%":t>100?"Перебор: "+t+"%, убери "+(t-100)+"%":"Заполнено "+t+"% чаши, осталось "+(100-t)+"%")+'</div>'
+     +(mx.parts.length<6?'<button type="button" class="btn sm" id="mx-more">+ Ещё табак</button>':'<p class="muted small">Не больше 6 табаков.</p>')
+     +'<label class="f">Заметка (необязательно)<textarea id="mx-n" rows="3" maxlength="300">'+esc(mx.note)+'</textarea></label><div class="dlg-btns"><button class="btn go" type="button" id="mx-ok"'+(okSave()?'':' disabled')+'>Отправить гостю</button><button class="btn" type="button" id="dlg-back">Отмена</button></div>');
+    $("#dlg-back").onclick=closeDlg;
+    $("#mx-t").oninput=keep;$("#mx-n").oninput=keep;
+    document.querySelectorAll("[data-pb]").forEach(e=>e.onclick=()=>{keep();ri=+e.dataset.pb;step="b";q="";draw()});
+    document.querySelectorAll("[data-pf]").forEach(e=>e.onclick=()=>{keep();ri=+e.dataset.pf;step=mx.parts[ri].b?"f":"b";q="";draw()});
+    document.querySelectorAll("[data-pi]").forEach(e=>e.oninput=()=>{keep();mx.parts[+e.dataset.pi].pct=e.value;const v=sum(),el=$("#mx-sum");el.className="mfsum"+(v===100?" ok":v>100?" over":"");el.innerHTML='<span class="mbar"><i style="width:'+Math.min(100,v)+'%"></i></span>'+(v===100?"✓ Чаша заполнена: 100%":v>100?"Перебор: "+v+"%, убери "+(v-100)+"%":"Заполнено "+v+"% чаши, осталось "+(100-v)+"%");$("#mx-ok").disabled=!okSave()});
+    document.querySelectorAll("[data-pd]").forEach(e=>e.onclick=()=>{keep();if(mx.parts.length>1)mx.parts.splice(+e.dataset.pd,1);draw()});
+    const mm=$("#mx-more");if(mm)mm.onclick=()=>{keep();mx.parts.push({id:"",b:"",pct:""});draw()};
+    $("#mx-ok").onclick=async()=>{keep();if(!okSave()||!db)return;$("#mx-ok").disabled=true;
+      try{await db.collection("guestmix").add({gid,name:mx.title.trim()||null,note:mx.note.trim()||null,parts:mx.parts.map(p=>({name:nm(byId[p.id]),pct:+p.pct})),by:isMgr?"Управляющий":"Мастер"});closeDlg();setStatus("Микс отправлен гостю")}
+      catch(e){$("#mx-ok").disabled=false;setStatus("Не отправилось: "+(e&&e.message||"нет доступа"),true)}}};
   draw()}
 if(st.tab==="mixes")render();
 /* прототип фото банок пачкой: только в демо */

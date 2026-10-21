@@ -59,6 +59,8 @@
       list:()=>"flavors?select=id,pack_g&pack_g=not.is.null&limit=1500",
       toDoc:r=>({g:r.pack_g}),fromDoc:(id,o)=>({pack_g:o.g||null})},
     packsizes:{table:"pack_sizes",key:"brand",list:()=>"pack_sizes?select=brand,sizes",toDoc:r=>({sizes:r.sizes||[]}),fromDoc:()=>({})},
+    guestmix:{table:"guest_mixes",key:"id",
+      fromDoc:(id,o)=>({venue_id:V(),gid:o.gid,name:o.name||null,parts:o.parts||[],note:o.note||null,by_name:o.by||null})},
     wishes:{table:"wishes",key:"id",patch:true,
       list:()=>"wishes?select=id,flavor_id,brand,flavor,state,created_at&venue_id=eq."+V()+"&order=created_at.desc&limit=2000",
       toDoc:r=>({fid:r.flavor_id||"",b:r.brand,f:r.flavor,state:r.state,at:r.created_at}),fromDoc:(id,o)=>({state:o.state})},
