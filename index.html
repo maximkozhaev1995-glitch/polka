@@ -240,6 +240,20 @@ svg.ico{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;st
 .trow .ti{width:34px;height:34px;border-radius:10px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;flex:none}.trow .tt{flex:1;min-width:0;display:grid}.trow .tt b{font-weight:600;font-size:15px}.trow .tt small{color:var(--muted);font-size:12.5px}.trow .ta{color:var(--accent);font-weight:600;font-size:13px;white-space:nowrap}
 .trow.hai{border:0;background:var(--surface);border-radius:14px;margin:10px 0}
 .hok{display:flex;gap:8px;align-items:center;color:var(--muted);margin:12px 0}.hok .ico{color:var(--ok)}
+
+.dclose{margin-left:auto;width:40px;height:40px;border:1px solid var(--line-ctl);border-radius:12px;background:var(--surface);color:var(--fg);font-size:22px;line-height:1;cursor:pointer}
+.dcard{border:1px solid var(--line);border-radius:16px;background:var(--bg);overflow:hidden}
+.nav .dcard .tab{width:100%;flex:none;background:none;border-radius:0;border-bottom:1px solid var(--line);gap:12px;justify-content:flex-start}.nav .dcard .tab:last-child{border-bottom:0}
+.nav .dcard .tab svg.ico{color:var(--muted)}
+.nav .dcard .tab small{margin-left:auto;font-weight:700;font-size:12px;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:1px 8px}.nav .dcard .tab small:empty{display:none}
+.nav .dcard .tab::after{content:"›";color:var(--muted);font-size:20px;line-height:1}.nav .dcard .tab small:empty+*{}
+.nav .dcard .tab:not(:has(small:not(:empty)))::after{margin-left:auto}
+.thseg{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:12px;padding:4px;border:1px solid var(--line);border-radius:14px;background:var(--bg)}.thseg button{border:0;background:none;color:var(--muted);font:inherit;font-size:13px;padding:10px 0;border-radius:10px;cursor:pointer}.thseg button[aria-pressed="true"]{background:var(--surface);color:var(--fg);font-weight:600;box-shadow:0 0 0 1px var(--line-ctl)}
+#view-sw{display:flex;align-items:center;justify-content:center;gap:8px}#view-sw[hidden]{display:none}
+.hprim{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:56px;margin:12px 0;border:0;border-radius:16px;background:var(--accent);color:#fff;font:600 16px var(--body);cursor:pointer;padding:0 16px}
+.hprim.hphoto{justify-content:flex-start;min-height:64px;text-align:left}.hprim.hphoto span{flex:1;display:grid}.hprim.hphoto small{font-weight:400;font-size:12.5px;opacity:.9}.hprim i{font-style:normal;font-size:22px}
+.hsec{display:flex;align-items:center;gap:10px;width:100%;min-height:52px;margin:0 0 6px;border:1px solid var(--line);border-radius:16px;background:var(--surface);color:var(--fg);font:inherit;cursor:pointer;padding:0 16px}.hsec b{flex:1;text-align:left;font-weight:600}.hsec i{font-style:normal;color:var(--muted);font-size:20px}
+.hlist.tdy .ti{display:none}.hlist.tdy .trow{padding:14px 16px}
 .gd{margin-top:6px}details.hdet>summary{font:600 15px/1.2 var(--body);text-transform:none;letter-spacing:0}
 .hbtns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}.hbig{display:grid;gap:2px;justify-items:start;text-align:left;border:1px solid var(--line);background:var(--surface);color:var(--fg);font:inherit;font-weight:700;font-size:16px;border-radius:16px;padding:14px 16px;min-height:96px;cursor:pointer;align-content:center}.hbig span{font-size:28px;margin-bottom:auto}.hbig small{font-weight:400;font-size:12px;color:var(--muted)}.hbig.go{background:var(--fg);color:var(--bg);border-color:var(--fg)}.hbig.go small{color:var(--bg);opacity:.75}
 .hcards{display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;margin-bottom:6px}.hcard{flex:1 0 108px;display:grid;gap:2px;justify-items:start;border:1px solid var(--line);background:var(--surface);color:var(--fg);font:inherit;border-radius:16px;padding:12px 14px;cursor:pointer;text-align:left}.hcard b{font-size:26px;font-family:var(--head,inherit)}.hcard span{font-size:12px;color:var(--muted)}
@@ -297,31 +311,37 @@ body.inv-mode .chip[aria-pressed="true"]{background:var(--fg);border-color:var(-
 </div>
 <div class="scrim" id="scrim" hidden></div>
 <nav class="drawer" id="drawer" aria-label="Разделы" aria-hidden="true">
-  <div class="lgrow"><div class="lgm"><svg viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="46" width="48" height="6" rx="3" fill="var(--fg)"/><rect x="9" y="26" width="14" height="16" rx="3.5" fill="var(--accent)"/><rect x="25" y="26" width="14" height="16" rx="3.5" fill="var(--accent)"/><rect x="41" y="26" width="14" height="16" rx="3.5" fill="var(--accent)"/></svg></div><span class="dtitle">Полка</span></div>
+  <div class="lgrow"><div class="lgm"><svg viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="46" width="48" height="6" rx="3" fill="var(--fg)"/><rect x="9" y="26" width="14" height="16" rx="3.5" fill="var(--accent)"/><rect x="25" y="26" width="14" height="16" rx="3.5" fill="var(--accent)"/><rect x="41" y="26" width="14" height="16" rx="3.5" fill="var(--accent)"/></svg></div><span class="dtitle">Полка</span><button type="button" class="dclose" id="d-close" aria-label="Закрыть меню">×</button></div>
   <p class="who" id="who"></p>
   <div class="nav">
     <p class="dgrp" id="dg1">Управление</p>
-    <button class="tab" id="t-bar" type="button">Стойка<small id="c-bar"></small></button>
-    <button class="tab" id="t-wh" type="button">Склад<small id="c-wh"></small></button>
-    <button class="tab" id="t-or" type="button">Заказ<small id="c-or"></small></button>
-    <button class="tab" id="t-stop" type="button">Стоп-лист<small id="c-stop"></small></button>
-    <button class="tab" id="t-inv" type="button" hidden>Инвентаризация<small></small></button>
-    <button class="tab" id="t-pack" type="button" hidden>Граммовка<small></small></button>
-    <button class="tab" id="t-str" type="button" hidden>Крепость<small></small></button>
+    <div class="dcard">
+      <button class="tab" id="t-bar" type="button">Стойка<small id="c-bar"></small></button>
+      <button class="tab" id="t-wh" type="button">Склад<small id="c-wh"></small></button>
+      <button class="tab" id="t-or" type="button">Заказ<small id="c-or"></small></button>
+      <button class="tab" id="t-stop" type="button">Стоп-лист<small id="c-stop"></small></button>
+      <button class="tab" id="t-inv" type="button" hidden>Инвентаризация<small></small></button>
+      <button class="tab" id="t-pack" type="button" hidden>Граммовка<small></small></button>
+      <button class="tab" id="t-str" type="button" hidden>Крепость<small></small></button>
+    </div>
     <p class="dgrp">Ещё</p>
-    <button class="tab" id="t-slow" type="button">Неликвид<small id="c-slow"></small></button>
-    <button class="tab" id="t-mix" type="button">Альбом миксов<small id="c-mix"></small></button>
-    <button class="tab" id="t-log" type="button">Журнал<small></small></button>
-    <button class="tab" id="t-ai" type="button">Ассистент<small>ИИ</small></button>
-    <button class="tab" id="t-sup" type="button" hidden style="display:none">Поставщики<small id="c-sup"></small></button>
+    <div class="dcard">
+      <button class="tab" id="t-slow" type="button">Неликвид<small id="c-slow"></small></button>
+      <button class="tab" id="t-mix" type="button">Альбом миксов<small id="c-mix"></small></button>
+      <button class="tab" id="t-log" type="button">Журнал<small></small></button>
+      <button class="tab" id="t-ai" type="button">Ассистент<small>ИИ</small></button>
+      <button class="tab" id="t-sup" type="button" hidden style="display:none">Поставщики<small id="c-sup"></small></button>
+    </div>
     <div id="d-set" hidden>
       <p class="dgrp">Гости и команда</p>
-      <button class="tab" id="t-wish" type="button" hidden>Пожелания гостей<small></small></button>
-      <button class="tab" id="t-team" type="button" hidden>Команда<small id="c-team"></small></button>
+      <div class="dcard">
+        <button class="tab" id="t-wish" type="button" hidden>Пожелания гостей<small></small></button>
+        <button class="tab" id="t-team" type="button" hidden>Команда<small id="c-team"></small></button>
+      </div>
     </div>
   </div>
   <button class="btn" type="button" id="view-sw" hidden style="margin-top:14px;width:100%">Вид: управляющий</button>
-  <button class="btn" type="button" id="theme-sw" style="margin-top:14px;width:100%">Тема: авто</button>
+  <div class="thseg" id="theme-sw" role="group" aria-label="Тема"><button type="button" data-th="auto">Авто</button><button type="button" data-th="light">Светлая</button><button type="button" data-th="dark">Тёмная</button></div>
   <button class="btn" type="button" id="role-sw" hidden style="margin-top:14px;width:100%">Демо: сменить роль</button>
   <details class="dnote"><summary>Подсказка и обозначения</summary>
     <p>На складе отметь «+», «−» и метку «на стойке», потом нажми «Списание / пополнение» внизу. Ничего не записывается, пока не подтвердишь список.</p>
@@ -1370,8 +1390,9 @@ if(true){
     const f=$("#scan-fab");if(f&&st.tab==="home")f.hidden=true};
   const HIDE=[".search","#brands","#filters",".legend","#chat","#sup","#logbox","#omanual","#tray","#otray"];
   const dayName=d=>{const t=new Date(),y=new Date(Date.now()-864e5),same=(a,b)=>a.toDateString()===b.toDateString();return same(d,t)?"Сегодня":same(d,y)?"Вчера":d.toLocaleDateString("ru-RU",{day:"numeric",month:"long"})};
-  const HIC={cart:"M3 4h2l2 12h11l2-8H6M9 20h.01M17 20h.01",chk:"M5 12l5 5 9-10",heart:"M12 20s-7-4.5-7-10a4 4 0 0 1 7-2 4 4 0 0 1 7 2c0 5.5-7 10-7 10z",clock:"M12 7v5l3 2M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z",stop:"M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM6 6l12 12",box:"M3 8l9-5 9 5v8l-9 5-9-5zM3 8l9 5 9-5M12 13v8",cam:"M4 8h3l2-3h6l2 3h3v11H4zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",spark:"M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z"};
+  const HIC={eye:"M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z",scale:"M12 4v16M6 20h12M5 8h14M5 8l-2 6a3 3 0 0 0 6 0zM19 8l-2 6a3 3 0 0 0 6 0z",flame:"M12 3c1 4-4 5-4 10a4 4 0 0 0 8 0c0-3-2-4-2-6 3 2 5 5 5 8a7 7 0 0 1-14 0c0-6 5-8 7-12z",list:"M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01",book:"M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3zM5 17a3 3 0 0 1 3-3h11",msg:"M4 5h16v11H9l-5 4z",team:"M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3 20a6 6 0 0 1 12 0M16 11a3 3 0 1 0 0-6M17 14a6 6 0 0 1 4 6",cart:"M3 4h2l2 12h11l2-8H6M9 20h.01M17 20h.01",chk:"M5 12l5 5 9-10",heart:"M12 20s-7-4.5-7-10a4 4 0 0 1 7-2 4 4 0 0 1 7 2c0 5.5-7 10-7 10z",clock:"M12 7v5l3 2M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z",stop:"M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM6 6l12 12",box:"M3 8l9-5 9 5v8l-9 5-9-5zM3 8l9 5 9-5M12 13v8",cam:"M4 8h3l2-3h6l2 3h3v11H4zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",spark:"M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z"};
   const ic=n=>'<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="'+HIC[n]+'"/></svg>';
+  [["t-bar","box"],["t-wh","box"],["t-or","cart"],["t-stop","stop"],["t-inv","chk"],["t-pack","scale"],["t-str","flame"],["t-slow","clock"],["t-mix","book"],["t-log","list"],["t-ai","spark"],["t-wish","msg"],["t-team","team"]].forEach(([i,n])=>{const e=$("#"+i);if(e&&!e.querySelector(".ico"))e.insertAdjacentHTML("afterbegin",ic(n))});
   const whWeight0=()=>DATA.reduce((a,x)=>a+(packMap[x.id]?wh(x)*packMap[x.id]:0),0);
   let feedOpen=false;
   const drawHome=()=>{
@@ -1398,12 +1419,13 @@ if(true){
       if(low>0)tasks.push(trow("box","Нет на складе: "+low+" поз.","на стойке есть, на складе нет","Склад","wh","low"));
     }
     const photoOn=NEWUI&&!isMgr;
-    const acts='<div class="hbtns"'+(photoOn?'':' style="grid-template-columns:1fr"')+'>'+(photoOn?'<button type="button" class="hbig go" id="h-photo"><span>'+ic("cam")+'</span>Сфоткать банки<small>одним фото со склада</small></button>':'')+'<button type="button" class="hbig'+(photoOn?'':' go')+'" data-go="wh"><span>'+ic("box")+'</span>Взять со склада<small>найти вкус, взять штуки</small></button></div>';
+    const acts=isMgr?'<button type="button" class="hprim" data-go="wh">'+ic("box")+'Взять со склада</button>'
+      :(photoOn?'<button type="button" class="hprim hphoto" id="h-photo">'+ic("cam")+'<span><b>Сфоткать банки</b><small>Одним фото со склада · ИИ распознает</small></span><i>›</i></button>':'')+'<button type="button" class="hsec" data-go="wh">'+ic("box")+'<b>Взять со склада</b><i>›</i></button>';
     const strip='<div class="hs">'+tile(barN,"на стойке","bar")+tile(whN,"шт. на складе"+(ww?" · "+Math.round(ww/1000)+" кг":""),"wh")+(isMgr?tile(ord,"к заказу","order"):tile(stp,"в стопе","stop"))+'</div>';
     const ai='<button type="button" class="trow hai" data-go="ai"><span class="ti">'+ic("spark")+'</span><span class="tt"><b>Ассистент</b><small>спроси про склад, заказ, миксы</small></span><span class="ta">›</span></button>';
-    const tl=tasks.length?'<h3 class="sub">'+(isMgr?"Сегодня":"Обрати внимание")+'</h3><div class="hlist">'+tasks.join("")+'</div>':'<p class="hintline hok">'+ic("chk")+' Всё спокойно, срочных дел нет.</p>';
+    const tl=tasks.length?'<h3 class="sub">'+(isMgr?"Сегодня":"Обрати внимание")+'</h3><div class="hlist'+(isMgr?' tdy':'')+'">'+tasks.join("")+'</div>':'<p class="hintline hok">'+ic("chk")+' Всё спокойно, срочных дел нет.</p>';
     const fd='<details class="hdet"'+(feedOpen?' open':'')+'><summary>Последние действия</summary>'+(feed.length?feed.join(""):'<p class="hintline">Пока ничего не происходило.</p>')+(isMgr?'<button type="button" class="btn wide" data-go="log" style="margin-top:8px">Весь журнал и списания</button>':"")+'</details>';
-    $("#list").innerHTML=(isMgr?tl+acts+ai:acts+tl+ai)+fd+guide()}
+    $("#list").innerHTML=(isMgr?acts+tl+ai:acts+tl+ai)+fd+guide()}
   $("#list").addEventListener("toggle",e=>{if(e.target.matches&&e.target.matches("details.hdet"))feedOpen=e.target.open},true);;
   const GUIDE=[
    ["Как это устроено","<p><b>Стойка</b> — то, что стоит в работе сейчас. <b>Склад</b> — запас, который лежит в подсобке. <b>Стоп-лист</b> — вкус временно скрыт из табачной карты. <b>Неликвид</b> — вкус, который нужно «прогнать» и убрать с полки.</p><p>Любой вкус можно найти через поиск. Он ищет по всему каталогу, даже если вкуса сейчас нет на стойке или на складе.</p>"],
@@ -1424,10 +1446,10 @@ if(true){
   const tgw=window.Telegram&&window.Telegram.WebApp;let tgBack=false;
   const navVis=()=>{["t-str","t-wish","t-pack","t-team","t-log","t-inv"].forEach(i=>{const e=$("#"+i);if(e)e.hidden=!isMgr});const ds=$("#d-set");if(ds)ds.hidden=!isMgr;const g1=$("#dg1");if(g1)g1.textContent=isMgr?"Управление":"Работа"};
   const TH=[["auto","авто"],["dark","тёмная"],["light","светлая"]];let thm="auto";try{thm=localStorage.getItem("polka_theme")||"auto"}catch(e){}
-  const thApply=()=>{const r=document.documentElement;let t=thm;if(t==="auto"){t=tgw&&tgw.colorScheme?tgw.colorScheme:""}if(t)r.setAttribute("data-theme",t);else r.removeAttribute("data-theme");const b=$("#theme-sw");if(b)b.textContent="Тема: "+TH.find(x=>x[0]===thm)[1]};
-  thApply();$("#theme-sw").onclick=()=>{thm=TH[(TH.findIndex(x=>x[0]===thm)+1)%3][0];try{localStorage.setItem("polka_theme",thm)}catch(e){}thApply()};
+  const thApply=()=>{const r=document.documentElement;let t=thm;if(t==="auto"){t=tgw&&tgw.colorScheme?tgw.colorScheme:""}if(t)r.setAttribute("data-theme",t);else r.removeAttribute("data-theme");document.querySelectorAll("#theme-sw [data-th]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.th===thm))};
+  thApply();$("#theme-sw").addEventListener("click",e=>{const b=e.target.closest("[data-th]");if(!b)return;thm=b.dataset.th;try{localStorage.setItem("polka_theme",thm)}catch(e){}thApply()});$("#d-close").onclick=()=>menu(false);
   const vw=$("#view-sw");
-  const vwSync=()=>{vw.hidden=!realMgr;vw.textContent=isMgr?"Посмотреть как мастер":"Вернуться к управляющему"};
+  const vwSync=()=>{vw.hidden=!realMgr;vw.innerHTML=ic("eye")+(isMgr?"Посмотреть как мастер":"Вернуться к управляющему")};
   vw.onclick=()=>{isMgr=!isMgr;try{localStorage.setItem("polka_view",isMgr?"manager":"master")}catch(e){}if(!isMgr&&["inv","sup","log","team","str","pack","wish","order"].includes(st.tab))st.tab="home";menu(false);$("#who").textContent=isMgr?"Управляющий":"Мастер · просмотр";render();window.scrollTo(0,0)};
   const backSync=()=>{navVis();vwSync();if(realMgr)$("#who").textContent=isMgr?"Управляющий":"Мастер · просмотр";const sub=st.tab!=="home";if(tgw&&tgw.BackButton){try{if(!tgBack){tgw.BackButton.onClick(()=>go("home"));tgBack=true}sub?tgw.BackButton.show():tgw.BackButton.hide()}catch(e){}}
     const l=$("#list");if(SUB.has(st.tab)&&!l.hidden&&!l.querySelector("#s-back"))l.insertAdjacentHTML("afterbegin",'<button type="button" class="btn sback" id="s-back">← На главную</button>')};
