@@ -463,7 +463,7 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
   async function callAI(body,signal,onWait){
     // Бесплатный Gemini иногда отвечает «занят» или «слишком много запросов»: ждём и пробуем ещё два раза
     for(let a=0;;a++){
-      const r=await fetch(CFG.url+"/functions/v1/ai",{method:"POST",signal,headers:H(),body:JSON.stringify(body)});
+      const r=await fetch("https://mcsxx-84-32-108-30.run.pinggy-free.link/functions/v1/ai",{method:"POST",signal,headers:H(),body:JSON.stringify(body)});
       const j=await r.json().catch(()=>({}));
       if(r.ok)return j;
       const e=j.error||(r.status===401?"session_expired":"server_error");
