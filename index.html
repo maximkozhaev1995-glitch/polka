@@ -663,7 +663,7 @@ function actsV2(x){const n=wh(x),ob=onBar(x),stp=flag(x,"stop"),sl=flag(x,"slow"
     return top+(b.length?'<div class="acts2">'+b.join("")+'</div>':"")}
   const wrap=()=>top+(b.length?'<details class="more2"><summary>Ещё действия</summary><div class="acts2">'+b.join("")+'</div></details>':"");
   if(st.tab==="bar"){A(stp?"stopoff":"stopon",stp?"Вернуть из стопа":"В стоп-лист",stp?"go":"");A(sl?"slowoff":"slowon",sl?"Снять неликвид":"В неликвид");if(ob)A("offbar","Убрать со стойки");return '<div class="acts2">'+b.join("")+'</div>'}
-  if(st.tab==="slow"){take();A("slowoff","Снять неликвид");A("add","Пополнить склад");return top+'<div class="acts2">'+b.join("")+'</div>'}
+  if(st.tab==="slow"){take();A("slowoff","Снять неликвид");if(n<=0)A("retire","Вывести аромат","bad");else A("add","Пополнить склад");return top+'<div class="acts2">'+b.join("")+'</div>'}
   if(st.tab==="wh"){take();A("add","Пополнить");if(n>0)A("wo","Списать","bad");A("delpos","Удалить позицию","bad");return wrap()}
   if(st.tab==="stop"){A(stp?"stopoff":"stopon",stp?"Вернуть из стопа":"В стоп-лист",stp?"go":"")}
   return '<div class="acts2">'+b.join("")+'</div>'}
@@ -682,6 +682,7 @@ function renderV2(){
   const items=itemsV2(),brands=[...new Set(items.map(x=>x.b))].sort(abc),list=$("#list");let html="";
   if(!stockLoaded&&db)html+='<p class="empty">Склад загружается…</p>';
   if(st.tab==="wh"&&isMgr&&!st.q)html+='<button type="button" class="btn wide" data-v="newpos" style="margin:8px 0">＋ Добавить новую позицию</button>';
+  if(st.tab==="stop"&&!st.q){const sall=DATA.filter(x=>flag(x,"stop")&&!flag(x,"slow"));html+='<div class="acts2" style="margin:8px 0">'+'<button type="button" class="ab go" data-v="e-find-btn">＋ Добавить позицию</button>'+(isMgr&&sall.length?'<button type="button" class="ab" data-v="addallstop">Добавить всё в заказ</button>':"")+'</div>'}
   if((st.tab==="bar"||st.tab==="wh")&&isMgr)html+=takenHtml();
   
   if(st.tab==="slow"){const sp=DATA.filter(x=>flag(x,"slow")).reduce((a,x)=>a+wh(x),0);html+='<p class="hintline sl-h">'+(slowN?'Эти вкусы лежат без движения: <b>'+sp+' шт.</b> на складе. Предлагайте их гостям в первую очередь.':'Пока ничего нет. Отметь вкус кнопкой «В неликвид» на стойке.')+'</p>'}
@@ -693,7 +694,7 @@ function renderV2(){
   list.innerHTML=html}
 document.addEventListener("click",e=>{if(!V2.has(st.tab))return;const lst=e.target.closest("#list");if(!lst)return;
   const v=e.target.closest("[data-v]");
-  if(v){e.stopPropagation();const k=v.dataset.v,x=byId[v.dataset.id];if(k==="low"){whLow=!whLow;render();return}if(k==="newpos"){openNew();return}if(k==="tq-"||k==="tq+"){if(x){takeQ=Math.max(1,Math.min(wh(x),takeQ+(k==="tq+"?1:-1)));render()}return}if(!x||!db||busy)return;if(!isMgr){const P={stopon:1,stopoff:"unstop",slowon:"slow",slowoff:"slow",offbar:"offbar",tobar:"take",add:"add"}[k];if(P!==1&&!(P&&myPerms.includes(P)))return}
+  if(v){e.stopPropagation();const k=v.dataset.v,x=byId[v.dataset.id];if(k==="low"){whLow=!whLow;render();return}if(k==="newpos"){openNew();return}if(k==="e-find-btn"){$("#q").focus();return}if(k==="addallstop"){addAllStop();return}if(k==="tq-"||k==="tq+"){if(x){takeQ=Math.max(1,Math.min(wh(x),takeQ+(k==="tq+"?1:-1)));render()}return}if(!x||!db||busy)return;if(!isMgr){const P={stopon:1,stopoff:"unstop",slowon:"slow",slowoff:"slow",offbar:"offbar",tobar:"take",add:"add"}[k];if(P!==1&&!(P&&myPerms.includes(P)))return}
     if(k==="fin")finish(x);else if(k==="tobar"){toBar(x,takeQ);takeQ=1}else if(k==="offbar")offBar(x);else if(k==="stopon")flagSet(x,"stop",true);else if(k==="stopoff")flagSet(x,"stop",false);
     else if(k==="delpos")askDelPos(x);else if(k==="tobarN")openTake(x);else if(k==="undo")askUndo(x.id);else if(k==="retire")retire(x);else if(k==="unretire")unretire(x);else if(k==="slowon")flagSet(x,"slow",true);else if(k==="slowoff")flagSet(x,"slow",false);else if(k==="add")openAdd(x);else if(k==="wo")openWO(x);return}
   if(e.target.closest("button.bh"))return;
@@ -887,6 +888,7 @@ function askUndo(id,one){
 let oTimer=null;
 function saveOrder(){clearTimeout(oTimer);oTimer=setTimeout(async()=>{
   try{lastOrderAt=new Date().toISOString();await db.doc("order/current").set({q:orderQ,m:orderM,at:lastOrderAt})}catch(e){setStatus("Заказ не сохранился: "+(e&&e.message||"нет доступа"),true)}oTimer=null},500)}
+function addAllStop(){let n=0;DATA.filter(x=>flag(x,"stop")&&!flag(x,"slow")).forEach(x=>{if(!oq(x)){orderQ[x.id]=1;n++}});if(n){saveOrder();toast(n+" "+(n===1?"позиция добавлена":"позиций добавлено")+" в заказ")}render()}
 // Позиции заказа: из каталога и добавленные вручную, разложенные по поставщикам (поставщик бренда — в suppliers)
 function orderRows(){
   const rows=DATA.filter(x=>inOrder(x)&&oq(x)>0).map(x=>({b:x.b,l:x.l||"",n:x.n,q:oq(x),x}));
