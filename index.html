@@ -471,7 +471,7 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
     knowcat:{table:"knowledge_cat",key:"id",
       list:()=>"knowledge_cat?select=id,name,created_at&venue_id=eq."+V()+"&order=created_at.asc&limit=200",
       toDoc:r=>({name:r.name,at:r.created_at}),
-      fromDoc:(id,o)=>({venue_id:V(),name:o.name,by_tg:session.user.tg_id})},
+      fromDoc:(id,o)=>{const b={venue_id:V(),name:o.name,by_tg:session.user.tg_id};if(id)b.id=id;return b}},
     knowledge:{table:"knowledge",key:"id",
       list:()=>"knowledge?select=id,cat_id,title,body,name,path,created_at&venue_id=eq."+V()+"&order=created_at.asc&limit=500",
       toDoc:r=>({catId:r.cat_id?String(r.cat_id):"",title:r.title||"",body:r.body||"",name:r.name||"",path:r.path||"",at:r.created_at}),
@@ -1431,23 +1431,28 @@ $("#list").addEventListener("change",e=>{if(st.tab!=="chk"||!db)return;
     if(cb.checked)db.collection("tasklog").add({taskId:id,date:ds}).catch(()=>{cb.checked=false});
     else{const log=tasklog.find(l=>l.taskId===id&&l.date===ds);if(log)db.doc("tasklog/"+log.id).delete().catch(()=>{cb.checked=true})}}});
 /* База знаний: файлы, доступна всей команде, загружает и удаляет управляющий */
-var knowCat=null,knowcats=[];
+var knowCat=null,knowcats=[],knowImgCache={};
+const isImg=n=>/\.(jpe?g|png|webp|heic|gif)$/i.test(n||"");
 function renderKnowledge(){
   if(!mixHide)return;mixHide.forEach(q=>{const e=$(q);if(e)e.hidden=true});$("#list").hidden=false;$(".ttl .stats").hidden=true;document.body.classList.remove("ai-mode","has-tray");
-  let h;
+  let h='<button type="button" class="btn sm sback" id="kn-back" style="margin-bottom:10px">← Назад</button>';
   if(!knowCat){
-    h=(knowcats.length?knowcats.map(c=>'<button type="button" class="scard" data-kcat="'+c.id+'" style="display:block;width:100%;text-align:left;cursor:pointer"><h3 style="display:flex;justify-content:space-between;align-items:center"><span>'+esc(c.name)+'</span><span class="chev" aria-hidden="true">›</span></h3><p class="muted small" style="margin:4px 0 0">'+knowledge.filter(k=>k.catId===c.id).length+' '+'разд.</p></button>').join(""):'<p class="hintline">Пока нет ни одной базы. Создай первую — например «Руководство для администратора».</p>')
+    h+=(knowcats.length?knowcats.map(c=>'<button type="button" class="scard" data-kcat="'+c.id+'" style="display:block;width:100%;text-align:left;cursor:pointer"><h3 style="display:flex;justify-content:space-between;align-items:center"><span>'+esc(c.name)+'</span><span class="chev" aria-hidden="true">›</span></h3><p class="muted small" style="margin:4px 0 0">'+knowledge.filter(k=>k.catId===c.id).length+' '+'разд.</p></button>').join(""):'<p class="hintline">Пока нет ни одной базы. Создай первую — например «Руководство для администратора».</p>')
       +(isMgr?'<button type="button" class="btn go wide" id="kc-add" style="margin-top:10px">+ Добавить базу</button>':"");
   }else{
     const cat=knowcats.find(c=>c.id===knowCat),secs=knowledge.filter(k=>k.catId===knowCat);
-    h='<button type="button" class="btn sm" id="kc-back" style="margin-bottom:10px">← Все базы</button><h2 style="margin:0 0 10px">'+esc(cat?cat.name:"")+'</h2>'
+    h+='<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 10px"><h2 style="margin:0">'+esc(cat?cat.name:"")+'</h2>'+(isMgr?'<button type="button" class="btn sm" id="kc-menu" aria-label="Ещё">⋯</button>':"")+'</div>'
       +(secs.length?secs.map(k=>'<div class="scard"><h3>'+esc(k.title||"Без названия")+(isMgr?'<button class="btn sm" type="button" data-kedit="'+k.id+'">Изменить</button>':"")+'</h3>'
-        +(k.body?'<p style="white-space:pre-wrap;margin:6px 0 0">'+esc(k.body)+'</p>':"")
-        +(k.path?'<div class="bchips" style="margin-top:8px"><button type="button" class="tag" data-kopen="'+k.id+'" style="border:0;cursor:pointer">'+esc(k.name||"файл")+'</button></div>':"")
+        +(k.path&&isImg(k.name)?'<div class="kimg" data-kimgsrc="'+esc(k.path)+'" style="margin-top:8px">'+(knowImgCache[k.path]?'<img src="'+esc(knowImgCache[k.path])+'" style="max-width:100%;border-radius:10px;display:block;cursor:pointer">':'<p class="hintline">Загружаю фото…</p>')+'</div>':"")
+        +(k.body?'<p style="white-space:pre-wrap;margin:8px 0 0">'+esc(k.body)+'</p>':"")
+        +(k.path&&!isImg(k.name)?'<div class="bchips" style="margin-top:8px"><button type="button" class="tag" data-kopen="'+k.id+'" style="border:0;cursor:pointer">'+esc(k.name||"файл")+'</button></div>':"")
         +'</div>').join(""):'<p class="hintline">В этой базе пока нет разделов.</p>')
       +(isMgr?'<button type="button" class="btn go wide" id="ks-add" style="margin-top:10px">+ Добавить раздел</button>':"");
   }
-  $("#list").innerHTML=h}
+  $("#list").innerHTML=h;
+  $("#list").querySelectorAll("[data-kimgsrc]").forEach(el=>{const p=el.dataset.kimgsrc;if(knowImgCache[p]||!db)return;
+    db.signFile(p).then(url=>{knowImgCache[p]=url;if(el.isConnected)el.innerHTML='<img src="'+esc(url)+'" style="max-width:100%;border-radius:10px;display:block;cursor:pointer">'})
+      .catch(()=>{if(el.isConnected)el.innerHTML='<p class="hintline">Не удалось загрузить фото.</p>'})})}
 function editSection(k){let filesTmp=k&&k.path?{name:k.name,path:k.path}:null;
   showDlg('<h2>'+(k?"Раздел":"Новый раздел")+'</h2><label class="f">Заголовок<input id="ks-t" value="'+esc(k?k.title||"":"")+'" autocomplete="off" placeholder="Например: Внешний вид"></label>'
     +'<label class="f">Описание<textarea id="ks-b" rows="5" placeholder="Текст раздела…">'+esc(k?k.body||"":"")+'</textarea></label>'
@@ -1469,7 +1474,20 @@ function editSection(k){let filesTmp=k&&k.path?{name:k.name,path:k.path}:null;
   if(k)$("#ks-del").onclick=async()=>{try{await db.doc("knowledge/"+k.id).delete();if(k.path)db.deleteFile(k.path);closeDlg()}catch(e){setStatus("Не удалилось: "+(e&&e.message||""),true)}}}
 $("#list").addEventListener("click",e=>{if(st.tab!=="know"||!db)return;
   const kc=e.target.closest("[data-kcat]");if(kc){knowCat=kc.dataset.kcat;render();return}
-  if(e.target.closest("#kc-back")){knowCat=null;render();return}
+  if(e.target.closest("#kn-back")){if(knowCat){knowCat=null;render()}else go("home");return}
+  if(e.target.closest("[data-kimgsrc] img")){const p=e.target.closest("[data-kimgsrc]").dataset.kimgsrc,url=knowImgCache[p];if(url)window.open(url,"_blank");return}
+  if(e.target.closest("#kc-menu")){const cat=knowcats.find(c=>c.id===knowCat);if(!cat)return;
+    showDlg('<h2>'+esc(cat.name)+'</h2><div class="dlg-btns" style="flex-direction:column;align-items:stretch"><button class="btn" type="button" id="kc-ren">Переименовать</button><button class="btn danger" type="button" id="kc-rm">Удалить базу</button><button class="btn" type="button" id="dlg-back">Отмена</button></div>');
+    $("#dlg-back").onclick=closeDlg;
+    $("#kc-ren").onclick=()=>{showDlg('<h2>Переименовать базу</h2><label class="f">Название<input id="kc-n2" value="'+esc(cat.name)+'" autocomplete="off"></label><p class="hintline" id="kc-err2" style="color:var(--pend)"></p><div class="dlg-btns"><button class="btn go" type="button" id="kc-ok2">Сохранить</button><button class="btn" type="button" id="dlg-back">Отмена</button></div>');
+      $("#dlg-back").onclick=closeDlg;$("#kc-n2").focus();$("#kc-n2").select();
+      const rn=async()=>{const n=$("#kc-n2"),b=$("#kc-ok2"),er=$("#kc-err2"),v=n.value.trim();if(!v){n.focus();return}b.disabled=true;b.textContent="Сохраняю…";
+        try{await db.doc("knowcat/"+cat.id).set({name:v});closeDlg()}
+        catch(x){b.disabled=false;b.textContent="Сохранить";const msg="Не сохранилось: "+(x&&x.message||"");er.textContent=msg;setStatus(msg,true)}};
+      $("#kc-ok2").onclick=rn;$("#kc-n2").onkeydown=e3=>{if(e3.key==="Enter"){e3.preventDefault();rn()}}};
+    $("#kc-rm").onclick=()=>{showDlg('<h2>Удалить базу?</h2><p><b>'+esc(cat.name)+'</b> и все её разделы будут удалены без возможности восстановить.</p><div class="dlg-btns"><button class="btn danger" type="button" id="kc-rm2">Удалить</button><button class="btn" type="button" id="dlg-back">Отмена</button></div>');
+      $("#dlg-back").onclick=closeDlg;$("#kc-rm2").onclick=async()=>{try{await db.doc("knowcat/"+cat.id).delete();knowCat=null;closeDlg();render()}catch(x){setStatus("Не удалилось: "+(x&&x.message||""),true)}}};
+    return}
   if(e.target.closest("#kc-add")){if(!db){showDlg('<h2>Нет связи со складом</h2><p class="muted small">Открой приложение заново из Telegram.</p><div class="dlg-btns"><button class="btn" type="button" id="dlg-back">Понятно</button></div>');$("#dlg-back").onclick=closeDlg;return}
     showDlg('<h2>Новая база знаний</h2><label class="f">Название<input id="kc-n" autocomplete="off" enterkeyhint="done" placeholder="Руководство для администратора"></label><p class="hintline" id="kc-err" style="color:var(--pend)"></p><div class="dlg-btns"><button class="btn go" type="button" id="kc-ok">Создать</button><button class="btn" type="button" id="dlg-back">Отмена</button></div>');
     $("#dlg-back").onclick=closeDlg;$("#kc-n").focus();
@@ -1717,7 +1735,7 @@ if(true){
   const guide=()=>'<details class="hdet gd"><summary>Как пользоваться</summary><div class="guide" style="margin-top:8px">'+GUIDE.filter((g,i)=>(isMgr||![4,5,6,7,10].includes(i))&&(NEWUI||i!==2)).map(g=>'<details><summary>'+g[0]+'</summary>'+g[1]+'</details>').join("")+'</div></details>';
   $("#list").addEventListener("click",e=>{if(st.tab!=="home")return;if(e.target.closest("#h-photo")){const f=$("#scan-fab");if(f){f.hidden=false;f.click()}return}
     const g=e.target.closest("[data-go]");if(g){if(g.dataset.x==="low")whLow=true;go(g.dataset.go)}});
-  const SUB=new Set(["wish","pack","str","team","log","mixes","inv","sup","stop","slow","smena","chk","know"]);
+  const SUB=new Set(["wish","pack","str","team","log","mixes","inv","sup","stop","slow","smena","chk"]);
   const tgw=window.Telegram&&window.Telegram.WebApp;let tgBack=false;
   const navVis=()=>{["t-str","t-wish","t-pack","t-team","t-log","t-inv"].forEach(i=>{const e=$("#"+i);if(e)e.hidden=!isMgr});const ds=$("#d-set");if(ds)ds.hidden=!isMgr;const g1=$("#dg1");if(g1)g1.textContent=isMgr?"Управление":"Работа"};
   const TH=[["auto","авто"],["dark","тёмная"],["light","светлая"]];let thm="auto";try{thm=localStorage.getItem("polka_theme")||"auto"}catch(e){}

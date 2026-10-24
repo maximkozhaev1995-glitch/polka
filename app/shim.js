@@ -89,7 +89,7 @@
     knowcat:{table:"knowledge_cat",key:"id",
       list:()=>"knowledge_cat?select=id,name,created_at&venue_id=eq."+V()+"&order=created_at.asc&limit=200",
       toDoc:r=>({name:r.name,at:r.created_at}),
-      fromDoc:(id,o)=>({venue_id:V(),name:o.name,by_tg:session.user.tg_id})},
+      fromDoc:(id,o)=>{const b={venue_id:V(),name:o.name,by_tg:session.user.tg_id};if(id)b.id=id;return b}},
     knowledge:{table:"knowledge",key:"id",
       list:()=>"knowledge?select=id,cat_id,title,body,name,path,created_at&venue_id=eq."+V()+"&order=created_at.asc&limit=500",
       toDoc:r=>({catId:r.cat_id?String(r.cat_id):"",title:r.title||"",body:r.body||"",name:r.name||"",path:r.path||"",at:r.created_at}),
