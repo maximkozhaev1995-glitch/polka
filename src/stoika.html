@@ -202,7 +202,7 @@ input.iin{width:64px}.btn.iok{min-width:112px;font-weight:600;border-color:var(-
 .bd.stop{background:#c93b2b;color:#fff}.bd.slow{background:#f5b041;color:#4a2a10}.bd.on{background:var(--ok);color:#fff}
 .pillrow{margin:12px 0 2px}.qchips{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}.qchips .chip{min-height:44px}
 h3.sub{font:800 14px var(--display);text-transform:uppercase;margin:22px 0 4px}.sl-h{margin:12px 0 4px}
-.toast{position:fixed;left:12px;right:12px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:45;max-width:600px;margin:0 auto;display:flex;align-items:center;gap:10px;justify-content:space-between;background:var(--fg);color:var(--bg);border-radius:14px;padding:10px 12px 10px 14px;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.25)}.toast .btn{flex:none;background:transparent;color:var(--bg);border-color:rgba(255,255,255,.4);padding:0 12px}
+.toast{position:fixed;left:12px;right:12px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:210;max-width:600px;margin:0 auto;display:flex;align-items:center;gap:10px;justify-content:space-between;background:var(--fg);color:var(--bg);border-radius:14px;padding:10px 12px 10px 14px;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.25)}.toast .btn{flex:none;background:transparent;color:var(--bg);border-color:rgba(255,255,255,.4);padding:0 12px}
 body.has-tray .toast{bottom:84px}
 .btn.fin{height:36px;font-size:12px;padding:0 10px;white-space:nowrap}
 .hintline{color:var(--muted);font-size:13px;margin:8px 0 0;line-height:1.4}
@@ -1281,18 +1281,20 @@ function editSection(k){let filesTmp=k&&k.path?{name:k.name,path:k.path}:null;
     btn.disabled=false;btn.textContent="+ Прикрепить файл";$("#ks-file").value=""};
   $("#ks-file-row").addEventListener("click",e=>{if(e.target.closest("#ks-file-del")){filesTmp=null;redraw()}});
   $("#ks-ok").onclick=async()=>{const title=$("#ks-t").value.trim();if(!title){$("#ks-t").focus();return}
-    const body=$("#ks-b").value.trim(),id=k?k.id:null;
+    const btn=$("#ks-ok"),body=$("#ks-b").value.trim(),id=k?k.id:null;btn.disabled=true;btn.textContent="Сохраняю…";
     const payload={catId:knowCat,title,body,name:filesTmp?filesTmp.name:"",path:filesTmp?filesTmp.path:""};
-    try{if(id)await db.doc("knowledge/"+id).set(payload);else await db.collection("knowledge").add(payload);closeDlg()}catch(e){setStatus("Не сохранилось: "+(e&&e.message||""),true)}};
+    try{if(id)await db.doc("knowledge/"+id).set(payload);else await db.collection("knowledge").add(payload);closeDlg()}
+    catch(e){btn.disabled=false;btn.textContent="Сохранить";setStatus("Не сохранилось: "+(e&&e.message||""),true)}};
   if(k)$("#ks-del").onclick=async()=>{try{await db.doc("knowledge/"+k.id).delete();if(k.path)db.deleteFile(k.path);closeDlg()}catch(e){setStatus("Не удалилось: "+(e&&e.message||""),true)}}}
 $("#list").addEventListener("click",e=>{if(st.tab!=="know"||!db)return;
   const kc=e.target.closest("[data-kcat]");if(kc){knowCat=kc.dataset.kcat;render();return}
   if(e.target.closest("#kc-back")){knowCat=null;render();return}
-  if(e.target.closest("#kc-add")){showDlg('<h2>Новая база знаний</h2><label class="f">Название<input id="kc-n" autocomplete="off" enterkeyhint="done" placeholder="Руководство для администратора"></label><div class="dlg-btns"><button class="btn go" type="button" id="kc-ok">Создать</button><button class="btn" type="button" id="dlg-back">Отмена</button></div>');
+  if(e.target.closest("#kc-add")){if(!db){showDlg('<h2>Нет связи со складом</h2><p class="muted small">Открой приложение заново из Telegram.</p><div class="dlg-btns"><button class="btn" type="button" id="dlg-back">Понятно</button></div>');$("#dlg-back").onclick=closeDlg;return}
+    showDlg('<h2>Новая база знаний</h2><label class="f">Название<input id="kc-n" autocomplete="off" enterkeyhint="done" placeholder="Руководство для администратора"></label><p class="hintline" id="kc-err" style="color:var(--pend)"></p><div class="dlg-btns"><button class="btn go" type="button" id="kc-ok">Создать</button><button class="btn" type="button" id="dlg-back">Отмена</button></div>');
     $("#dlg-back").onclick=closeDlg;$("#kc-n").focus();
-    const mk=async()=>{const n=$("#kc-n"),b=$("#kc-ok"),v=n.value.trim();if(!v){n.focus();return}b.disabled=true;
+    const mk=async()=>{const n=$("#kc-n"),b=$("#kc-ok"),er=$("#kc-err"),v=n.value.trim();er.textContent="";if(!v){n.focus();return}b.disabled=true;b.textContent="Создаю…";
       try{const r=await db.collection("knowcat").add({name:v});knowCat=r.id;closeDlg();render()}
-      catch(x){b.disabled=false;setStatus("Не сохранилось: "+(x&&x.message||""),true)}};
+      catch(x){b.disabled=false;b.textContent="Создать";const msg="Не сохранилось: "+(x&&x.message||"нет доступа");er.textContent=msg;setStatus(msg,true)}};
     $("#kc-ok").onclick=mk;$("#kc-n").onkeydown=e2=>{if(e2.key==="Enter"){e2.preventDefault();mk()}};return}
   if(e.target.closest("#ks-add")){editSection(null);return}
   const ke=e.target.closest("[data-kedit]");if(ke){editSection(knowledge.find(x=>x.id===ke.dataset.kedit));return}
