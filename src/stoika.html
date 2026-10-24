@@ -1045,19 +1045,34 @@ const AI_RULES=`Ты — второй мастер за стойкой каль�
 function aiItem(x){const r={id:x.id,brand:x.b,name:x.n,wh:wh(x),onBar:onBar(x)};
   if(x.l)r.line=x.l;if(x.d)r.desc=x.d;if(x.t.length)r.tags=x.t;if(flag(x,"stop"))r.stop=true;if(flag(x,"slow"))r.slow=true;if(oq(x))r.order=oq(x);
   if(draft[x.id]){r.pending=draft[x.id].d||0;if(draft[x.id].bar!==undefined)r.pendingBar=draft[x.id].bar}return r}
-function matchText(text){const cn=v=>" "+norm(String(v||"")).replace(/[^a-zа-я0-9]+/g," ").trim()+" ",T=cn(text);
-   const brands=new Set(DATA.map(x=>cn(x.b).trim())),cnt=(h,n)=>h.split(n).length-1;
+const cnTxt=v=>" "+norm(String(v||"")).replace(/[^a-zа-я0-9]+/g," ").trim()+" ";
+// Разбор одного кусочка текста (весь текст, либо одна этикетка — см. matchText)
+function matchChunk(text){const T=cnTxt(text);
+   const brands=new Set(DATA.map(x=>cnTxt(x.b).trim())),cnt=(h,n)=>h.split(n).length-1;
    // Название, совпадающее с брендом (Black Burn «Overdose» и бренд Overdose), засчитываем только рядом со своим брендом
-   let hit=DATA.filter(x=>{const n=cn(x.n);return n.length>4&&T.includes(n)&&(!brands.has(n.trim())||T.includes(cn(x.b+" "+x.n)))});
-   // Одно название у разных брендов (Cream Soda) — оставляем тех, чей бренд тоже есть в тексте
-   const byN={};hit.forEach(x=>(byN[cn(x.n)]=byN[cn(x.n)]||[]).push(x));
-   hit=Object.values(byN).flatMap(g=>{const b=g.filter(x=>T.includes(cn(x.b)));return b.length?b:g});
+   let hit=DATA.filter(x=>{const n=cnTxt(x.n);return n.length>4&&T.includes(n)&&(!brands.has(n.trim())||T.includes(cnTxt(x.b+" "+x.n)))});
+   // Одно название у разных брендов (Cream Soda) — оставляем тех, чей бренд тоже есть в этом же кусочке текста
+   const byN={};hit.forEach(x=>(byN[cnTxt(x.n)]=byN[cnTxt(x.n)]||[]).push(x));
+   hit=Object.values(byN).flatMap(g=>{const b=g.filter(x=>T.includes(cnTxt(x.b)));return b.length?b:g});
    // «Cream» внутри «Cream Soda» — отбрасываем, если все его вхождения в тексте — внутри более длинного найденного названия
-   // («Mango» остаётся, если кроме «Ekzo Mango» на фото есть и отдельный «Mango»)
-   hit=hit.filter(x=>{const n=cn(x.n),inner=[...new Set(hit.map(y=>cn(y.n)))].filter(m=>m.length>n.length&&m.includes(n)).reduce((a,m)=>a+cnt(T,m),0);return cnt(T,n)>inner});
-   const names=hit.map(x=>cn(x.n));
-   const miss=String(text).split(/\n+/).map(l=>l.trim()).filter(l=>{const c=cn(l);return c.trim().length>2&&!brands.has(c.trim())&&!names.some(n=>c.includes(n)||n.includes(c))});
-   return{found:hit.slice(0,80).map(x=>({...aiItem(x),ambiguous:(byN[cn(x.n)]||[]).length>1&&!T.includes(cn(x.b))||undefined})),not_found_lines:miss.slice(0,40)}}
+   // («Mango» остаётся, если кроме «Ekzo Mango» в этом же кусочке есть и отдельный «Mango»)
+   hit=hit.filter(x=>{const n=cnTxt(x.n),inner=[...new Set(hit.map(y=>cnTxt(y.n)))].filter(m=>m.length>n.length&&m.includes(n)).reduce((a,m)=>a+cnt(T,m),0);return cnt(T,n)>inner});
+   return{hit,byN,T,brands}}
+function matchText(text){const raw=String(text||"");
+   // Яндекс на фото банок отдаёт текст по этикеткам («Этикетка N: …» — см. yandexOcr на сервере). Разбираем каждую
+   // отдельно: иначе бренд с одной банки и название с соседней, встретившиеся просто где-то в общем тексте,
+   // склеиваются в несуществующий вкус (так получился ложный «Black Burn Overdose»)
+   const labels=[...raw.matchAll(/^Этикетка\s*\d+\s*:\s*(.*)$/gim)].map(m=>m[1]);
+   const chunks=labels.length?labels:[raw];
+   const seen=new Set(),found=[];
+   chunks.forEach(chunk=>{const{hit,byN,T}=matchChunk(chunk);
+     hit.forEach(x=>{if(seen.has(x.id))return;seen.add(x.id);
+       found.push({...aiItem(x),ambiguous:(byN[cnTxt(x.n)]||[]).length>1&&!T.includes(cnTxt(x.b))||undefined})})});
+   const brands=new Set(DATA.map(x=>cnTxt(x.b).trim()));
+   const names=found.map(x=>cnTxt(x.name));
+   const lines=(labels.length?labels:raw.split(/\n+/)).map(l=>l.trim());
+   const miss=lines.filter(l=>{const c=cnTxt(l);return c.trim().length>2&&!brands.has(c.trim())&&!names.some(n=>c.includes(n)||n.includes(c))});
+   return{found:found.slice(0,80),not_found_lines:miss.slice(0,40)}}
 // Фото, распознанное Яндексом: приложение само сверяет текст с каталогом и отдаёт модели готовый список —
 // маленькая модель на ПК иначе пропускает банки и придумывает вкусы
 function photoNote(text){const m=matchText(text);
