@@ -1054,9 +1054,11 @@ function matchChunk(text){const T=cnTxt(text);
    const brands=new Set(DATA.map(x=>cnTxt(x.b).trim()));
    // Название, совпадающее с брендом (Black Burn «Overdose» и бренд Overdose), засчитываем только рядом со своим брендом
    let hit=DATA.filter(x=>{const n=cnTxt(x.n);return n.length>4&&nameIn(T,n.trim())&&(!brands.has(n.trim())||T.includes(cnTxt(x.b+" "+x.n))||nameIn(T,cnTxt(x.b+" "+x.n).trim()))});
-   // Одно название у разных брендов (Cream Soda) — оставляем тех, чей бренд тоже есть в этом же кусочке текста
+   // Одно название у разных брендов (Cola у Sebero, Palitra, Deus) — оставляем тех, чей бренд тоже есть в этом
+   // кусочке текста; если бренд не прочитан и кандидатов несколько — не угадываем ни одного (иначе на одну
+   // банку выводится сразу три «похожих» бренда вместо одного настоящего)
    const byN={};hit.forEach(x=>(byN[cnTxt(x.n)]=byN[cnTxt(x.n)]||[]).push(x));
-   hit=Object.values(byN).flatMap(g=>{const b=g.filter(x=>T.includes(cnTxt(x.b)));return b.length?b:g});
+   hit=Object.values(byN).flatMap(g=>{const b=g.filter(x=>T.includes(cnTxt(x.b)));if(b.length)return b;return g.length>1?[]:g});
    // «Cream» внутри «Cream Soda» — отбрасываем короткое название, если оно целиком (по словам) входит в другое
    // найденное в этом же кусочке более длинное название: это та же банка, оставляем длинное и более точное
    hit=hit.filter(x=>{const n=cnTxt(x.n).trim();return !hit.some(y=>y.id!==x.id&&cnTxt(y.n).trim().length>n.length&&nameIn(cnTxt(y.n),n))});
