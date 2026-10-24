@@ -760,11 +760,11 @@ function render(){
   const barN=DATA.filter(x=>onBar(x)&&!flag(x,"stop")).length,whItems=DATA.filter(x=>wh(x)>0),whPacks=whItems.reduce((a,x)=>a+wh(x),0);
   const ordSel=DATA.filter(x=>stockLoaded&&oq(x)>0);
   const stopN=DATA.filter(x=>flag(x,"stop")).length,slowN=DATA.filter(x=>flag(x,"slow")).length,slowP=DATA.filter(x=>flag(x,"slow")).reduce((a,x)=>a+wh(x),0);
-  $("#c-bar").textContent=barN;$("#c-wh").textContent=whPacks;$("#c-or").textContent=db?ordSel.length:"";$("#c-stop").textContent=stockLoaded?stopN:"";$("#c-slow").textContent=stockLoaded?slowN:"";
+  $("#c-bar").textContent=barN;$("#c-wh").textContent=whPacks;$("#c-or").textContent=db?ordSel.length:"";$("#c-stop").textContent=stockLoaded?stopN:"";$("#c-slow").textContent=stockLoaded?slowN:"";$("#c-team").textContent=checklist.filter(t=>!t.done).length||"";
   [["bar","t-bar"],["wh","t-wh"],["order","t-or"],["stop","t-stop"],["slow","t-slow"],["ai","t-ai"],["sup","t-sup"],["inv","t-inv"],["mixes","t-mix"],["log","t-log"],["team","t-team"],["str","t-str"],["wish","t-wish"],["pack","t-pack"]].forEach(([k,i])=>$("#"+i).setAttribute("aria-current",st.tab===k?"page":"false"));
   $("#sect").textContent=TABS[st.tab]||"Стойка";document.body.classList.toggle("inv-mode",st.tab==="inv");
   if(!isMgr&&(st.tab==="inv"||st.tab==="sup"||st.tab==="log"||st.tab==="str"||st.tab==="pack"||st.tab==="wish"))st.tab="bar";
-  $("#t-str").hidden=!isMgr;$("#t-wish").hidden=!isMgr;$("#t-pack").hidden=!isMgr;{const ds=$("#d-set");ds.hidden=!isMgr;if(["wish","pack","str","team"].includes(st.tab))ds.open=true}$("#t-team").hidden=!isMgr;$("#t-log").hidden=!isMgr;$("#t-inv").hidden=!isMgr;$("#t-sup").hidden=!isMgr;$("#who").textContent=isMgr?"Управляющий":"Мастер";
+  $("#t-str").hidden=!isMgr;$("#t-wish").hidden=!isMgr;$("#t-pack").hidden=!isMgr;{const ds=$("#d-set");ds.hidden=false;if(["wish","pack","str","team"].includes(st.tab))ds.open=true}$("#t-team").hidden=false;$("#t-log").hidden=!isMgr;$("#t-inv").hidden=!isMgr;$("#t-sup").hidden=!isMgr;$("#who").textContent=isMgr?"Управляющий":"Мастер";
   if(st.tab==="mixes"){renderMixes();return}
   if(st.tab==="log"){renderJournal();return}
   if(st.tab==="team"){renderTeam();return}
@@ -1574,7 +1574,7 @@ if(true){
   const whWeight0=()=>DATA.reduce((a,x)=>a+(packMap[x.id]?wh(x)*packMap[x.id]:0),0);
   let feedOpen=false;
   const drawHome=()=>{
-    HIDE.forEach(q=>{const e=$(q);if(e)e.hidden=true});$("#list").hidden=false;$(".ttl .stats").hidden=true;document.body.classList.remove("ai-mode","has-tray");$("#sect").textContent="Главная";$("#t-str").hidden=!isMgr;$("#t-team").hidden=!isMgr;$("#t-log").hidden=!isMgr;$("#t-inv").hidden=!isMgr;$("#t-sup").hidden=!isMgr;$("#who").textContent=isMgr?"Управляющий":"Мастер";
+    HIDE.forEach(q=>{const e=$(q);if(e)e.hidden=true});$("#list").hidden=false;$(".ttl .stats").hidden=true;document.body.classList.remove("ai-mode","has-tray");$("#sect").textContent="Главная";$("#t-str").hidden=!isMgr;$("#t-team").hidden=false;$("#t-log").hidden=!isMgr;$("#t-inv").hidden=!isMgr;$("#t-sup").hidden=!isMgr;$("#who").textContent=isMgr?"Управляющий":"Мастер";
     const barN=DATA.filter(x=>onBar(x)&&!flag(x,"stop")).length,low=DATA.filter(x=>onBar(x)&&wh(x)<1).length,ord=DATA.filter(x=>oq(x)>0).length,stp=DATA.filter(x=>flag(x,"stop")).length,slw=DATA.filter(x=>flag(x,"slow")).length,gn=DATA.filter(gone).length;
     const card=(n,l,t,x)=>'<button type="button" class="hcard" data-go="'+t+'"'+(x?' data-x="'+x+'"':"")+'><b>'+n+'</b><span>'+l+'</span></button>';
     const att=(n,l,t)=>n?'<button type="button" class="hrow" data-go="'+t+'"><span>'+l+'</span><b>'+n+'</b><i>›</i></button>':"";
@@ -1587,7 +1587,7 @@ if(true){
     const trow=(ico,ttl,sub,act,t,x)=>'<button type="button" class="trow" data-go="'+t+'"'+(x?' data-x="'+x+'"':"")+'><span class="ti">'+ic(ico)+'</span><span class="tt"><b>'+ttl+'</b>'+(sub?'<small>'+sub+'</small>':"")+'</span><span class="ta">'+act+'</span></button>';
     const tasks=[];
     const chkOpen=checklist.filter(t=>!t.done).length;
-    if(chkOpen>0)tasks.push(trow("chk","Дела смены: "+chkOpen,"чек-лист от управляющего","Открыть","team"));
+    tasks.push(trow("chk",chkOpen?"Дела смены: "+chkOpen:"Чек-лист смены",chkOpen?"чек-лист от управляющего":"список дел и база знаний","Открыть","team"));
     if(isMgr){
       if(ord>0)tasks.push(trow("cart","В заказе "+ord+" "+(ord===1?"позиция":"позиций"),"проверь и отправь поставщику","Открыть","order"));
       else if(low>0)tasks.push(trow("cart","Нет на складе: "+low+" поз.","на стойке есть, на складе нет","Заказ","order"));
