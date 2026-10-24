@@ -163,6 +163,18 @@ async function askLocal(db: any, system: string, messages: any[], tools: any[]) 
 }
 
 // ===== Фото накладных и банок: Yandex Vision OCR. Картинку заменяем распознанным текстом =====
+// Один вызов OCR с заданной моделью: "handwritten" читает и печатный, и рукописный текст (нужен для этикеток от руки),
+// "page" — запасной вариант, если handwritten недоступен на аккаунте.
+async function callYandexOcr(key: string, folder: string, mimeType: string, data: string, model: string) {
+  const r = await fetch("https://ocr.api.cloud.yandex.net/ocr/v1/recognizeText", {
+    method: "POST", headers: { "Content-Type": "application/json", Authorization: "Api-Key " + key, "x-folder-id": folder },
+    body: JSON.stringify({ mimeType, languageCodes: ["ru", "en"], model, content: data }),
+    signal: AbortSignal.timeout(30000),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { const e: any = new Error("yandex_" + model + "_" + r.status); e.status = r.status; e.body = j; throw e; }
+  return j;
+}
 async function yandexOcr(messages: any[]) {
   const key = Deno.env.get("YANDEX_API_KEY"), folder = Deno.env.get("YANDEX_FOLDER_ID");
   if (!key || !folder) return false;
@@ -171,16 +183,29 @@ async function yandexOcr(messages: any[]) {
     if (!Array.isArray(m.content)) continue;
     m.content = await Promise.all(m.content.map(async (b: any) => {
       if (b.type !== "image") return b;
-      const r = await fetch("https://ocr.api.cloud.yandex.net/ocr/v1/recognizeText", {
-        method: "POST", headers: { "Content-Type": "application/json", Authorization: "Api-Key " + key, "x-folder-id": folder },
-        body: JSON.stringify({ mimeType: b.source.media_type === "image/png" ? "PNG" : "JPEG", languageCodes: ["ru", "en"], model: "page", content: b.source.data }),
-        signal: AbortSignal.timeout(30000),
-      });
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok) { console.log("yandex ocr", r.status, JSON.stringify(j).slice(0, 200)); const e: any = new Error("image_rejected"); e.status = 422; throw e; }
-      const text = String(j?.result?.textAnnotation?.fullText || "").trim();
+      const mimeType = b.source.media_type === "image/png" ? "PNG" : "JPEG";
+      let j: any;
+      try {
+        j = await callYandexOcr(key, folder, mimeType, b.source.data, "handwritten");
+      } catch (e1) {
+        console.log("yandex ocr handwritten failed:", String((e1 as Error).message).slice(0, 120));
+        try {
+          j = await callYandexOcr(key, folder, mimeType, b.source.data, "page");
+        } catch (e2) {
+          console.log("yandex ocr page failed:", String((e2 as Error).message).slice(0, 120));
+          const e: any = new Error("image_rejected"); e.status = 422; throw e;
+        }
+      }
+      // Яндекс группирует распознанный текст по блокам — на фото банок обычно один блок на этикетку.
+      // Отдаём их отдельно пронумерованными: иначе бренд с одной банки и вкус с соседней, прочитанные подряд,
+      // модель (и наш собственный разбор на клиенте) может принять за одну позицию.
+      const blocks = (j?.result?.textAnnotation?.blocks || []) as any[];
+      const labels = blocks.map((blk) => (blk.lines || []).map((l: any) => l.text).join(" ").trim()).filter(Boolean);
+      const text = labels.length
+        ? labels.map((t, i) => "Этикетка " + (i + 1) + ": " + t).join("\n")
+        : String(j?.result?.textAnnotation?.fullText || "").trim();
       texts.push(text);
-      return { type: "text", text: "[Фото, текст распознан Yandex Vision. Этикетки и строки могут быть разорваны, собирай бренд и вкус по смыслу]\n" + (text || "(текста на фото не нашлось)") };
+      return { type: "text", text: "[Фото, текст распознан Yandex Vision. Каждая строка «Этикетка N: …» — отдельная банка; бренд и вкус с разных этикеток не смешивай]\n" + (text || "(текста на фото не нашлось)") };
     }));
   }
   return texts;
