@@ -87,9 +87,89 @@ async function askGemini(key: string, system: string, messages: any[], tools: an
   return { content, stop_reason: blocked ? "refusal" : calls ? "tool_use" : "end_turn", usage: j?.usageMetadata, model: served, tried };
 }
 
+// ===== Компьютер Максима: Ollama за туннелем (tools/local-ai), формат OpenAI =====
+// Адрес туннеля компьютер сам записывает в ai_local при запуске. Если компьютер не отвечает — отвечает Gemini.
+let localDownUntil = 0; // после сбоя минуту не ждём компьютер, сразу идём в запасной вариант
+function toOpenAI(system: string, messages: any[]) {
+  const res: any[] = [{ role: "system", content: system }];
+  for (const m of messages) {
+    const blocks = typeof m.content === "string" ? [{ type: "text", text: m.content }] : m.content;
+    const text = blocks.filter((b: any) => b.type === "text").map((b: any) => b.text).join("\n");
+    if (m.role === "assistant") {
+      const calls = blocks.filter((b: any) => b.type === "tool_use").map((b: any) => ({ id: b.id, type: "function", function: { name: b.name, arguments: JSON.stringify(b.input || {}) } }));
+      res.push(calls.length ? { role: "assistant", content: text, tool_calls: calls } : { role: "assistant", content: text });
+    } else {
+      for (const b of blocks.filter((b: any) => b.type === "tool_result")) res.push({ role: "tool", tool_call_id: b.tool_use_id, content: String(b.content) });
+      if (text) res.push({ role: "user", content: text });
+    }
+  }
+  return res;
+}
+async function askLocal(db: any, system: string, messages: any[], tools: any[]) {
+  const key = Deno.env.get("LOCAL_AI_KEY");
+  if (!key || Date.now() < localDownUntil) return null;
+  const { data } = await db.from("ai_local").select("url,model").eq("id", 1).maybeSingle();
+  if (!data?.url) return null;
+  try {
+    const body: Record<string, unknown> = { model: data.model || Deno.env.get("LOCAL_AI_MODEL") || "qwen2.5:7b", messages: toOpenAI(system, messages), max_tokens: 2500 };
+    if (tools.length) body.tools = tools.map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.input_schema } }));
+    const r = await fetch(data.url.replace(/\/+$/, "") + "/v1/chat/completions", {
+      method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + key }, body: JSON.stringify(body),
+      signal: AbortSignal.timeout(45000),
+    });
+    if (!r.ok) throw new Error("local " + r.status);
+    const msg = (await r.json())?.choices?.[0]?.message || {};
+    const content: any[] = [];
+    if (msg.content) content.push({ type: "text", text: String(msg.content) });
+    for (const c of msg.tool_calls || []) {
+      let input = {}; try { input = typeof c.function.arguments === "string" ? JSON.parse(c.function.arguments) : c.function.arguments || {}; } catch { /* пустые аргументы */ }
+      content.push({ type: "tool_use", id: c.id || "l" + crypto.randomUUID().slice(0, 8), name: c.function.name, input });
+    }
+    return { content, stop_reason: (msg.tool_calls || []).length ? "tool_use" : "end_turn", model: "local:" + body.model };
+  } catch (e) {
+    console.log("local ai down:", String((e as Error).message).slice(0, 120));
+    localDownUntil = Date.now() + 60000;
+    return null;
+  }
+}
+
+// ===== Фото накладных и банок: Yandex Vision OCR. Картинку заменяем распознанным текстом =====
+async function yandexOcr(messages: any[]) {
+  const key = Deno.env.get("YANDEX_API_KEY"), folder = Deno.env.get("YANDEX_FOLDER_ID");
+  if (!key || !folder) return false;
+  for (const m of messages) {
+    if (!Array.isArray(m.content)) continue;
+    m.content = await Promise.all(m.content.map(async (b: any) => {
+      if (b.type !== "image") return b;
+      const r = await fetch("https://ocr.api.cloud.yandex.net/ocr/v1/recognizeText", {
+        method: "POST", headers: { "Content-Type": "application/json", Authorization: "Api-Key " + key, "x-folder-id": folder },
+        body: JSON.stringify({ mimeType: b.source.media_type === "image/png" ? "PNG" : "JPEG", languageCodes: ["ru", "en"], model: "page", content: b.source.data }),
+        signal: AbortSignal.timeout(30000),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) { console.log("yandex ocr", r.status, JSON.stringify(j).slice(0, 200)); const e: any = new Error("image_rejected"); e.status = 422; throw e; }
+      const text = String(j?.result?.textAnnotation?.fullText || "").trim();
+      return { type: "text", text: "[Фото, текст распознан Yandex Vision. Этикетки и строки могут быть разорваны, собирай бренд и вкус по смыслу]\n" + (text || "(текста на фото не нашлось)") };
+    }));
+  }
+  return true;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
+    // Компьютер с локальным ИИ сообщает свой адрес (tools/local-ai/polka_ai.py)
+    const localKey = Deno.env.get("LOCAL_AI_KEY");
+    if (req.headers.get("x-local-key")) {
+      if (!localKey || req.headers.get("x-local-key") !== localKey) return out({ error: "forbidden" }, 403);
+      const { register } = await req.json();
+      if (!register?.url || !/^https:\/\//.test(register.url)) return out({ error: "bad_request" }, 400);
+      const adm = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      const w = await adm.from("ai_local").upsert({ id: 1, url: register.url, model: register.model || null, updated_at: new Date().toISOString() });
+      if (w.error) return out({ error: "server_error", detail: w.error.message }, 500);
+      localDownUntil = 0;
+      return out({ ok: true });
+    }
     const claudeKey = Deno.env.get("ANTHROPIC_API_KEY");
     const geminiKey = Deno.env.get("GEMINI_API_KEY");
     const useGemini = Deno.env.get("AI_PROVIDER") === "gemini" ? !!geminiKey : (!claudeKey && !!geminiKey);
@@ -103,7 +183,15 @@ Deno.serve(async (req) => {
     if (Number(hit.data) > DAILY_LIMIT) return out({ error: "rate_limited", scope: "daily" }, 429);
 
     const { system, messages, tools } = await req.json();
-    if (useGemini) return out(await askGemini(geminiKey!, String(system || ""), messages, tools || []));
+    const hasImg = messages.some((m: any) => Array.isArray(m.content) && m.content.some((b: any) => b.type === "image"));
+    // Фото: если Yandex подключён — картинки становятся текстом, и дальше их понимает любая модель
+    const ocr = hasImg ? await yandexOcr(messages) : false;
+    if (Deno.env.get("AI_PROVIDER") === "local" && (!hasImg || ocr)) {
+      const r = await askLocal(db, String(system || ""), messages, tools || []);
+      if (r) return out(r);
+      if (!geminiKey && !claudeKey) return out({ error: "busy" }, 503);
+    }
+    if (useGemini || (Deno.env.get("AI_PROVIDER") === "local" && geminiKey)) return out(await askGemini(geminiKey!, String(system || ""), messages, tools || []));
     const key = claudeKey!;
     const want = Deno.env.get("AI_MODEL") || "claude-haiku-5-5";
     const model = MODELS.includes(want) ? want : "claude-haiku-5-5";
