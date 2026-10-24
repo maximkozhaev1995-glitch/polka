@@ -87,8 +87,9 @@ async function askGemini(key: string, system: string, messages: any[], tools: an
   return { content, stop_reason: blocked ? "refusal" : calls ? "tool_use" : "end_turn", usage: j?.usageMetadata, model: served, tried };
 }
 
-// ===== Компьютер Максима: Ollama за туннелем (tools/local-ai), формат OpenAI =====
-// Адрес туннеля компьютер сам записывает в ai_local при запуске. Если компьютер не отвечает — отвечает Gemini.
+// ===== Компьютер Максима: Ollama (tools/local-ai), формат OpenAI =====
+// Компьютер сам забирает запросы из очереди ai_jobs (опрос раз в ~20 с, отметка в ai_local) — туннель не нужен.
+// Старый путь через туннель остаётся: если в ai_local записан https-адрес. Компьютер молчит — отвечает Gemini.
 let localDownUntil = 0; // после сбоя минуту не ждём компьютер, сразу идём в запасной вариант
 function toOpenAI(system: string, messages: any[]) {
   const res: any[] = [{ role: "system", content: system }];
@@ -105,20 +106,47 @@ function toOpenAI(system: string, messages: any[]) {
   }
   return res;
 }
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+// Кладём запрос в очередь и ждём ответ: 8 с на то, чтобы компьютер его забрал, 75 с на ответ
+async function viaQueue(db: any, body: unknown) {
+  await db.from("ai_jobs").delete().lt("created_at", new Date(Date.now() - 600000).toISOString());
+  const ins = await db.from("ai_jobs").insert({ req: body }).select("id").single();
+  if (ins.error) throw new Error("queue " + ins.error.message);
+  const id = ins.data.id, t0 = Date.now();
+  let taken = 0;
+  while (true) {
+    await sleep(400);
+    const { data } = await db.from("ai_jobs").select("res,taken_at").eq("id", id).maybeSingle();
+    if (data?.res) { await db.from("ai_jobs").delete().eq("id", id); return data.res; }
+    if (data?.taken_at && !taken) taken = Date.now();
+    if (!taken && Date.now() - t0 > 8000 || taken && Date.now() - taken > 75000) {
+      await db.from("ai_jobs").delete().eq("id", id);
+      throw new Error(taken ? "queue timeout" : "queue not taken");
+    }
+  }
+}
 async function askLocal(db: any, system: string, messages: any[], tools: any[]) {
   const key = Deno.env.get("LOCAL_AI_KEY");
   if (!key || Date.now() < localDownUntil) return null;
-  const { data } = await db.from("ai_local").select("url,model").eq("id", 1).maybeSingle();
+  const { data } = await db.from("ai_local").select("url,model,updated_at").eq("id", 1).maybeSingle();
   if (!data?.url) return null;
+  const queue = data.url === "queue";
+  if (queue && Date.now() - Date.parse(data.updated_at) > 60000) return null; // компьютер давно не спрашивал задачи — выключен
   try {
     const body: Record<string, unknown> = { model: data.model || Deno.env.get("LOCAL_AI_MODEL") || "qwen2.5:7b", messages: toOpenAI(system, messages), max_tokens: 2500 };
     if (tools.length) body.tools = tools.map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.input_schema } }));
-    const r = await fetch(data.url.replace(/\/+$/, "") + "/v1/chat/completions", {
-      method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + key }, body: JSON.stringify(body),
-      signal: AbortSignal.timeout(75000), // большой промпт на домашней видеокарте читается до минуты
-    });
-    if (!r.ok) throw new Error("local " + r.status);
-    const msg = (await r.json())?.choices?.[0]?.message || {};
+    let j: any;
+    if (queue) j = await viaQueue(db, body);
+    else {
+      const r = await fetch(data.url.replace(/\/+$/, "") + "/v1/chat/completions", {
+        method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + key }, body: JSON.stringify(body),
+        signal: AbortSignal.timeout(75000), // большой промпт на домашней видеокарте читается до минуты
+      });
+      if (!r.ok) throw new Error("local " + r.status);
+      j = await r.json();
+    }
+    if (j?.error) throw new Error("local: " + String(j.error).slice(0, 100));
+    const msg = j?.choices?.[0]?.message || {};
     const content: any[] = [];
     const txt = String(msg.content || "").replace(/<think>[\s\S]*?<\/think>\s*/g, "").trim();
     if (txt) content.push({ type: "text", text: txt });
@@ -165,9 +193,24 @@ Deno.serve(async (req) => {
     const localKey = Deno.env.get("LOCAL_AI_KEY");
     if (req.headers.get("x-local-key")) {
       if (!localKey || req.headers.get("x-local-key") !== localKey) return out({ error: "forbidden" }, 403);
-      const { register } = await req.json();
-      if (!register?.url || !/^https:\/\//.test(register.url)) return out({ error: "bad_request" }, 400);
+      const { register, poll, done } = await req.json();
       const adm = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      if (poll) { // компьютер ждёт задачу до 20 с; заодно отмечается, что он на связи
+        localDownUntil = 0;
+        const beat = () => adm.from("ai_local").upsert({ id: 1, url: "queue", model: poll.model || null, updated_at: new Date().toISOString() });
+        await beat();
+        for (let t0 = Date.now(); Date.now() - t0 < 20000; await sleep(500)) {
+          const { data, error } = await adm.rpc("ai_take_job");
+          if (error) return out({ error: "server_error", detail: error.message }, 500);
+          if (data?.length) { await beat(); return out({ job: { id: data[0].id, req: data[0].req } }); }
+        }
+        return out({ job: null });
+      }
+      if (done?.id) {
+        const w = await adm.from("ai_jobs").update({ res: done.res ?? { error: "empty" } }).eq("id", done.id);
+        return w.error ? out({ error: "server_error", detail: w.error.message }, 500) : out({ ok: true });
+      }
+      if (!register?.url || !/^https:\/\//.test(register.url)) return out({ error: "bad_request" }, 400);
       const w = await adm.from("ai_local").upsert({ id: 1, url: register.url, model: register.model || null, updated_at: new Date().toISOString() });
       if (w.error) return out({ error: "server_error", detail: w.error.message }, 500);
       localDownUntil = 0;
