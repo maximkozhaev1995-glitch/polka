@@ -280,7 +280,17 @@ body.inv-mode .btn.iok.done{background:transparent;border-color:var(--ok);color:
 body.inv-mode .chip[aria-pressed="true"]{background:var(--fg);border-color:var(--fg);color:var(--bg)}
 .ochips{margin:8px 0 4px;gap:6px}.ochips .chip{min-height:38px}
 .chip[data-os][aria-pressed="true"]{background:var(--fg);border-color:var(--fg);color:var(--bg)}
-.ichips{margin:8px 0 4px;gap:6px}.ichips .chip{min-height:38px}.ihelp{margin-left:auto;border-style:dashed;color:var(--muted)}
+.itiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0 8px}
+.itile{display:grid;gap:4px;justify-items:start;text-align:left;border:1.5px solid var(--line);background:var(--surface);color:var(--fg);font:inherit;border-radius:14px;padding:12px 10px;cursor:pointer;min-width:0}
+.itile b{font:800 22px/1.1 var(--display)}.itile span{font-size:12px;color:var(--muted);line-height:1.25}
+.itile[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.itile[aria-pressed="true"] b{color:var(--accent)}
+.iutil{margin:0 0 10px;gap:6px}.iutil .chip{min-height:36px;font-size:12.5px}.ihelp{color:var(--muted)}
+.isumcard{display:flex;gap:0;margin:6px 0 10px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--surface)}
+.isumcard>div{flex:1;padding:10px 12px;text-align:center}.isumcard>div+div{border-left:1px solid var(--line)}
+.isumcard b{display:block;font:800 18px/1.1 var(--display)}.isumcard span{font-size:11px;color:var(--muted)}
+.isumcard .bad b{color:var(--pend)}.isumcard .rub b{color:var(--accent)}
+.bok{display:inline-grid;place-items:center;width:17px;height:17px;border-radius:50%;background:var(--ok);color:#fff;font-size:11px;font-style:normal;font-weight:800;vertical-align:-3px}
 .isum{margin:2px 0 6px}.hl{margin:0;padding-left:18px;display:grid;gap:8px}
 .sback{margin:10px 0 0;min-height:44px;background:transparent;border:1px solid var(--line);color:var(--fg)}
 .linklike{background:none;border:0;padding:0;font:inherit;color:var(--accent);text-decoration:underline;cursor:pointer}
@@ -543,6 +553,8 @@ var packMap={},packSizes={};
 const szOf=x=>packSizes[x.b+"|"+(x.l||"")]||packSizes[x.b]||[];
 const multiSz=x=>!!x&&szOf(x).length>1&&!!packMap[x.id];
 const szTag=x=>multiSz(x)?'<span class="ln">'+packMap[x.id]+" г</span>":"";
+const packOpts=(L0,v)=>'<option value="">размер?</option>'+L0.map(g=>'<option value="'+g+'"'+(g===v?" selected":"")+'>'+g+' г</option>').join("");
+const packCtl=(x,v)=>szOf(x).length?'<select data-pf="'+x.id+'" aria-label="Размер банки '+esc(x.n)+'">'+packOpts(szOf(x),v)+'</select>':'<input data-pf="'+x.id+'" type="number" inputmode="numeric" min="5" max="2000" placeholder="г" value="'+(v||"")+'" style="width:84px;height:40px;font-size:16px">';
 const nm=x=>x?x.b+" "+x.n+(multiSz(x)?" · "+packMap[x.id]+" г":""):"вкус";
 function hl(text){const t=esc(text);if(!st.q)return t;const q=esc(st.q).replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
   return t.replace(new RegExp(q.replace(/е/gi,"[её]"),"gi"),m=>"<mark>"+m+"</mark>")}
@@ -602,8 +614,13 @@ const invGroupOf=x=>{if(x.b==="Kraken")return(x.l==="Medium Seco"||x.l==="Strong
 const invSec=invGroupOf;
 const invDiff=()=>Object.keys(invD).filter(id=>byId[id]&&invD[id]!==wh(byId[id]));
 function invCalc(D){let sh=0,ov=0,gs=0,go=0,nog=0;D.forEach(id=>{const x=byId[id],d=invD[id]-wh(x);if(d<0)sh-=d;else ov+=d;const g=packMap[id];if(g){if(d<0)gs-=d*g;else go+=d*g}else nog++});return {sh,ov,gs,go,nog}}
-function invSum(D,price){const{sh,ov,gs,go,nog}=invCalc(D),rub=(price&&gs)?Math.round(gs*price):null;
-  return '<b>Итого:</b> недостача '+sh+' шт.'+(gs?' ('+(gs/1000).toFixed(2).replace(/\.?0+$/,"")+' кг'+(rub!==null?' · <b id="inv-rub">≈'+rub.toLocaleString("ru-RU")+' ₽</b>':'<span id="inv-rub"></span>')+')':'<span id="inv-rub" hidden></span>')+(ov?', излишек '+ov+' шт.'+(go?' ('+(go/1000).toFixed(2).replace(/\.?0+$/,"")+' кг)':''):'')+(nog?'. У '+nog+' поз. размер не указан, граммы не посчитаны.':'.')+'<br>'}
+function invSum(D,price){const{sh,ov,gs,go,nog}=invCalc(D),rub=(price&&gs)?Math.round(gs*price):null,kg=n=>(n/1000).toFixed(2).replace(/\.?0+$/,"");
+  return '<div class="isumcard">'
+    +'<div class="bad"><b>'+sh+'</b><span>шт. недостача</span></div>'
+    +(gs?'<div><b>'+kg(gs)+'</b><span>кг недостача</span></div>':"")
+    +'<div class="rub"><b id="inv-rub">'+(rub!==null?"≈"+rub.toLocaleString("ru-RU"):"—")+'</b><span>₽</span></div>'
+    +(ov?'<div><b>+'+ov+'</b><span>шт. излишек'+(go?' · '+kg(go)+' кг':"")+'</span></div>':"")
+    +'</div>'+(nog?'<p class="hintline">У '+nog+' поз. размер не указан, граммы не посчитаны.</p>':"")}
 var invPriceByIg={};try{invPriceByIg=JSON.parse(localStorage.getItem("inv-price")||"{}")}catch(e){}
 function whWeight(){let n=0,g=0,no=0;DATA.forEach(x=>{const k=wh(x);if(!k||invSec(x)!==st.ig)return;n+=k;if(packMap[x.id])g+=k*packMap[x.id];else no+=k});return {n,g,no}}
 const invDiffG=()=>invDiff().filter(id=>invSec(byId[id])===st.ig);
@@ -611,7 +628,7 @@ function openInv(){const D=invDiffG(),defPrice=invPriceByIg[st.ig]??(st.ig==="ma
   showDlg('<h2>Расхождения</h2>'+(D.length?'<ul>'+D.map(id=>{const x=byId[id],d=invD[id]-wh(x);return'<li><span>'+esc(nm(x))+'<br><small>было '+wh(x)+' → по факту '+invD[id]+(packMap[x.id]?' · '+(d>0?"+":"")+d*packMap[x.id]+' г':'')+'</small></span><span class="ch" style="color:'+(d<0?"var(--pend)":"var(--ok)")+'">'+(d>0?"+":"")+d+'</span><span></span></li>'}).join("")+'</ul><label class="f">Цена, ₽/г (для расчёта недостачи в деньгах)<input id="inv-price" type="number" min="0" step="0.5" inputmode="decimal" value="'+esc(String(defPrice))+'"></label><p class="muted small">'+invSum(D,+defPrice||0)+'Недостача попадёт в отчёт по сменам и не считается расходом для заказа.</p>':'<p>Всё сходится.</p>')
   +'<div class="dlg-btns">'+(D.length?'<button class="btn go" type="button" id="inv-ok">Привести склад к факту</button>':'')+'<button class="btn" type="button" id="dlg-back">Закрыть</button></div>');
   $("#dlg-back").onclick=closeDlg;
-  const pi=$("#inv-price");if(pi)pi.oninput=()=>{const{gs}=invCalc(D),price=+pi.value||0,r=$("#inv-rub");if(r)r.textContent=(price&&gs)?"≈"+Math.round(gs*price).toLocaleString("ru-RU")+" ₽":""};
+  const pi=$("#inv-price");if(pi)pi.oninput=()=>{const{gs}=invCalc(D),price=+pi.value||0,r=$("#inv-rub");if(r)r.textContent=(price&&gs)?"≈"+Math.round(gs*price).toLocaleString("ru-RU"):"—"};
   const ok=$("#inv-ok");if(ok)ok.onclick=async()=>{const at=new Date().toISOString(),price=+(pi&&pi.value)||0,{sh,gs}=invCalc(D);
     for(const id of D){const x=byId[id],n=wh(x),v=invD[id];
     try{await db.doc("stock/"+id).set(Object.assign({},stock[id]||{},{wh:v}));await db.collection("moves").add({item:id,qty:v-n,left:v,prev:{wh:n,bar:null},at,kind:"inv"})}catch(e){}}
@@ -753,16 +770,19 @@ function render(){
   let html="";
   if(st.tab==="stop")html+='<details class="hint"><summary>Как это работает</summary><p class="hintline">Вкусы, которые сейчас нельзя предложить гостю, даже если на складе есть остаток. Выбери бренд, чтобы увидеть весь его ассортимент, или найди вкус через поиск, затем нажми «В стоп».</p></details>';
   if(st.tab==="slow")html+='<details class="hint"><summary>Как это работает</summary><p class="hintline">Вкусы, которые лежат без движения. Выбери бренд или найди вкус через поиск и нажми «В неликвид», чтобы не забыть пустить его в миксы или не заказывать.</p></details>';
-  if(st.tab==="inv"){const w=whWeight(),cnt=sec=>DATA.filter(x=>tracked(x)&&wh(x)>0&&invSec(x)===sec).length,igLbl=Object.fromEntries(IGROUPS);
-    html+='<div class="qchips ichips">'+IGROUPS.map(([k,l])=>'<button type="button" class="chip" data-ig="'+k+'" aria-pressed="'+(st.ig===k)+'">'+esc(l)+' · '+cnt(k)+'</button>').join("")+'<button type="button" class="chip ihelp" id="inv-help">Как это работает</button><button type="button" class="chip" id="inv-log">Журнал инвентаризаций'+(invLog.length?' · '+invLog.length:'')+'</button></div>'
-      +'<p class="hintline isum"><b>'+esc(igLbl[st.ig]||"Обычные")+': '+w.n+' шт.'+(w.g?' · около '+(w.g/1000).toFixed(1)+' кг':'')+'</b>'+(w.no?' · <button type="button" class="linklike" id="inv-nosz" aria-pressed="'+invNoSz+'">'+(invNoSz?"показать все":"у "+w.no+" шт. не указан размер, проставить")+'</button>':'')+'</p>'}
+  if(st.tab==="inv"){const w=whWeight(),cnt=sec=>DATA.filter(x=>tracked(x)&&wh(x)>0&&invSec(x)===sec).length;
+    html+='<div class="itiles">'+IGROUPS.map(([k,l])=>'<button type="button" class="itile" data-ig="'+k+'" aria-pressed="'+(st.ig===k)+'"><b>'+cnt(k)+'</b><span>'+esc(l)+'</span></button>').join("")+'</div>'
+      +'<div class="qchips iutil"><button type="button" class="chip ihelp" id="inv-help">Как это работает</button><button type="button" class="chip" id="inv-log">Журнал'+(invLog.length?' · '+invLog.length:'')+'</button></div>'
+      +'<div class="isumcard"><div><b>'+w.n+'</b><span>шт.</span></div>'+(w.g?'<div><b>'+(w.g/1000).toFixed(1)+'</b><span>кг</span></div>':"")+'</div>'
+      +(w.no?'<p class="hintline"><button type="button" class="linklike" id="inv-nosz" aria-pressed="'+invNoSz+'">'+(invNoSz?"← показать все":"⚠ у "+w.no+" шт. не указан размер — проставить")+'</button></p>':'')}
   if(st.tab==="order")html+=ordSw("order");
   if(st.tab==="order")html+='<details class="hint"><summary>Как это работает</summary><p class="hintline">Нажми «+», чтобы добавить вкус в заказ. Здесь показаны вкусы, которых на складе 0–1 банка, и то, что уже в заказе. Любой другой вкус найдётся через поиск.</p></details>';
   const fr=(st.tab==="bar"||st.tab==="wh"||st.tab==="smena")&&!st.q&&!st.brand&&!st.f?freqList().filter(x=>items.includes(x)):[];
   const secKey=x=>x.b,secList=brands;
   (fr.length?[FREQ].concat(secList):secList).forEach(b=>{const g=b===FREQ?fr:items.filter(x=>secKey(x)===b).sort((p,q)=>abc((p.l?p.l+" ":"")+p.n,(q.l?q.l+" ":"")+q.n));if(!g.length)return;
     const op=b===FREQ?!flip[fk(b)]:isOpen(b),forced=!!st.q;
-    html+='<section class="brand'+(op?" open":"")+'"><button class="bh" type="button" data-brand="'+esc(b)+'" aria-expanded="'+op+'"'+(forced?" disabled":"")+'><h2><span class="chev" aria-hidden="true">›</span>'+esc(b)+'</h2><span>'+(st.tab==="wh"||st.tab==="slow"||st.tab==="inv"?g.reduce((a,x)=>a+wh(x),0)+" шт.":st.tab==="order"?g.reduce((a,x)=>a+oq(x),0)+" к заказу":g.length)+'</span></button>';
+    const invOk=st.tab==="inv"&&!invNoSz&&g.length&&g.every(x=>invD[x.id]!==undefined&&invD[x.id]===wh(x));
+    html+='<section class="brand'+(op?" open":"")+'"><button class="bh" type="button" data-brand="'+esc(b)+'" aria-expanded="'+op+'"'+(forced?" disabled":"")+'><h2><span class="chev" aria-hidden="true">›</span>'+esc(b)+'</h2><span>'+(invOk?'<i class="bok" title="Весь бренд сошёлся" aria-label="Весь бренд сошёлся">✓</i> ':"")+(st.tab==="wh"||st.tab==="slow"||st.tab==="inv"?g.reduce((a,x)=>a+wh(x),0)+" шт.":st.tab==="order"?g.reduce((a,x)=>a+oq(x),0)+" к заказу":g.length)+'</span></button>';
     if(op)g.forEach(x=>{
       const tags=x.t.length?'<span class="tags">'+x.t.map(t=>'<span class="tag">'+esc(t)+'</span>').join("")+'</span>':"";
       const n=wh(x),nn=newWh(x),d=dd(x),dis=(!db||busy)?" disabled":"";
@@ -779,8 +799,12 @@ function render(){
         q='<div class="qty sm2"><span class="st2"><b'+(ob?' class="on"':'')+'>'+(ob?"на стойке":"не на стойке")+'</b><i'+(n<=1?' class="one"':'')+'>'+(n?n+" на скл.":"нет на скл.")+'</i></span>'
           +(ob?'<button class="btn fin" type="button" data-a="fin" data-id="'+x.id+'"'+dis+'>Закончилась</button>':'<button class="btn fin go" type="button" data-a="tobar" data-id="'+x.id+'"'+dis+'>На стойку</button>'+(n>0?'':'<button class="btn fin'+(k?" on":"")+'" type="button" data-a="otoggle" data-id="'+x.id+'"'+dis+'>'+(k?"✓ в заказе":"+ в заказ")+'</button>'))+'</div>';
       } else if(st.tab==="inv"){
+        if(invNoSz&&!packMap[x.id]){
+          q='<div class="qty"><span class="left">'+n+' шт.</span>'+packCtl(x,packMap[x.id])+'</div>';
+        }else{
         const v=invD[x.id];
         q='<div class="qty"><span class="left">'+n+' шт.</span>'+(v===n&&!invEd.has(x.id)?'<button class="btn iok done" type="button" data-a="iundo" data-id="'+x.id+'" aria-label="Отменить, сходится">✓</button>':v===undefined&&!invEd.has(x.id)?'<button class="btn iok" type="button" data-a="iok" data-id="'+x.id+'" aria-label="Сходится">✓</button><button class="btn" type="button" data-a="iedit" data-id="'+x.id+'" aria-label="Не сходится, ввести фактический остаток">✕</button>':'<input class="oin iin'+(v!==undefined&&v!==n?" diff":"")+'" type="number" inputmode="numeric" min="0" max="999" value="'+(v===undefined?"":v)+'" placeholder="факт" data-id="'+x.id+'" aria-label="Фактический остаток, шт."><button class="btn" type="button" data-a="iundo" data-id="'+x.id+'" aria-label="Отменить">↶</button>')+'</div>';
+        }
       } else if(st.tab==="order"){
         const k=oq(x);
         q='<div class="qty"><span class="left'+(n<=1?" one":"")+'" title="на складе">'+(n?n+" шт.":"нет")+'</span>'+(k?'<button class="btn minus" data-a="ominus" data-id="'+x.id+'" aria-label="Заказать меньше"'+dis+'>−</button><input class="oin" type="number" inputmode="numeric" min="0" max="99" value="'+k+'" data-id="'+x.id+'" aria-label="Сколько штук заказать"'+dis+'><button class="btn plus" data-a="oplus" data-id="'+x.id+'" aria-label="Заказать больше"'+dis+'>+</button>':'<button class="btn oadd" data-a="oplus" data-id="'+x.id+'"'+dis+'><b>+</b>В заказ</button>')+'</div>';
@@ -1048,7 +1072,7 @@ $("#t-bar").onclick=()=>go("bar");$("#t-mix").onclick=()=>go("mixes");$("#t-log"
   if(e.target.closest("#inv-nosz")){invNoSz=!invNoSz;render();return}
   if(e.target.closest("#inv-help")){showDlg('<h2>Как работает инвентаризация</h2><ul class="hl"><li>Выбери раздел: обычные, хука сигар или парфюм.</li><li>Пройди по полке. «✓» — сходится. «✕» — не сходится, впиши фактический остаток.</li><li>Внизу «Сверить» покажет расхождения в штуках, граммах и примерной сумме.</li><li>Нулевые остатки скрыты, нужный вкус найдёшь через поиск.</li></ul><div class="dlg-btns"><button class="btn go" type="button" id="dlg-back">Понятно</button></div>');$("#dlg-back").onclick=closeDlg;return}
   if(e.target.closest("#inv-log")){const L=invLog.slice(0,30),lbl=Object.fromEntries(IGROUPS);
-    showDlg('<h2>Журнал инвентаризаций</h2>'+(L.length?'<ul>'+L.map(r=>'<li><span>'+new Date(r.at).toLocaleDateString("ru-RU",{day:"numeric",month:"short"})+' — '+esc(lbl[r.ig]||r.ig)+'<br><small>'+r.items+' поз., недостача '+r.units+' шт.'+(r.g?' · '+(r.g/1000).toFixed(2).replace(/\.?0+$/,"")+' кг':"")+(r.rub?' · ≈'+Math.round(r.rub).toLocaleString("ru-RU")+' ₽':"")+'</small></span></li>').join("")+'</ul>':'<p>Пока пусто — журнал заполнится после первой завершённой инвентаризации.</p>')
+    showDlg('<h2>Журнал инвентаризаций</h2>'+(L.length?L.map(r=>'<div class="hfeed"><span><b>'+esc(lbl[r.ig]||r.ig)+'</b><br><small>'+r.items+' поз., недостача '+r.units+' шт.'+(r.g?' · '+(r.g/1000).toFixed(2).replace(/\.?0+$/,"")+' кг':"")+(r.rub?' · <b style="color:var(--pend)">≈'+Math.round(r.rub).toLocaleString("ru-RU")+' ₽</b>':"")+'</small></span><time>'+new Date(r.at).toLocaleDateString("ru-RU",{day:"numeric",month:"short"})+'</time></div>').join(""):'<p>Пока пусто — журнал заполнится после первой завершённой инвентаризации.</p>')
       +'<div class="dlg-btns"><button class="btn" type="button" id="dlg-back">Закрыть</button></div>');$("#dlg-back").onclick=closeDlg}});
 $("#t-wish").onclick=()=>go("wish");$("#t-pack").onclick=()=>go("pack");
 $("#t-wh").onclick=()=>go("wh");
@@ -1248,8 +1272,7 @@ var packOpen={},packQ="";
 function renderPack(){
   if(!mixHide)return;mixHide.forEach(q=>{const e=$(q);if(e)e.hidden=true});$("#list").hidden=false;$(".ttl .stats").hidden=true;document.body.classList.remove("ai-mode","has-tray");
   const t=norm(packQ),by={};DATA.filter(x=>!flag(x,"retired")).forEach(x=>{(by[x.b]=by[x.b]||[]).push(x)});
-  const opts=(L0,v)=>'<option value="">размер?</option>'+L0.map(g=>'<option value="'+g+'"'+(g===v?" selected":"")+'>'+g+' г</option>').join("");
-  const ctl=(b,x,v)=>szOf(x).length?'<select data-pf="'+x.id+'" aria-label="Размер банки '+esc(x.n)+'">'+opts(szOf(x),v)+'</select>':'<input data-pf="'+x.id+'" type="number" inputmode="numeric" min="5" max="2000" placeholder="г" value="'+(v||"")+'" style="width:84px;height:40px;font-size:16px">';
+  const opts=packOpts,ctl=(b,x,v)=>packCtl(x,v);
   let h='<input id="pk-q" class="scq" placeholder="Найти бренд или вкус" autocomplete="off" value="'+esc(packQ)+'" style="margin-top:10px"><p class="hintline">Размер банки по каждому вкусу. Если у бренда один размер, он уже проставлен. Где размеров несколько, выбери нужный вкусу или сразу всем вкусам бренда или линейки. В заказе, на складе и в инвентаризации он появится рядом с названием.</p>';
   Object.keys(by).sort(abc).forEach(b=>{
     const L=by[b].filter(x=>!t||norm(b+" "+x.n+" "+(x.l||"")).includes(t));if(!L.length)return;
@@ -1264,7 +1287,8 @@ function renderPack(){
   const q=$("#pk-q");if(q&&document.activeElement===document.body&&packQ){q.focus();q.setSelectionRange(packQ.length,packQ.length)}}
 $("#list").addEventListener("click",e=>{if(st.tab!=="pack")return;const b=e.target.closest("[data-pb]");if(b){packOpen[b.dataset.pb]=!packOpen[b.dataset.pb];render()}});
 $("#list").addEventListener("input",e=>{if(st.tab==="pack"&&e.target.id==="pk-q"){packQ=e.target.value;render();const q=$("#pk-q");q.focus();q.setSelectionRange(packQ.length,packQ.length)}});
-$("#list").addEventListener("change",async e=>{if(st.tab!=="pack"||!db)return;const f=e.target.dataset.pf,g=e.target.dataset.pg,v=Math.round(+e.target.value)||null;
+$("#list").addEventListener("change",async e=>{if((st.tab!=="pack"&&st.tab!=="inv")||!db)return;const f=e.target.dataset.pf,g=e.target.dataset.pg,v=Math.round(+e.target.value)||null;
+  if(!f&&!g)return;
   try{if(f){await db.doc("pack/"+f).set({g:v});setStatus("Размер сохранён")}
     else if(g&&v){const ids=g.split(",");await db.bulk("pack",ids,{g:v});setStatus("Размер линейки сохранён: "+ids.length)}}
   catch(x){setStatus("Не сохранилось: "+(x&&x.message||"нет доступа"),true)}});
