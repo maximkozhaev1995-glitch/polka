@@ -1243,17 +1243,20 @@ function aiItem(x){const r={id:x.id,brand:x.b,name:x.n,wh:wh(x),onBar:onBar(x)};
   if(x.l)r.line=x.l;if(x.d)r.desc=x.d;if(x.t.length)r.tags=x.t;if(flag(x,"stop"))r.stop=true;if(flag(x,"slow"))r.slow=true;if(oq(x))r.order=oq(x);
   if(draft[x.id]){r.pending=draft[x.id].d||0;if(draft[x.id].bar!==undefined)r.pendingBar=draft[x.id].bar}return r}
 const cnTxt=v=>" "+norm(String(v||"")).replace(/[^a-zа-я0-9]+/g," ").trim()+" ";
+// Слова названия встретились в тексте — не обязательно подряд: на этикетке их печатают в разном порядке
+// (напр. рукописное «шипучка вишнёвая» вместо каталожного «Вишнёвая шипучка»)
+const nameIn=(T,n)=>{const w=n.trim().split(" ").filter(Boolean);return w.length>1?w.every(x=>T.includes(" "+x+" ")):T.includes(n)};
 // Разбор одного кусочка текста (весь текст, либо одна этикетка — см. matchText)
 function matchChunk(text){const T=cnTxt(text);
-   const brands=new Set(DATA.map(x=>cnTxt(x.b).trim())),cnt=(h,n)=>h.split(n).length-1;
+   const brands=new Set(DATA.map(x=>cnTxt(x.b).trim()));
    // Название, совпадающее с брендом (Black Burn «Overdose» и бренд Overdose), засчитываем только рядом со своим брендом
-   let hit=DATA.filter(x=>{const n=cnTxt(x.n);return n.length>4&&T.includes(n)&&(!brands.has(n.trim())||T.includes(cnTxt(x.b+" "+x.n)))});
+   let hit=DATA.filter(x=>{const n=cnTxt(x.n);return n.length>4&&nameIn(T,n.trim())&&(!brands.has(n.trim())||T.includes(cnTxt(x.b+" "+x.n))||nameIn(T,cnTxt(x.b+" "+x.n).trim()))});
    // Одно название у разных брендов (Cream Soda) — оставляем тех, чей бренд тоже есть в этом же кусочке текста
    const byN={};hit.forEach(x=>(byN[cnTxt(x.n)]=byN[cnTxt(x.n)]||[]).push(x));
    hit=Object.values(byN).flatMap(g=>{const b=g.filter(x=>T.includes(cnTxt(x.b)));return b.length?b:g});
-   // «Cream» внутри «Cream Soda» — отбрасываем, если все его вхождения в тексте — внутри более длинного найденного названия
-   // («Mango» остаётся, если кроме «Ekzo Mango» в этом же кусочке есть и отдельный «Mango»)
-   hit=hit.filter(x=>{const n=cnTxt(x.n),inner=[...new Set(hit.map(y=>cnTxt(y.n)))].filter(m=>m.length>n.length&&m.includes(n)).reduce((a,m)=>a+cnt(T,m),0);return cnt(T,n)>inner});
+   // «Cream» внутри «Cream Soda» — отбрасываем короткое название, если оно целиком (по словам) входит в другое
+   // найденное в этом же кусочке более длинное название: это та же банка, оставляем длинное и более точное
+   hit=hit.filter(x=>{const n=cnTxt(x.n).trim();return !hit.some(y=>y.id!==x.id&&cnTxt(y.n).trim().length>n.length&&nameIn(cnTxt(y.n),n))});
    return{hit,byN,T,brands}}
 function matchText(text){const raw=String(text||"");
    // Яндекс на фото банок отдаёт текст по этикеткам («Этикетка N: …» — см. yandexOcr на сервере). Разбираем каждую
@@ -1268,7 +1271,7 @@ function matchText(text){const raw=String(text||"");
    const brands=new Set(DATA.map(x=>cnTxt(x.b).trim()));
    const names=found.map(x=>cnTxt(x.name));
    const lines=(labels.length?labels:raw.split(/\n+/)).map(l=>l.trim());
-   const miss=lines.filter(l=>{const c=cnTxt(l);return c.trim().length>2&&!brands.has(c.trim())&&!names.some(n=>c.includes(n)||n.includes(c))});
+   const miss=lines.filter(l=>{const c=cnTxt(l);return c.trim().length>2&&!brands.has(c.trim())&&!names.some(n=>nameIn(c,n.trim())||c.includes(n)||n.includes(c))});
    return{found:found.slice(0,80),not_found_lines:miss.slice(0,40)}}
 // Фото, распознанное Яндексом: приложение само сверяет текст с каталогом и отдаёт модели готовый список —
 // маленькая модель на ПК иначе пропускает банки и придумывает вкусы
