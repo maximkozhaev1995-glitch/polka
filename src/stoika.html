@@ -179,6 +179,7 @@ body.ai-mode .wrap{overscroll-behavior:none}
 .ai-in .btn{height:42px}
 .ai-in textarea{min-height:42px;line-height:1.35}
 .ai-ph{display:grid;place-content:center;cursor:pointer;font-size:18px}
+.topbar{min-width:0}.ttl{overflow:hidden}.ttl h1{flex:none;max-width:100%}.ttl .stats{flex:0 1000 auto;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .hlp{flex:none;align-self:center;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:var(--surface);font-size:16px;line-height:1;cursor:pointer;padding:0}
 .hsh-scrim{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:140}
 .hsh{position:fixed;z-index:150;left:0;right:0;bottom:0;margin:0 auto;max-width:860px;height:min(78vh,720px);display:flex;flex-direction:column;gap:8px;background:var(--bg);border-top-left-radius:18px;border-top-right-radius:18px;box-shadow:0 -8px 30px rgba(0,0,0,.25);padding:12px max(16px,env(safe-area-inset-left,0px)) max(4px,env(safe-area-inset-bottom,0px))}
@@ -318,7 +319,7 @@ body.inv-mode .chip[aria-pressed="true"]{background:var(--fg);border-color:var(-
 <div class="wrap">
 <div class="bar">
   <div class="topbar"><button class="burger" id="menu-btn" type="button" aria-label="Меню" aria-expanded="false" aria-controls="drawer"><i></i><i></i><i></i></button>
-    <div class="ttl"><h1 id="sect">Стойка</h1><button class="hlp" id="hlp-btn" type="button" aria-label="Помощник раздела" title="Помощник раздела" hidden>✨</button><i class="sync" id="sync" title="Подключаю склад"></i><span class="stats"><b id="total">0</b> <span id="totlabel">вкусов на стойке</span></span></div></div>
+    <div class="ttl"><h1 id="sect">Стойка</h1><i class="sync" id="sync" title="Подключаю склад"></i><span class="stats"><b id="total">0</b> <span id="totlabel">вкусов на стойке</span></span></div><button class="hlp" id="hlp-btn" type="button" aria-label="Помощник раздела" title="Помощник раздела" hidden>✨</button></div>
   <label class="search" for="q"><svg class="lupa" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="q" type="search" enterkeyhint="done" placeholder="Вкус, бренд или описание" autocomplete="off"><button id="clear" type="button" hidden>Очистить</button></label>
   <div class="chips" id="brands" role="group" aria-label="Бренды"></div>
   <div class="chips" id="filters" role="group" aria-label="Фильтры"></div>
