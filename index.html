@@ -1,11 +1,7 @@
 <!-- © 2026 Максим Кожаев. Все права защищены. Копирование, распространение и использование без письменного согласия автора запрещены. -->
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<title>Полка · Склад</title>
-<link rel="manifest" href="./manifest.json">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Полка">
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20128%20128%22%3E%3Crect%20width%3D%22128%22%20height%3D%22128%22%20rx%3D%2228%22%20fill%3D%22%2324180F%22/%3E%3Cg%20transform%3D%22translate%2824%2024%29%20scale%281.25%29%22%3E%3Crect%20x%3D%228%22%20y%3D%2246%22%20width%3D%2248%22%20height%3D%226%22%20rx%3D%223%22%20fill%3D%22%23F6F1EC%22/%3E%3Crect%20x%3D%229%22%20y%3D%2226%22%20width%3D%2214%22%20height%3D%2216%22%20rx%3D%223.5%22%20fill%3D%22%23E4600F%22/%3E%3Crect%20x%3D%2225%22%20y%3D%2226%22%20width%3D%2214%22%20height%3D%2216%22%20rx%3D%223.5%22%20fill%3D%22%23E4600F%22/%3E%3Crect%20x%3D%2241%22%20y%3D%2226%22%20width%3D%2214%22%20height%3D%2216%22%20rx%3D%223.5%22%20fill%3D%22%23E4600F%22/%3E%3C/g%3E%3C/svg%3E">
+<title>Полка · Склад</title><link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20128%20128%22%3E%3Crect%20width%3D%22128%22%20height%3D%22128%22%20rx%3D%2228%22%20fill%3D%22%2324180F%22/%3E%3Cg%20transform%3D%22translate%2824%2024%29%20scale%281.25%29%22%3E%3Crect%20x%3D%228%22%20y%3D%2246%22%20width%3D%2248%22%20height%3D%226%22%20rx%3D%223%22%20fill%3D%22%23F6F1EC%22/%3E%3Crect%20x%3D%229%22%20y%3D%2226%22%20width%3D%2214%22%20height%3D%2216%22%20rx%3D%223.5%22%20fill%3D%22%23E4600F%22/%3E%3Crect%20x%3D%2225%22%20y%3D%2226%22%20width%3D%2214%22%20height%3D%2216%22%20rx%3D%223.5%22%20fill%3D%22%23E4600F%22/%3E%3Crect%20x%3D%2241%22%20y%3D%2226%22%20width%3D%2214%22%20height%3D%2216%22%20rx%3D%223.5%22%20fill%3D%22%23E4600F%22/%3E%3C/g%3E%3C/svg%3E">
+<meta name="claude:viewport-fit-sides" content="cover">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800&family=Golos+Text:wght@400;500;600&display=swap">
@@ -463,7 +459,7 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
   async function callAI(body,signal,onWait){
     // Бесплатный Gemini иногда отвечает «занят» или «слишком много запросов»: ждём и пробуем ещё два раза
     for(let a=0;;a++){
-      const r=await fetch("https://mcsxx-84-32-108-30.run.pinggy-free.link/functions/v1/ai",{method:"POST",signal,headers:H(),body:JSON.stringify(body)});
+      const r=await fetch(CFG.url+"/functions/v1/ai",{method:"POST",signal,headers:H(),body:JSON.stringify(body)});
       const j=await r.json().catch(()=>({}));
       if(r.ok)return j;
       const e=j.error||(r.status===401?"session_expired":"server_error");
@@ -948,7 +944,7 @@ function openOrder(){
   $("#dlg-body").querySelectorAll("[data-cp]").forEach(b=>b.onclick=async()=>{const ta=$("#ot"+b.dataset.cp);let ok=false;
     try{await navigator.clipboard.writeText(ta.value);ok=true}catch(e){try{ta.select();ok=document.execCommand("copy")}catch(e2){}}
     b.textContent=ok?"Скопировано":"Выдели и скопируй"});
-  const dropRows=rows=>{rows.forEach(r=>{if(r.x)delete orderQ[r.x.id];else delete orderM[r.mk]});saveOrder();render()};
+  const dropRows=rows=>{rows.forEach(r=>{if(r.x){revertWish(wishIdsFor(r.x.id));delete orderQ[r.x.id]}else{revertWish((orderM[r.mk]&&orderM[r.mk].wids)||[]);delete orderM[r.mk]}});saveOrder();render()};
   const twice=(b,fn)=>{if(b.dataset.sure){fn();return}const o=b.innerHTML;b.dataset.sure="1";b.textContent="Точно удалить?";b.style.width="auto";b.style.padding="0 12px";setTimeout(()=>{if(b.isConnected){delete b.dataset.sure;b.innerHTML=o;b.style.width="";b.style.padding=""}},3000)};
   $("#dlg-body").querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>twice(b,()=>{dropRows(G[+b.dataset.del].rows);orderRows().length?openOrder():closeDlg()}));
   if($("#o-clear"))$("#o-clear").onclick=function(){twice(this,()=>{dropRows(all);closeDlg()})};
@@ -957,8 +953,8 @@ function openOrder(){
 function renderManual(){const el=$("#omanual"),M=Object.entries(orderM);
   el.innerHTML='<h3>Добавлено вручную</h3>'+(M.length?M.map(([k,m])=>'<div class="row"><div><b>'+esc(m.b||"")+'</b> '+esc(m.n||"")+'</div><div class="qty"><input class="oin" type="number" inputmode="numeric" min="0" max="99" value="'+(m.q||0)+'" data-m="'+k+'" aria-label="Сколько штук"><button class="btn" type="button" data-mdel="'+k+'" aria-label="Убрать">✕</button></div></div>').join(""):'<p class="muted small" style="margin:0 0 6px">Если нужного вкуса нет в списке, впиши его сюда.</p>')
     +'<button class="btn sm" type="button" id="m-add"'+(db?"":" disabled")+'>+ Позиция вручную</button>'}
-$("#omanual").addEventListener("change",e=>{const i=e.target.closest("input[data-m]");if(!i)return;const m=orderM[i.dataset.m];if(!m)return;const k=Math.max(0,Math.min(99,Math.round(Number(i.value)||0)));if(k)m.q=k;else delete orderM[i.dataset.m];saveOrder();render()});
-$("#omanual").addEventListener("click",e=>{const d=e.target.closest("[data-mdel]");if(d){delete orderM[d.dataset.mdel];saveOrder();render();return}
+$("#omanual").addEventListener("change",e=>{const i=e.target.closest("input[data-m]");if(!i)return;const m=orderM[i.dataset.m];if(!m)return;const k=Math.max(0,Math.min(99,Math.round(Number(i.value)||0)));if(k)m.q=k;else{revertWish(m.wids||[]);delete orderM[i.dataset.m]}saveOrder();render()});
+$("#omanual").addEventListener("click",e=>{const d=e.target.closest("[data-mdel]");if(d){revertWish((orderM[d.dataset.mdel]&&orderM[d.dataset.mdel].wids)||[]);delete orderM[d.dataset.mdel];saveOrder();render();return}
   if(e.target.closest("#m-add"))addManual()});
 function addManual(){const bs=[...new Set(DATA.map(x=>x.b))].sort(abc);
   showDlg('<h2>Позиция в заказ</h2><label class="f">Бренд<input id="m-b" list="m-bl" autocomplete="off"></label><datalist id="m-bl">'+bs.map(b=>'<option value="'+esc(b)+'">').join("")+'</datalist>'
@@ -996,11 +992,11 @@ function edit(a,id){
   if(a==="tobar"){toBar(x);return}
   if(a==="flag"){const k=st.tab;if(k!=="stop"&&k!=="slow")return;const doc=Object.assign({},stock[id]||{});if(doc[k]){delete doc[k];if(k==="stop")delete doc.stopAuto}else doc[k]=true;
     busy=true;render();db.doc("stock/"+id).set(doc).then(()=>setStatus(TABS[k]+": сохранено")).catch(e=>setStatus("Не сохранилось: "+(e&&e.message||"нет доступа"),true)).finally(()=>{busy=false;render()});return}
-  if(a==="otoggle"){if(oq(x))delete orderQ[id];else orderQ[id]=1;saveOrder();render();return}
+  if(a==="otoggle"){if(oq(x)){revertWish(wishIdsFor(id));delete orderQ[id]}else orderQ[id]=1;saveOrder();render();return}
   if(a==="iok"){invD[id]=wh(byId[id]);invEd.delete(id);render();return}
   if(a==="iundo"){delete invD[id];invEd.delete(id);render();return}
   if(a==="iedit"){invEd.add(id);render();setTimeout(()=>{const i=document.querySelector('input.iin[data-id="'+id+'"]');if(i)i.focus()},30);return}
-  if(a==="oplus"||a==="ominus"){const k=Math.max(0,oq(x)+(a==="oplus"?1:-1));if(!k)delete orderQ[id];else orderQ[id]=k;saveOrder();render();return}
+  if(a==="oplus"||a==="ominus"){const k=Math.max(0,oq(x)+(a==="oplus"?1:-1));if(!k){revertWish(wishIdsFor(id));delete orderQ[id]}else orderQ[id]=k;saveOrder();render();return}
   const d=draft[id]||(draft[id]={d:0});
   if(a==="plus")d.d=(d.d||0)+1;
   else if(a==="minus"){if(newWh(x)<1)return;d.d=(d.d||0)-1}
@@ -1013,7 +1009,7 @@ document.addEventListener("focusin",e=>{if(e.target.matches&&e.target.matches("i
 document.addEventListener("focusout",e=>{if(e.target.matches&&e.target.matches("input.oin"))setTimeout(()=>{if(renderLater)render()},0)});
 $("#list").addEventListener("change",e=>{const iv=e.target.closest("input.iin");if(iv){const x=byId[iv.dataset.id];if(!x)return;if(iv.value===""){delete invD[x.id]}else invD[x.id]=Math.max(0,Math.round(Number(iv.value)||0));render();return}
   const i=e.target.closest("input.oin");if(!i)return;const x=byId[i.dataset.id];if(!x||!db)return;
-  const k=Math.max(0,Math.min(99,Math.round(Number(i.value)||0)));if(k)orderQ[x.id]=k;else delete orderQ[x.id];saveOrder();render()});
+  const k=Math.max(0,Math.min(99,Math.round(Number(i.value)||0)));if(k)orderQ[x.id]=k;else{revertWish(wishIdsFor(x.id));delete orderQ[x.id]}saveOrder();render()});
 $("#list").addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.matches("input.oin"))e.target.blur()});
 $("#list").addEventListener("click",e=>{const h=e.target.closest("button.bh");if(h){toggleBrand(h.dataset.brand);return}const b=e.target.closest("button[data-a]");if(!b)return;if(b.dataset.a==="undo")askUndo(b.dataset.id);else edit(b.dataset.a,b.dataset.id)});
 $("#tray-go").onclick=()=>{if(st.tab==="inv")openInv();else openReview()};
@@ -1091,7 +1087,7 @@ const AI_TOOLS=[
  {name:"set_order",description:"Ставит, сколько штук вкуса заказать (qty, 0 — убрать из заказа). Сохраняется сразу.",
   inputSchema:{type:"object",properties:{id:{type:"string"},qty:{type:"number"}},required:["id","qty"]},
   execute(i){const x=byId[String(i.id)];if(!x)throw new Error("нет такого id");const k=Math.max(0,Math.round(Number(i.qty)||0));
-   if(k)orderQ[x.id]=k;else delete orderQ[x.id];saveOrder();render();return aiItem(x)}},
+   if(k)orderQ[x.id]=k;else{revertWish(wishIdsFor(x.id));delete orderQ[x.id]}saveOrder();render();return aiItem(x)}},
  {name:"set_flag",description:"Ставит (on=true) или снимает (on=false) метку flag: stop — вкус в стоп-листе, slow — неликвид. Сохраняется сразу.",
   inputSchema:{type:"object",properties:{id:{type:"string"},flag:{type:"string",enum:["stop","slow"]},on:{type:"boolean"}},required:["id","flag","on"]},
   async execute(i){const x=byId[String(i.id)],k=String(i.flag);if(!x)throw new Error("нет такого id");if(k!=="stop"&&k!=="slow")throw new Error("flag: stop или slow");
@@ -1206,6 +1202,8 @@ $("#list").addEventListener("change",async e=>{if(st.tab!=="str"||!db)return;con
     else if(g){const ids=g.split(",");await db.bulk("strength",ids,{s:v});setStatus("Крепость линейки сохранена: "+ids.length)}}
   catch(x){setStatus("Не сохранилось: "+(x&&x.message||"нет доступа"),true)}});
 var wishes=[];
+function revertWish(ids){if(!ids||!ids.length||!db)return;db.bulk("wishes",ids,{state:"new"}).catch(()=>{})}
+const wishIdsFor=id=>wishes.filter(w=>w.fid===id&&w.state==="order").map(w=>w.id);
 function renderWishes(){
   if(!mixHide)return;mixHide.forEach(q=>{const e=$(q);if(e)e.hidden=true});$("#list").hidden=false;$(".ttl .stats").hidden=true;document.body.classList.remove("ai-mode","has-tray");
   const g={};wishes.forEach(w=>{const k=norm(w.b)+"|"+norm(w.f),o=g[k]=g[k]||{b:w.b,f:w.f,n:0,ids:[],st:{},cat:!!w.fid};o.n++;o.ids.push(w.id);o.st[w.state]=1;if(w.fid){o.cat=true;o.fid=w.fid}});
@@ -1218,7 +1216,7 @@ function renderWishes(){
   $("#list").innerHTML='<p class="hintline" style="margin-top:10px">Что гости просят в карте. Число слева это число гостей. «В заказ» кладёт вкус в список заказа (1 шт.), число потом можно поменять.</p>'
     +part("Просят сейчас","new","Пока пожеланий нет. Они появятся, когда гости нажмут «Хочу, чтобы был» в карте.")+part("В заказе","order")+part("Добавлено","done")}
 $("#list").addEventListener("click",async e=>{if(st.tab!=="wish"||!db)return;const b=e.target.closest("[data-wa]");if(!b)return;const ids=b.dataset.wids.split(","),a=b.dataset.wa;b.disabled=true;
-  if(a==="order"){const x=byId[b.dataset.wfid];if(x)orderQ[x.id]=Math.max(oq(x),1);else{const k="w"+norm(b.dataset.wb+" "+b.dataset.wf).replace(/\s+/g,"_");orderM[k]=orderM[k]||{b:b.dataset.wb,n:b.dataset.wf,q:1}}saveOrder()}
+  if(a==="order"){const x=byId[b.dataset.wfid];if(x)orderQ[x.id]=Math.max(oq(x),1);else{const k="w"+norm(b.dataset.wb+" "+b.dataset.wf).replace(/\s+/g,"_");orderM[k]=orderM[k]||{b:b.dataset.wb,n:b.dataset.wf,q:1,wids:[]};const cur=new Set(orderM[k].wids||[]);ids.forEach(i=>cur.add(i));orderM[k].wids=[...cur]}saveOrder()}
   try{if(a==="del")await Promise.all(ids.map(i=>db.doc("wishes/"+i).delete()));else await db.bulk("wishes",ids,{state:a});setStatus(a==="del"?"Удалено":"Сохранено")}
   catch(x){b.disabled=false;setStatus("Не сохранилось: "+(x&&x.message||"нет доступа"),true)}});
 var packOpen={},packQ="";

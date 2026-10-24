@@ -1186,6 +1186,12 @@ var dev=lsGet("polka_dev");if(!dev||dev.length<8){dev=Array.from(crypto.getRando
 var mine={};try{mine=JSON.parse(lsGet(K)||"{}")}catch(e){}
 function key(b,f){return (b+"|"+f).toLowerCase().replace(/\s+/g," ").trim()}
 function lab(x){return (x.l?x.l+" ":"")+x.n}
+function lev(a,b){a=a||"";b=b||"";var m=a.length,n=b.length,d=[];for(var i=0;i<=m;i++)d[i]=[i];for(var j=0;j<=n;j++)d[0][j]=j;
+ for(i=1;i<=m;i++)for(j=1;j<=n;j++)d[i][j]=a[i-1]===b[j-1]?d[i-1][j-1]:1+Math.min(d[i-1][j],d[i][j-1],d[i-1][j-1]);return d[m][n]}
+function matchCatalog(b,f){var nb=norm(b),nf=norm(lab({l:"",n:f}));
+ var exact=ALL.filter(function(x){return norm(x.b)===nb&&norm(lab(x))===nf});if(exact.length===1)return exact[0].id;
+ var close=ALL.filter(function(x){var db=lev(norm(x.b),nb),df=lev(norm(lab(x)),nf);return db<=Math.max(1,Math.round(nb.length*.2))&&df<=Math.max(2,Math.round(nf.length*.25))});
+ return close.length===1?close[0].id:null}
 function found(){var q=(st.q||"").toLowerCase().split(/\s+/).filter(Boolean);if(!q.length)return[];var on=new Set(DATA.map(function(x){return x.id}));
  return ALL.filter(function(x){return !on.has(x.id)&&q.every(function(t){return (x.b+" "+lab(x)).toLowerCase().indexOf(t)>=0})}).slice(0,6)}
 function send(b,f,fid){var k=key(b,f);if(mine[k])return Promise.resolve("ok");
@@ -1202,6 +1208,6 @@ window.bindWish=function(){document.querySelectorAll("[data-wk]").forEach(functi
   send(x.b,lab(x),x.id).then(function(r){if(r==="ok"){b.classList.add("on");b.textContent="Вы просили ✓"}else{b.disabled=false;msg(r==="limit"?"На сегодня хватит пожеланий, попробуйте завтра.":"Не получилось отправить. Попробуйте позже.")}})}});
  var s=document.getElementById("wsend");if(s)s.onclick=function(){var b=document.getElementById("wbr").value.trim(),f=document.getElementById("wfl").value.trim();
   if(!b||!f){msg("Напишите и бренд, и вкус.");return}s.disabled=true;
-  send(b,f,null).then(function(r){s.disabled=false;if(r==="ok"){document.getElementById("wbr").value="";document.getElementById("wfl").value="";msg("Спасибо, пожелание принято.")}else msg(r==="limit"?"На сегодня хватит пожеланий, попробуйте завтра.":"Не получилось отправить. Попробуйте позже.")})}};
+  send(b,f,matchCatalog(b,f)).then(function(r){s.disabled=false;if(r==="ok"){document.getElementById("wbr").value="";document.getElementById("wfl").value="";msg("Спасибо, пожелание принято.")}else msg(r==="limit"?"На сегодня хватит пожеланий, попробуйте завтра.":"Не получилось отправить. Попробуйте позже.")})}};
 })();
 </script><script>(function(){const d=document.getElementById("pv");document.getElementById("pv-open").onclick=e=>{e.preventDefault();try{d.showModal()}catch(x){d.setAttribute("open","")}};document.getElementById("pv-close").onclick=()=>d.close();d.addEventListener("click",e=>{if(e.target===d)d.close()})})();</script>
