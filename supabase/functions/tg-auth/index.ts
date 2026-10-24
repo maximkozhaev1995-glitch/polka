@@ -20,17 +20,28 @@ const b64u = (u: Uint8Array | string) => {
   return btoa(String.fromCharCode(...b)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 };
 
+// Сравнение без утечки по времени: не выходим на первом несовпавшем символе
+function sameHex(a: string, b: string) {
+  if (a.length !== b.length) return false;
+  let d = 0;
+  for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return d === 0;
+}
+
 async function checkInitData(initData: string, botToken: string) {
   const p = new URLSearchParams(initData);
-  const hash = p.get("hash");
+  const hash = (p.get("hash") || "").toLowerCase();
   if (!hash) return null;
   p.delete("hash");
-  const dcs = [...p.entries()].map(([k, v]) => `${k}=${v}`).sort().join("\n");
+  // По документации Telegram строки сортируются по ключу
+  const dcs = [...p.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([k, v]) => `${k}=${v}`).join("\n");
   const secret = await hmac(enc.encode("WebAppData"), botToken);
   const calc = hex(await hmac(secret, dcs));
-  if (calc !== hash) return null;
-  const age = Math.floor(Date.now() / 1000) - Number(p.get("auth_date") || 0);
-  if (age > 86400) return null;
+  if (!sameHex(calc, hash)) return null;
+  const authDate = Number(p.get("auth_date"));
+  if (!Number.isFinite(authDate) || authDate <= 0) return null;
+  const age = Math.floor(Date.now() / 1000) - authDate;
+  if (age > 86400 || age < -300) return null;
   try { return JSON.parse(p.get("user") || "null"); } catch { return null; }
 }
 
@@ -56,13 +67,17 @@ Deno.serve(async (req) => {
 
     if (!user) {
       if (!invite) return json({ error: "need_invite" }, 403);
-      const { data: inv } = await db.from("invites").select("*").eq("code", String(invite).trim()).is("used_by", null).maybeSingle();
+      // Код занимаем одним UPDATE: два человека с одним кодом не пройдут оба
+      const { data: inv } = await db.from("invites").update({ used_by: tg.id })
+        .eq("code", String(invite).trim()).is("used_by", null).select().maybeSingle();
       if (!inv) return json({ error: "bad_invite" }, 403);
       const name = [tg.first_name, tg.last_name].filter(Boolean).join(" ") || tg.username || String(tg.id);
       const ins = await db.from("users").insert({ tg_id: tg.id, venue_id: inv.venue_id, name, role: inv.role }).select().single();
-      if (ins.error) return json({ error: "cannot_create_user" }, 500);
+      if (ins.error) {
+        await db.from("invites").update({ used_by: null }).eq("code", inv.code).eq("used_by", tg.id);
+        return json({ error: "cannot_create_user" }, 500);
+      }
       user = ins.data;
-      await db.from("invites").update({ used_by: tg.id }).eq("code", inv.code);
     }
 
     const now = Math.floor(Date.now() / 1000);
@@ -72,6 +87,7 @@ Deno.serve(async (req) => {
     }, jwtSecret);
     return json({ token, user });
   } catch (e) {
-    return json({ error: "server_error", detail: String(e) }, 500);
+    console.error("tg-auth", e);
+    return json({ error: "server_error" }, 500);
   }
 });

@@ -395,14 +395,21 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
   if(document.body)document.body.appendChild(wall);
   const msg=t=>{const m=$("#lg-msg");if(m)m.textContent=t};
   async function call(invite){
-    const r=await fetch(CFG.url+"/functions/v1/tg-auth",{method:"POST",headers:{"Content-Type":"application/json",apikey:CFG.anon},body:JSON.stringify({initData:tg&&tg.initData||"",invite:invite||""})});
+    const r=await fetch(CFG.url+"/functions/v1/tg-auth",{method:"POST",headers:{"Content-Type":"application/json",apikey:CFG.anon,Authorization:"Bearer "+CFG.anon},body:JSON.stringify({initData:tg&&tg.initData||"",invite:invite||""})});
     return {ok:r.ok,status:r.status,body:await r.json().catch(()=>({}))};
+  }
+  // Токен живёт 12 часов: обновляем заранее, чтобы открытое на всю смену приложение не теряло доступ к базе
+  let refreshT=0,refreshP=null;
+  const planRefresh=()=>{clearTimeout(refreshT);refreshT=setTimeout(()=>refresh().catch(()=>{}),11*3600e3)};
+  function refresh(){
+    if(!refreshP)refreshP=call("").then(r=>{if(!r.ok)return false;session.token=r.body.token;session.user=r.body.user;planRefresh();return true}).finally(()=>{refreshP=null});
+    return refreshP;
   }
   async function login(invite){
     if(!tg||!tg.initData){msg("Откройте приложение из Telegram: бот @PolkaHookahbot.");return}
-    const code=invite||localStorage.getItem("polka-invite")||"";
+    let code=invite||"";if(!code)try{code=localStorage.getItem("polka-invite")||""}catch(e){}
     let r;try{r=await call(code)}catch(e){msg("Нет связи. Проверьте интернет и откройте снова.");return}
-    if(r.ok){try{localStorage.removeItem("polka-invite")}catch(e){}session={token:r.body.token,user:r.body.user};wall.remove();resolveReady(session);return}
+    if(r.ok){try{localStorage.removeItem("polka-invite")}catch(e){}session={token:r.body.token,user:r.body.user};planRefresh();wall.remove();resolveReady(session);return}
     const e=r.body.error;
     if(e==="need_invite"||e==="bad_invite"){msg(e==="bad_invite"?"Код не подошёл. Проверьте и введите снова.":"Введите код приглашения, который дал управляющий.");$("#lg-form").hidden=false;return}
     msg(e==="bad_signature"?"Не удалось подтвердить вход. Закройте и откройте приложение заново.":"Что-то пошло не так, попробуйте позже.");
@@ -415,7 +422,7 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
   // ===== база =====
   const H=()=>({apikey:CFG.anon,Authorization:"Bearer "+session.token,"Content-Type":"application/json"});
   const V=()=>session.user.venue_id;
-  async function rest(path,opt){const r=await fetch(CFG.url+"/rest/v1/"+path,Object.assign({headers:H()},opt));if(!r.ok){let t="";try{t=(await r.json()).message}catch(e){}throw new Error(t||("HTTP "+r.status))}const t=await r.text();return t?JSON.parse(t):null}
+  async function rest(path,opt,again){const r=await fetch(CFG.url+"/rest/v1/"+path,Object.assign({headers:H()},opt));if(r.status===401&&!again&&await refresh().catch(()=>false)){if(opt&&opt.headers&&opt.headers.Authorization)opt=Object.assign({},opt,{headers:Object.assign({},opt.headers,H())});return rest(path,opt,true)}if(!r.ok){let t="";try{t=(await r.json()).message}catch(e){}throw new Error(t||("HTTP "+r.status))}const t=await r.text();return t?JSON.parse(t):null}
   const iso=x=>x?new Date(x).toISOString():undefined;
   const MAP={
     stock:{table:"stock",key:"flavor_id",
