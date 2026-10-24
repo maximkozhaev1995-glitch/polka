@@ -37,6 +37,11 @@ def chat(req):
             a = c["function"].get("arguments")
             c["function"]["arguments"] = json.loads(a) if isinstance(a, str) and a else (a or {})
         msgs.append(m)
+    # Qwen3 на части версий Ollama игнорирует think=false; /no_think в последнем сообщении пользователя выключает размышления в самой модели
+    for m in reversed(msgs):
+        if m.get("role") == "user" and isinstance(m.get("content"), str):
+            m["content"] += " /no_think"
+            break
     body = {"model": MODEL, "messages": msgs, "stream": False, "think": False,
             "options": {"num_predict": int(req.get("max_tokens") or 2500)}}
     if req.get("tools"):
@@ -46,7 +51,9 @@ def chat(req):
     calls = [{"id": "c%d_%d" % (int(time.time() * 1000), i), "type": "function",
               "function": {"name": c["function"]["name"], "arguments": json.dumps(c["function"].get("arguments") or {}, ensure_ascii=False)}}
              for i, c in enumerate(msg.get("tool_calls") or [])]
-    out = {"role": "assistant", "content": msg.get("content") or ""}
+    text = re.sub(r"(?s)<think>.*?</think>", "", msg.get("content") or "")
+    text = text.split("</think>")[-1].strip()  # размышления без открывающего тега
+    out = {"role": "assistant", "content": text}
     if calls:
         out["tool_calls"] = calls
     return {"choices": [{"message": out, "finish_reason": "tool_calls" if calls else "stop"}]}
