@@ -282,6 +282,7 @@ body.inv-mode .chip[aria-pressed="true"]{background:var(--fg);border-color:var(-
 .ichips{margin:8px 0 4px;gap:6px}.ichips .chip{min-height:38px}.ihelp{margin-left:auto;border-style:dashed;color:var(--muted)}
 .isum{margin:2px 0 6px}.hl{margin:0;padding-left:18px;display:grid;gap:8px}
 .sback{margin:10px 0 0;min-height:44px;background:transparent;border:1px solid var(--line);color:var(--fg)}
+.linklike{background:none;border:0;padding:0;font:inherit;color:var(--accent);text-decoration:underline;cursor:pointer}
 .strl{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding:10px 0;border-bottom:1px solid var(--line);margin-top:6px}.strl select,.strr select{height:40px;font:inherit;font-size:16px;border:1px solid var(--line-ctl);border-radius:8px;background:var(--surface);color:var(--fg);padding:0 8px}.strl label{margin-left:auto}.strr{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--line);font-size:14px}.strr .sword{flex:none;margin-left:auto;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.02em}
 </style>
 
@@ -403,7 +404,7 @@ const oq=x=>orderQ[x.id]||0;
 const hint=x=>tracked(x)&&wh(x)<=1&&(onBar(x)||wh(x)===0);
 const inOrder=x=>stockLoaded&&(oq(x)>0||hint(x)||!!st.q);
 const flag=(x,k)=>!!(stock[x.id]&&stock[x.id][k]);
-const inTab=x=>st.q&&(st.tab==="bar"||st.tab==="wh")?true:st.tab==="smena"?(onBar(x)||wh(x)>0||!!st.q):st.tab==="inv"?stockLoaded&&((tracked(x)&&wh(x)>0&&invSec(x)===st.ig)||!!st.q):st.tab==="bar"?onBar(x):st.tab==="order"?(stockLoaded&&!flag(x,"retired")):(st.tab==="stop"||st.tab==="slow")?stockLoaded&&(flag(x,st.tab)||!!st.q||!!st.brand):(wh(x)>0||!!draft[x.id]||!!st.q);
+const inTab=x=>st.q&&(st.tab==="bar"||st.tab==="wh")?true:st.tab==="smena"?(onBar(x)||wh(x)>0||!!st.q):st.tab==="inv"?stockLoaded&&((tracked(x)&&wh(x)>0&&invSec(x)===st.ig&&(!invNoSz||!packMap[x.id]))||!!st.q):st.tab==="bar"?onBar(x):st.tab==="order"?(stockLoaded&&!flag(x,"retired")):(st.tab==="stop"||st.tab==="slow")?stockLoaded&&(flag(x,st.tab)||!!st.q||!!st.brand):(wh(x)>0||!!draft[x.id]||!!st.q);
 const NEWUI=!!window.__demoDB;let invD={};const invEd=new Set();
 const TABS={pack:"Граммовка",wish:"Пожелания гостей",str:"Крепость табаков",team:"Команда",log:"Журнал",mixes:"Альбом миксов",smena:"Смена",inv:"Инвентаризация",bar:"Стойка",wh:"Склад",order:"Заказ",stop:"Стоп-лист",slow:"Неликвид",ai:"Ассистент",sup:"Поставщики"};
 const fOK=(x,k)=>k==="low"?wh(x)===1:k==="pend"?x.s==="pend":x.t.includes(k);
@@ -441,17 +442,28 @@ async function toBar(x,k){if(!db||busy)return;busy=true;const id=x.id,n=wh(x),at
   const prev={wh:n,bar:(stock[id]&&typeof stock[id].bar==="boolean")?stock[id].bar:null};
   try{const d0=Object.assign({},stock[id]||{},{wh:n-take,bar:true});if(d0.stop&&d0.stopAuto){delete d0.stop;delete d0.stopAuto}await db.doc("stock/"+id).set(d0);await db.collection("moves").add({item:id,qty:-take,left:n-take,prev,at,barTo:true,kind:"tobar"})}catch(e){busy=false;setStatus("Не сохранилось",true);return}
   busy=false;const ao=take?autoOrder(x,n-take):0;toast('<b>'+esc(nm(x))+'</b>: взято '+take+', на стойке. На складе осталось '+(n-take)+(ao?" · в заказ "+ao+" шт.":""),()=>{if(ao){delete orderQ[id];saveOrder()}askUndo(id)});render()}
-const IGROUPS=[["main","Основной"],["bonche","Bonche"],["kraken","Kraken"],["kcigar","Kraken Cigar"],["jcigar","Jent Cigar"],["perfume","Deus Perfume"],["dogma","Dogma"]];
-const invGroupOf=x=>{if(x.b==="Kraken")return x.l==="Cigar"?"kcigar":"kraken";if(x.b==="Jent"&&x.l==="Cigar")return"jcigar";if(x.b==="Deus"&&x.l==="Perfume")return"perfume";if(x.b==="Bonche")return"bonche";if(x.b==="Dogma")return"dogma";return"main"};
-const invSec=x=>invGroupOf(x)==="main"?"main":"prem";
+const IGROUPS=[["main","Обычные"],["cigar","Хука сигар"],["perfume","Парфюм"]];
+// Хука сигар — только настоящий сигарный табак (линейка Kraken Cigar). Kraken Medium Seco/Strong
+// Ligero, Jent Cigar, Bonche, Dogma — несмотря на имена, учитываются как обычные (так дешевле и проще).
+const invGroupOf=x=>{if(x.b==="Kraken"&&x.l==="Cigar")return"cigar";if(x.b==="Deus"&&x.l==="Perfume")return"perfume";return"main"};
+const invSec=invGroupOf;
 const invDiff=()=>Object.keys(invD).filter(id=>byId[id]&&invD[id]!==wh(byId[id]));
-function invSum(D){let sh=0,ov=0,gs=0,go=0,nog=0;D.forEach(id=>{const x=byId[id],d=invD[id]-wh(x);if(d<0)sh-=d;else ov+=d;const g=packMap[id];if(g){if(d<0)gs-=d*g;else go+=d*g}else nog++});return '<b>Итого:</b> недостача '+sh+' шт.'+(gs?' ('+(gs/1000).toFixed(2).replace(/\.?0+$/,"")+' кг)':'')+(ov?', излишек '+ov+' шт.'+(go?' ('+(go/1000).toFixed(2).replace(/\.?0+$/,"")+' кг)':''):'')+(nog?'. У '+nog+' поз. размер не указан, граммы не посчитаны.':'.')+'<br>'}
+function invCalc(D){let sh=0,ov=0,gs=0,go=0,nog=0;D.forEach(id=>{const x=byId[id],d=invD[id]-wh(x);if(d<0)sh-=d;else ov+=d;const g=packMap[id];if(g){if(d<0)gs-=d*g;else go+=d*g}else nog++});return {sh,ov,gs,go,nog}}
+function invSum(D,price){const{sh,ov,gs,go,nog}=invCalc(D),rub=(price&&gs)?Math.round(gs*price):null;
+  return '<b>Итого:</b> недостача '+sh+' шт.'+(gs?' ('+(gs/1000).toFixed(2).replace(/\.?0+$/,"")+' кг'+(rub!==null?' · <b id="inv-rub">≈'+rub.toLocaleString("ru-RU")+' ₽</b>':'<span id="inv-rub"></span>')+')':'<span id="inv-rub" hidden></span>')+(ov?', излишек '+ov+' шт.'+(go?' ('+(go/1000).toFixed(2).replace(/\.?0+$/,"")+' кг)':''):'')+(nog?'. У '+nog+' поз. размер не указан, граммы не посчитаны.':'.')+'<br>'}
+var invPriceByIg={};try{invPriceByIg=JSON.parse(localStorage.getItem("inv-price")||"{}")}catch(e){}
 function whWeight(){let n=0,g=0,no=0;DATA.forEach(x=>{const k=wh(x);if(!k||invSec(x)!==st.ig)return;n+=k;if(packMap[x.id])g+=k*packMap[x.id];else no+=k});return {n,g,no}}
 const invDiffG=()=>invDiff().filter(id=>invSec(byId[id])===st.ig);
-function openInv(){const D=invDiffG();showDlg('<h2>Расхождения</h2>'+(D.length?'<ul>'+D.map(id=>{const x=byId[id],d=invD[id]-wh(x);return'<li><span>'+esc(nm(x))+'<br><small>было '+wh(x)+' → по факту '+invD[id]+(packMap[x.id]?' · '+(d>0?"+":"")+d*packMap[x.id]+' г':'')+'</small></span><span class="ch" style="color:'+(d<0?"var(--pend)":"var(--ok)")+'">'+(d>0?"+":"")+d+'</span><span></span></li>'}).join("")+'</ul><p class="muted small">'+invSum(D)+'Недостача попадёт в отчёт по сменам и не считается расходом для заказа.</p>':'<p>Всё сходится.</p>')
+function openInv(){const D=invDiffG(),defPrice=invPriceByIg[st.ig]??(st.ig==="main"?8:"");
+  showDlg('<h2>Расхождения</h2>'+(D.length?'<ul>'+D.map(id=>{const x=byId[id],d=invD[id]-wh(x);return'<li><span>'+esc(nm(x))+'<br><small>было '+wh(x)+' → по факту '+invD[id]+(packMap[x.id]?' · '+(d>0?"+":"")+d*packMap[x.id]+' г':'')+'</small></span><span class="ch" style="color:'+(d<0?"var(--pend)":"var(--ok)")+'">'+(d>0?"+":"")+d+'</span><span></span></li>'}).join("")+'</ul><label class="f">Цена, ₽/г (для расчёта недостачи в деньгах)<input id="inv-price" type="number" min="0" step="0.5" inputmode="decimal" value="'+esc(String(defPrice))+'"></label><p class="muted small">'+invSum(D,+defPrice||0)+'Недостача попадёт в отчёт по сменам и не считается расходом для заказа.</p>':'<p>Всё сходится.</p>')
   +'<div class="dlg-btns">'+(D.length?'<button class="btn go" type="button" id="inv-ok">Привести склад к факту</button>':'')+'<button class="btn" type="button" id="dlg-back">Закрыть</button></div>');
-  $("#dlg-back").onclick=closeDlg;const ok=$("#inv-ok");if(ok)ok.onclick=async()=>{const at=new Date().toISOString();for(const id of D){const x=byId[id],n=wh(x),v=invD[id];
+  $("#dlg-back").onclick=closeDlg;
+  const pi=$("#inv-price");if(pi)pi.oninput=()=>{const{gs}=invCalc(D),price=+pi.value||0,r=$("#inv-rub");if(r)r.textContent=(price&&gs)?"≈"+Math.round(gs*price).toLocaleString("ru-RU")+" ₽":""};
+  const ok=$("#inv-ok");if(ok)ok.onclick=async()=>{const at=new Date().toISOString(),price=+(pi&&pi.value)||0,{sh,gs}=invCalc(D);
+    for(const id of D){const x=byId[id],n=wh(x),v=invD[id];
     try{await db.doc("stock/"+id).set(Object.assign({},stock[id]||{},{wh:v}));await db.collection("moves").add({item:id,qty:v-n,left:v,prev:{wh:n,bar:null},at,kind:"inv"})}catch(e){}}
+    try{invPriceByIg[st.ig]=price;localStorage.setItem("inv-price",JSON.stringify(invPriceByIg))}catch(e){}
+    try{await db.collection("invlog").add({ig:st.ig,items:D.length,units:sh,g:Math.round(gs),price:price||null,rub:(price&&gs)?Math.round(gs*price):null,at})}catch(e){}
     invD={};invEd.clear();closeDlg();toast("Склад приведён к факту: "+D.length+" поз.");render()}}
 async function finish(x){if(!db||busy)return;busy=true;const id=x.id,n=wh(x),at=new Date().toISOString();
   const prev={wh:n,bar:(stock[id]&&typeof stock[id].bar==="boolean")?stock[id].bar:null};
@@ -462,7 +474,7 @@ async function finish(x){if(!db||busy)return;busy=true;const id=x.id,n=wh(x),at=
 let renderLater=false,lastOrderAt="";
 // ===== Стойка / Склад / Стоп-лист / Неликвид: нажал на вкус — появились нужные действия =====
 const V2=new Set(["bar","wh","stop","slow"]);
-let selId="",whLow=false,isMgr=false,realMgr=false;
+let selId="",whLow=false,invNoSz=false,isMgr=false,realMgr=false;
 const idleDays=id=>{const m=moves.find(m=>m.item===id&&m.qty<0&&m.kind!=="inv"&&m.kind!=="wo");return m?Math.floor((Date.now()-Date.parse(m.at))/864e5):null};
 const journalDays=()=>moves.length?Math.floor((Date.now()-Date.parse(moves[moves.length-1].at))/864e5):0;
 const idleText=x=>{const d=idleDays(x.id);return d===null?(journalDays()>=7?"не брали с "+journalDays()+" дн.":""):d===0?"брали сегодня":"брали "+d+" дн. назад"};
@@ -588,13 +600,13 @@ function render(){
   let html="";
   if(st.tab==="stop")html+='<details class="hint"><summary>Как это работает</summary><p class="hintline">Вкусы, которые сейчас нельзя предложить гостю, даже если на складе есть остаток. Выбери бренд, чтобы увидеть весь его ассортимент, или найди вкус через поиск, затем нажми «В стоп».</p></details>';
   if(st.tab==="slow")html+='<details class="hint"><summary>Как это работает</summary><p class="hintline">Вкусы, которые лежат без движения. Выбери бренд или найди вкус через поиск и нажми «В неликвид», чтобы не забыть пустить его в миксы или не заказывать.</p></details>';
-  if(st.tab==="inv"){const w=whWeight(),cnt=sec=>DATA.filter(x=>tracked(x)&&wh(x)>0&&invSec(x)===sec).length;
-    html+='<div class="qchips ichips"><button type="button" class="chip" data-ig="main" aria-pressed="'+(st.ig==="main")+'">Классические табаки · '+cnt("main")+'</button><button type="button" class="chip" data-ig="prem" aria-pressed="'+(st.ig==="prem")+'">Премиум · '+cnt("prem")+'</button><button type="button" class="chip ihelp" id="inv-help">Как это работает</button></div>'
-      +'<p class="hintline isum"><b>'+(st.ig==="prem"?"Премиум":"Классические табаки")+': '+w.n+' шт.'+(w.g?' · около '+(w.g/1000).toFixed(1)+' кг':'')+'</b>'+(w.no?' · у '+w.no+' шт. не указан размер':'')+'</p>'}
+  if(st.tab==="inv"){const w=whWeight(),cnt=sec=>DATA.filter(x=>tracked(x)&&wh(x)>0&&invSec(x)===sec).length,igLbl=Object.fromEntries(IGROUPS);
+    html+='<div class="qchips ichips">'+IGROUPS.map(([k,l])=>'<button type="button" class="chip" data-ig="'+k+'" aria-pressed="'+(st.ig===k)+'">'+esc(l)+' · '+cnt(k)+'</button>').join("")+'<button type="button" class="chip ihelp" id="inv-help">Как это работает</button><button type="button" class="chip" id="inv-log">Журнал инвентаризаций'+(invLog.length?' · '+invLog.length:'')+'</button></div>'
+      +'<p class="hintline isum"><b>'+esc(igLbl[st.ig]||"Обычные")+': '+w.n+' шт.'+(w.g?' · около '+(w.g/1000).toFixed(1)+' кг':'')+'</b>'+(w.no?' · <button type="button" class="linklike" id="inv-nosz" aria-pressed="'+invNoSz+'">'+(invNoSz?"показать все":"у "+w.no+" шт. не указан размер, проставить")+'</button>':'')+'</p>'}
   if(st.tab==="order")html+=ordSw("order");
   if(st.tab==="order")html+='<details class="hint"><summary>Как это работает</summary><p class="hintline">Нажми «+», чтобы добавить вкус в заказ. Здесь показаны вкусы, которых на складе 0–1 банка, и то, что уже в заказе. Любой другой вкус найдётся через поиск.</p></details>';
   const fr=(st.tab==="bar"||st.tab==="wh"||st.tab==="smena")&&!st.q&&!st.brand&&!st.f?freqList().filter(x=>items.includes(x)):[];
-  const PRL=Object.fromEntries(IGROUPS),secKey=x=>(st.tab==="inv"&&st.ig==="prem"&&!st.q)?PRL[invGroupOf(x)]:x.b,secList=(st.tab==="inv"&&st.ig==="prem"&&!st.q)?IGROUPS.slice(1).map(g=>g[1]).filter(l=>items.some(x=>secKey(x)===l)):brands;
+  const secKey=x=>x.b,secList=brands;
   (fr.length?[FREQ].concat(secList):secList).forEach(b=>{const g=b===FREQ?fr:items.filter(x=>secKey(x)===b).sort((p,q)=>abc((p.l?p.l+" ":"")+p.n,(q.l?q.l+" ":"")+q.n));if(!g.length)return;
     const op=b===FREQ?!flip[fk(b)]:isOpen(b),forced=!!st.q;
     html+='<section class="brand'+(op?" open":"")+'"><button class="bh" type="button" data-brand="'+esc(b)+'" aria-expanded="'+op+'"'+(forced?" disabled":"")+'><h2><span class="chev" aria-hidden="true">›</span>'+esc(b)+'</h2><span>'+(st.tab==="wh"||st.tab==="slow"||st.tab==="inv"?g.reduce((a,x)=>a+wh(x),0)+" шт.":st.tab==="order"?g.reduce((a,x)=>a+oq(x),0)+" к заказу":g.length)+'</span></button>';
@@ -880,7 +892,11 @@ drawer.addEventListener("touchend",e=>{if(tx!==null&&tx-e.changedTouches[0].clie
 const go=t=>{st.tab=t;st.f="";st.q="";selId="";{const q=$("#q");if(q)q.value="";const c=$("#clear");if(c)c.hidden=true}if(t!=="stop"&&t!=="slow")st.brand="";save();render();menu(false);window.scrollTo(0,0)};
 $("#t-or").onclick=()=>go("order");
 $("#t-bar").onclick=()=>go("bar");$("#t-mix").onclick=()=>go("mixes");$("#t-log").onclick=()=>go("log");$("#t-team").onclick=()=>go("team");$("#t-str").onclick=()=>go("str");$("#list").addEventListener("click",e=>{if(st.tab!=="inv")return;const c=e.target.closest("[data-ig]");if(c){st.ig=c.dataset.ig;render();return}
-  if(e.target.closest("#inv-help")){showDlg('<h2>Как работает инвентаризация</h2><ul class="hl"><li>Выбери раздел: классические табаки или премиум.</li><li>Пройди по полке. «✓» — сходится. «✕» — не сходится, впиши фактический остаток.</li><li>Внизу «Сверить» покажет расхождения в штуках и граммах.</li><li>Нулевые остатки скрыты, нужный вкус найдёшь через поиск.</li></ul><div class="dlg-btns"><button class="btn go" type="button" id="dlg-back">Понятно</button></div>');$("#dlg-back").onclick=closeDlg}});
+  if(e.target.closest("#inv-nosz")){invNoSz=!invNoSz;render();return}
+  if(e.target.closest("#inv-help")){showDlg('<h2>Как работает инвентаризация</h2><ul class="hl"><li>Выбери раздел: обычные, хука сигар или парфюм.</li><li>Пройди по полке. «✓» — сходится. «✕» — не сходится, впиши фактический остаток.</li><li>Внизу «Сверить» покажет расхождения в штуках, граммах и примерной сумме.</li><li>Нулевые остатки скрыты, нужный вкус найдёшь через поиск.</li></ul><div class="dlg-btns"><button class="btn go" type="button" id="dlg-back">Понятно</button></div>');$("#dlg-back").onclick=closeDlg;return}
+  if(e.target.closest("#inv-log")){const L=invLog.slice(0,30),lbl=Object.fromEntries(IGROUPS);
+    showDlg('<h2>Журнал инвентаризаций</h2>'+(L.length?'<ul>'+L.map(r=>'<li><span>'+new Date(r.at).toLocaleDateString("ru-RU",{day:"numeric",month:"short"})+' — '+esc(lbl[r.ig]||r.ig)+'<br><small>'+r.items+' поз., недостача '+r.units+' шт.'+(r.g?' · '+(r.g/1000).toFixed(2).replace(/\.?0+$/,"")+' кг':"")+(r.rub?' · ≈'+Math.round(r.rub).toLocaleString("ru-RU")+' ₽':"")+'</small></span></li>').join("")+'</ul>':'<p>Пока пусто — журнал заполнится после первой завершённой инвентаризации.</p>')
+      +'<div class="dlg-btns"><button class="btn" type="button" id="dlg-back">Закрыть</button></div>');$("#dlg-back").onclick=closeDlg}});
 $("#t-wish").onclick=()=>go("wish");$("#t-pack").onclick=()=>go("pack");
 $("#t-wh").onclick=()=>go("wh");
 $("#t-stop").onclick=()=>go("stop");
@@ -1007,6 +1023,7 @@ aiUi();
   db.collection("pack").onSnapshot(s=>{packMap={};s.docs.forEach(d=>{packMap[d.id]=d.data().g});render()},()=>{});
   db.collection("packsizes").onSnapshot(s=>{packSizes={};s.docs.forEach(d=>{packSizes[d.id]=d.data().sizes});render()},()=>{});
   db.collection("wishes").onSnapshot(s=>{wishes=s.docs.map(d=>Object.assign({id:d.id},d.data()));if(st.tab==="wish")render()},()=>{});
+  db.collection("invlog").onSnapshot(s=>{invLog=s.docs.map(d=>Object.assign({id:d.id},d.data()))},()=>{});
   db.collection("team").onSnapshot(s=>{team=s.docs.map(d=>Object.assign({id:d.id},d.data()));render()},()=>{});
   db.collection("invites").onSnapshot(s=>{invites=s.docs.map(d=>Object.assign({id:d.id},d.data()));render()},()=>{});
   db.collection("mixes").onSnapshot(s=>{mixes=s.docs.map(d=>Object.assign({id:d.id},d.data()));seedMixes();render()},()=>{});
@@ -1056,7 +1073,7 @@ $("#list").addEventListener("change",async e=>{if(st.tab!=="str"||!db)return;con
   try{if(f){await db.doc("strength/"+f).set({s:v});setStatus("Крепость сохранена")}
     else if(g){const ids=g.split(",");await db.bulk("strength",ids,{s:v});ids.forEach(i=>strMap[i]=v);setStatus("Крепость линейки сохранена: "+ids.length);render()}}
   catch(x){setStatus("Не сохранилось: "+(x&&x.message||"нет доступа"),true)}});
-var wishes=[];
+var wishes=[];var invLog=[];
 function revertWish(ids){if(!ids||!ids.length||!db)return;db.bulk("wishes",ids,{state:"new"}).catch(()=>{})}
 const wishIdsFor=id=>wishes.filter(w=>w.fid===id&&w.state==="order").map(w=>w.id);
 function renderWishes(){

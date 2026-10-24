@@ -74,6 +74,10 @@
       list:()=>"flavors?select=id,brand,line,name,descr&custom=eq.true&venue_id=eq."+V(),
       toDoc:r=>({b:r.brand,l:r.line||"",n:r.name,d:r.descr||"",s:"name",t:[],bar:false}),
       fromDoc:(id,o)=>({id,brand:o.b,line:o.l||"",name:o.n,descr:o.d||"",custom:true,venue_id:V()}),conflict:"id"},
+    invlog:{table:"inv_log",key:"id",
+      list:()=>"inv_log?select=id,ig,items,shortage_units,shortage_g,price_per_g,shortage_rub,at&venue_id=eq."+V()+"&order=at.desc&limit=200",
+      toDoc:r=>({ig:r.ig,items:r.items,units:r.shortage_units,g:r.shortage_g,price:r.price_per_g,rub:r.shortage_rub,at:r.at}),
+      fromDoc:(id,o)=>({venue_id:V(),ig:o.ig,items:o.items||0,shortage_units:o.units||0,shortage_g:o.g||0,price_per_g:o.price||null,shortage_rub:o.rub||null,by_tg:session.user.tg_id,at:o.at||new Date().toISOString()})},
   };
   const subs={};
   const snapDocs=async c=>{
