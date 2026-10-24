@@ -217,9 +217,11 @@ input.oin{width:52px;height:34px;border:1px solid var(--accent);font:inherit;fon
 input.oin.zero{border-color:var(--line)}input.oin::-webkit-inner-spin-button{-webkit-appearance:none}
 .omanual{margin-top:12px;border:1px dashed var(--line);border-radius:12px;padding:10px 12px}
 .omanual h3{margin:0 0 6px;font-size:14px}.omanual .row{grid-template-columns:minmax(0,1fr) auto}
-.sup{padding-bottom:120px}.scard{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:12px 14px;margin-top:12px}
-.scard h3{margin:0;font-size:16px;display:flex;justify-content:space-between;gap:8px;align-items:center}
-.scard .ct{font-size:14px;margin:4px 0 8px;overflow-wrap:anywhere}.scard .ct a{color:var(--accent)}
+.sup{padding-bottom:120px}.scard{border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:14px;margin-top:12px}
+.scard h3{margin:0;font-size:16px;display:flex;align-items:center;gap:10px}
+.scard .sav{flex:none;width:34px;height:34px;border-radius:10px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center}.scard .sav svg{width:18px;height:18px}
+.scard .snm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.scard .ct{font-size:14px;margin:8px 0 8px;overflow-wrap:anywhere}.scard .ct a{color:var(--accent)}
 .bchips{display:flex;flex-wrap:wrap;gap:6px}.bchips span{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:2px 9px}
 .blist{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;max-height:40dvh;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:8px;margin-top:6px}
 .blist label{font-size:14px;display:flex;gap:6px;align-items:center}.blist small{color:var(--muted)}
@@ -278,13 +280,19 @@ body.inv-mode .row .ln{white-space:nowrap;margin-left:6px;font-size:11px;color:v
 body.inv-mode .btn.iok{min-width:44px;padding:0;font-size:18px;border-color:var(--line-ctl);color:var(--fg)}
 body.inv-mode .btn.iok.done{background:transparent;border-color:var(--ok);color:var(--ok)}
 body.inv-mode .chip[aria-pressed="true"]{background:var(--fg);border-color:var(--fg);color:var(--bg)}
-.ochips{margin:8px 0 4px;gap:6px}.ochips .chip{min-height:38px}
+.oseg{display:flex;gap:4px;margin:10px 0 4px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:4px}
+.oseg .chip{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;gap:7px;border:0;border-radius:11px;padding:10px 8px;font-weight:700;font-size:14px;background:none;color:var(--muted)}
+.oseg .chip .ico{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8}
+.oseg .chip[aria-pressed="true"]{background:var(--accent);color:#fff}
+.oseg .chip small{background:rgba(255,255,255,.25);border-radius:999px;padding:0 6px;font-size:11px;font-weight:700}
+.oseg .chip[aria-pressed="false"] small{background:var(--accent-soft);color:var(--accent)}
 .chip[data-os][aria-pressed="true"]{background:var(--fg);border-color:var(--fg);color:var(--bg)}
 .itiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0 8px}
 .itile{display:grid;gap:4px;justify-items:start;text-align:left;border:1.5px solid var(--line);background:var(--surface);color:var(--fg);font:inherit;border-radius:14px;padding:12px 10px;cursor:pointer;min-width:0}
 .itile b{font:800 22px/1.1 var(--display)}.itile span{font-size:12px;color:var(--muted);line-height:1.25}
 .itile[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
 .itile[aria-pressed="true"] b{color:var(--accent)}
+.ctiles .cico{width:20px;height:20px;margin-bottom:2px;color:var(--muted)}.ctiles .itile[aria-pressed="true"] .cico{color:var(--accent)}
 .iutil{margin:0 0 10px;gap:6px}.iutil .chip{min-height:36px;font-size:12.5px}.ihelp{color:var(--muted)}
 .isumcard{display:flex;gap:0;margin:6px 0 10px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--surface)}
 .isumcard>div{flex:1;padding:10px 12px;text-align:center}.isumcard>div+div{border-left:1px solid var(--line)}
@@ -553,7 +561,7 @@ const save=()=>{try{localStorage.setItem("stoika",JSON.stringify({brand:st.brand
 let flip={};try{flip=JSON.parse(localStorage.getItem("stoika-fold")||"{}")||{}}catch(e){flip={}}
 const foldDefault=()=>st.tab==="bar"||st.tab==="wh"||st.tab==="smena"||st.tab==="inv"||st.tab==="stop"||st.tab==="slow";
 const fk=b=>st.tab+(st.brand?"|sel|":"|")+b;
-const ordSw=on=>isMgr?'<div class="qchips ochips"><button type="button" class="chip" data-os="order" aria-pressed="'+(on==="order")+'">Заказ</button><button type="button" class="chip" data-os="sup" aria-pressed="'+(on==="sup")+'">Контрагенты · '+sups.length+'</button></div>':"";
+const ordSw=on=>isMgr?'<div class="oseg"><button type="button" class="chip" data-os="order" aria-pressed="'+(on==="order")+'"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2 12h11l2-7H6M9 20h.01M17 20h.01"/></svg>Заказ</button><button type="button" class="chip" data-os="sup" aria-pressed="'+(on==="sup")+'"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3 20a6 6 0 0 1 12 0M16 11a3 3 0 1 0 0-6M17 14a6 6 0 0 1 4 6"/></svg>Контрагенты<small>'+sups.length+'</small></button></div>':"";
 const isOpen=b=>!!st.q||(st.tab==="order"&&!st.brand?(()=>{const d=DATA.some(x=>x.b===b&&(oq(x)>0||hint(x)));return flip[fk(b)]?!d:d})():(foldDefault()&&!st.brand)?!!flip[fk(b)]:!flip[fk(b)]);
 const cyr=t=>/^[а-яё]/i.test(t)?1:0;
 const abc=(a,b)=>(cyr(a)-cyr(b))||a.localeCompare(b,"ru",{sensitivity:"base",numeric:true});
@@ -1030,13 +1038,14 @@ function addManual(){const bs=[...new Set(DATA.map(x=>x.b))].sort(abc);
     if(hit){orderQ[hit.id]=(orderQ[hit.id]||0)+q}else orderM["m"+Date.now().toString(36)]={b,n,q};saveOrder();closeDlg();render()}}
 // Контрагенты (кабинет управляющего): кальян-поставщики (бренды и заказ), бар и хозы (свободный список)
 const CTYPES=[["kalyan","Кальян"],["bar","Бар"],["other","Хозы"]];
+const CTICO={kalyan:'<path d="M12 3c1 4-4 5-4 10a4 4 0 0 0 8 0c0-3-2-4-2-6 3 2 5 5 5 8a7 7 0 0 1-14 0c0-6 5-8 7-12z"/>',bar:'<path d="M6 4h12l-2 8v8h-8v-8z"/><path d="M9 20h6"/>',other:'<path d="M14.7 6.3a4 4 0 0 1-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 1 5.4-5.4L21 6l-3-3z"/>'};
 var supType="kalyan";
 function renderSup(){const el=$("#sup"),all=[...new Set(DATA.map(x=>x.b))],free=all.filter(b=>!supOf(b)).sort(abc);
   const inType=sups.filter(s=>(s.ctype||"kalyan")===supType).sort((p,q)=>abc(p.name,q.name));
   el.innerHTML=ordSw("sup")+'<details class="hint"><summary>Как это работает</summary><p class="hintline">Кальян — привязывай бренды, заказ сам разобьётся по поставщикам. Бар и хозы — свободный список того, что заказываете, без каталога.</p></details>'
-    +'<div class="qchips" style="margin:10px 0">'+CTYPES.map(([k,l])=>'<button type="button" class="chip" data-st="'+k+'" aria-pressed="'+(supType===k)+'">'+l+' · '+sups.filter(s=>(s.ctype||"kalyan")===k).length+'</button>').join("")+'</div>'
+    +'<div class="itiles ctiles">'+CTYPES.map(([k,l])=>'<button type="button" class="itile" data-st="'+k+'" aria-pressed="'+(supType===k)+'"><svg class="cico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+CTICO[k]+'</svg><b>'+sups.filter(s=>(s.ctype||"kalyan")===k).length+'</b><span>'+l+'</span></button>').join("")+'</div>'
     +'<button class="btn go wide" type="button" id="s-add"'+(db?"":" disabled")+'>+ Добавить контрагента</button>'
-    +inType.map(s=>'<div class="scard"><h3>'+esc(s.name)+'<button class="btn sm" type="button" data-sedit="'+s.id+'">Изменить</button></h3><div class="ct">'+(s.contact?contactHtml(s.contact):'<span class="muted">контакт не указан</span>')
+    +inType.map(s=>'<div class="scard"><h3><span class="sav"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+CTICO[s.ctype||"kalyan"]+'</svg></span><span class="snm">'+esc(s.name)+'</span><button class="btn sm" type="button" data-sedit="'+s.id+'">Изменить</button></h3><div class="ct">'+(s.contact?contactHtml(s.contact):'<span class="muted">контакт не указан</span>')
       +(s.addr?'<br><span class="muted small">'+esc(s.addr)+'</span>':"")+(s.req?'<br><span class="muted small">'+esc(s.req)+'</span>':"")+'</div>'
       +(supType==="kalyan"?'<div class="bchips">'+((s.brands||[]).slice().sort(abc).map(b=>'<span>'+esc(b)+'</span>').join("")||'<span class="muted">бренды не выбраны</span>')+'</div>'
         :'<p class="muted small" style="margin:6px 0 0">'+(s.items?esc(s.items):'список не заполнен')+'</p>')
