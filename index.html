@@ -341,7 +341,7 @@ body.inv-mode .chip[aria-pressed="true"]{background:var(--fg);border-color:var(-
       <button class="tab" id="t-mix" type="button">Альбом миксов<small id="c-mix"></small></button>
       <button class="tab" id="t-log" type="button">Журнал<small></small></button>
       <button class="tab" id="t-ai" type="button">Ассистент<small>ИИ</small></button>
-      <button class="tab" id="t-sup" type="button" hidden style="display:none">Поставщики<small id="c-sup"></small></button>
+      <button class="tab" id="t-sup" type="button" hidden style="display:none">Контрагенты<small id="c-sup"></small></button>
     </div>
     <div id="d-set" hidden>
       <p class="dgrp">Гости и команда</p>
@@ -412,9 +412,9 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
       toDoc:r=>({item:r.flavor_id,kind:r.kind,qty:r.qty,left:r.left_after,reason:r.reason||undefined,prev:r.prev||undefined,barTo:r.bar_to===null?undefined:r.bar_to,at:r.at}),
       fromDoc:(id,o)=>({venue_id:V(),flavor_id:o.item,kind:o.kind||"in",qty:o.qty||0,left_after:o.left,reason:o.reason||null,prev:o.prev||null,bar_to:typeof o.barTo==="boolean"?o.barTo:null,at:o.at||new Date().toISOString(),by_tg:session.user.tg_id})},
     suppliers:{table:"suppliers",key:"id",
-      list:()=>"suppliers?select=id,name,contact,brands&venue_id=eq."+V(),
-      toDoc:r=>({name:r.name,contact:r.contact,brands:r.brands||[]}),
-      fromDoc:(id,o)=>{const b={venue_id:V(),name:o.name,contact:o.contact||"",brands:o.brands||[]};if(id)b.id=id;return b},conflict:"id"},
+      list:()=>"suppliers?select=id,name,contact,brands,ctype,legal_address,requisites,items,files&venue_id=eq."+V(),
+      toDoc:r=>({name:r.name,contact:r.contact,brands:r.brands||[],ctype:r.ctype||"kalyan",addr:r.legal_address||"",req:r.requisites||"",items:r.items||"",files:r.files||[]}),
+      fromDoc:(id,o)=>{const b={venue_id:V(),name:o.name,contact:o.contact||"",brands:o.brands||[],ctype:o.ctype||"kalyan",legal_address:o.addr||"",requisites:o.req||"",items:o.items||"",files:o.files||[]};if(id)b.id=id;return b},conflict:"id"},
     mixes:{table:"mixes",key:"id",
       list:()=>"mixes?select=id,title,kind,note,tags,parts,by_name,created_at,hidden,in_karta&venue_id=eq."+V(),
       toDoc:r=>{const d={title:r.title,kind:r.kind,note:r.note,tags:r.tags||[],parts:r.parts||[],by:r.by_name,at:r.created_at};if(r.hidden)d.hidden=true;if(r.in_karta)d.inKarta=true;return d},
@@ -531,7 +531,7 @@ const save=()=>{try{localStorage.setItem("stoika",JSON.stringify({brand:st.brand
 let flip={};try{flip=JSON.parse(localStorage.getItem("stoika-fold")||"{}")||{}}catch(e){flip={}}
 const foldDefault=()=>st.tab==="bar"||st.tab==="wh"||st.tab==="smena"||st.tab==="inv"||st.tab==="stop"||st.tab==="slow";
 const fk=b=>st.tab+(st.brand?"|sel|":"|")+b;
-const ordSw=on=>isMgr?'<div class="qchips ochips"><button type="button" class="chip" data-os="order" aria-pressed="'+(on==="order")+'">Заказ</button><button type="button" class="chip" data-os="sup" aria-pressed="'+(on==="sup")+'">Поставщики · '+sups.length+'</button></div>':"";
+const ordSw=on=>isMgr?'<div class="qchips ochips"><button type="button" class="chip" data-os="order" aria-pressed="'+(on==="order")+'">Заказ</button><button type="button" class="chip" data-os="sup" aria-pressed="'+(on==="sup")+'">Контрагенты · '+sups.length+'</button></div>':"";
 const isOpen=b=>!!st.q||(st.tab==="order"&&!st.brand?(()=>{const d=DATA.some(x=>x.b===b&&(oq(x)>0||hint(x)));return flip[fk(b)]?!d:d})():(foldDefault()&&!st.brand)?!!flip[fk(b)]:!flip[fk(b)]);
 const cyr=t=>/^[а-яё]/i.test(t)?1:0;
 const abc=(a,b)=>(cyr(a)-cyr(b))||a.localeCompare(b,"ru",{sensitivity:"base",numeric:true});
@@ -571,7 +571,7 @@ const inOrder=x=>stockLoaded&&(oq(x)>0||hint(x)||!!st.q);
 const flag=(x,k)=>!!(stock[x.id]&&stock[x.id][k]);
 const inTab=x=>st.q&&(st.tab==="bar"||st.tab==="wh")?true:st.tab==="smena"?(onBar(x)||wh(x)>0||!!st.q):st.tab==="inv"?stockLoaded&&((tracked(x)&&wh(x)>0&&invSec(x)===st.ig&&(!invNoSz||!packMap[x.id]))||!!st.q):st.tab==="bar"?onBar(x):st.tab==="order"?(stockLoaded&&!flag(x,"retired")):(st.tab==="stop"||st.tab==="slow")?stockLoaded&&(flag(x,st.tab)||!!st.q||!!st.brand):(wh(x)>0||!!draft[x.id]||!!st.q);
 const NEWUI=!!window.__demoDB;let invD={};const invEd=new Set();
-const TABS={pack:"Граммовка",wish:"Пожелания гостей",str:"Крепость табаков",team:"Команда",log:"Журнал",mixes:"Альбом миксов",smena:"Смена",inv:"Инвентаризация",bar:"Стойка",wh:"Склад",order:"Заказ",stop:"Стоп-лист",slow:"Неликвид",ai:"Ассистент",sup:"Поставщики"};
+const TABS={pack:"Граммовка",wish:"Пожелания гостей",str:"Крепость табаков",team:"Команда",log:"Журнал",mixes:"Альбом миксов",smena:"Смена",inv:"Инвентаризация",bar:"Стойка",wh:"Склад",order:"Заказ",stop:"Стоп-лист",slow:"Неликвид",ai:"Ассистент",sup:"Контрагенты"};
 const fOK=(x,k)=>k==="low"?wh(x)===1:k==="pend"?x.s==="pend":x.t.includes(k);
 function renderChips(){
   const all=st.tab==="stop"||st.tab==="slow";
@@ -1006,27 +1006,47 @@ function addManual(){const bs=[...new Set(DATA.map(x=>x.b))].sort(abc);
   $("#m-ok").onclick=()=>{const b=$("#m-b").value.trim(),n=$("#m-n").value.trim(),q=Math.max(1,Math.min(99,Math.round(Number($("#m-q").value)||1)));if(!n){$("#m-n").focus();return}
     const hit=DATA.find(x=>norm(x.b)===norm(b)&&norm(x.n)===norm(n));
     if(hit){orderQ[hit.id]=(orderQ[hit.id]||0)+q}else orderM["m"+Date.now().toString(36)]={b,n,q};saveOrder();closeDlg();render()}}
-// Поставщики (кабинет управляющего): у кого какие бренды заказываем и куда слать заказ
+// Контрагенты (кабинет управляющего): кальян-поставщики (бренды и заказ), бар и хозы (свободный список)
+const CTYPES=[["kalyan","Кальян"],["bar","Бар"],["other","Хозы"]];
+var supType="kalyan";
 function renderSup(){const el=$("#sup"),all=[...new Set(DATA.map(x=>x.b))],free=all.filter(b=>!supOf(b)).sort(abc);
-  el.innerHTML=ordSw("sup")+'<details class="hint"><summary>Как это работает</summary><p class="hintline">Укажи, у какого поставщика какие бренды заказываете. Заказ сам разобьётся по поставщикам: у каждого свой список, Excel и контакт.</p></details>'
-    +'<div style="margin-top:12px"><button class="btn go wide" type="button" id="s-add"'+(db?"":" disabled")+'>+ Добавить поставщика</button></div>'
-    +sups.slice().sort((p,q)=>abc(p.name,q.name)).map(s=>'<div class="scard"><h3>'+esc(s.name)+'<button class="btn sm" type="button" data-sedit="'+s.id+'">Изменить</button></h3><div class="ct">'+(s.contact?contactHtml(s.contact):'<span class="muted">контакт не указан</span>')+'</div><div class="bchips">'+((s.brands||[]).slice().sort(abc).map(b=>'<span>'+esc(b)+'</span>').join("")||'<span class="muted">бренды не выбраны</span>')+'</div></div>').join("")
-    +(free.length?'<div class="scard"><h3>Без поставщика</h3><p class="muted small" style="margin:4px 0 8px">Нажми на бренд, чтобы привязать его к поставщику.</p><div class="bchips">'+free.map(b=>'<button type="button" class="bfree" data-free="'+esc(b)+'">'+esc(b)+' +</button>').join("")+'</div></div>':"")}
-$("#sup").addEventListener("click",e=>{const f=e.target.closest("[data-free]");if(f){pickSup(f.dataset.free);return}const b=e.target.closest("[data-sedit]");if(b){editSup(sups.find(s=>s.id===b.dataset.sedit));return}if(e.target.closest("#s-add"))editSup(null)});
-function pickSup(brand){if(!db)return;
-  showDlg('<h2>'+esc(brand)+'</h2><p class="muted">У кого заказываем этот бренд?</p><div class="dlg-btns" style="flex-direction:column;align-items:stretch">'+sups.map(s=>'<button class="btn" type="button" data-to="'+s.id+'">'+esc(s.name)+'</button>').join("")+'<button class="btn go" type="button" id="to-new">+ Новый поставщик</button><button class="btn" type="button" id="dlg-back">Отмена</button></div>');
+  const inType=sups.filter(s=>(s.ctype||"kalyan")===supType).sort((p,q)=>abc(p.name,q.name));
+  el.innerHTML=ordSw("sup")+'<details class="hint"><summary>Как это работает</summary><p class="hintline">Кальян — привязывай бренды, заказ сам разобьётся по поставщикам. Бар и хозы — свободный список того, что заказываете, без каталога.</p></details>'
+    +'<div class="qchips" style="margin:10px 0">'+CTYPES.map(([k,l])=>'<button type="button" class="chip" data-st="'+k+'" aria-pressed="'+(supType===k)+'">'+l+' · '+sups.filter(s=>(s.ctype||"kalyan")===k).length+'</button>').join("")+'</div>'
+    +'<button class="btn go wide" type="button" id="s-add"'+(db?"":" disabled")+'>+ Добавить контрагента</button>'
+    +inType.map(s=>'<div class="scard"><h3>'+esc(s.name)+'<button class="btn sm" type="button" data-sedit="'+s.id+'">Изменить</button></h3><div class="ct">'+(s.contact?contactHtml(s.contact):'<span class="muted">контакт не указан</span>')
+      +(s.addr?'<br><span class="muted small">'+esc(s.addr)+'</span>':"")+(s.req?'<br><span class="muted small">'+esc(s.req)+'</span>':"")+'</div>'
+      +(supType==="kalyan"?'<div class="bchips">'+((s.brands||[]).slice().sort(abc).map(b=>'<span>'+esc(b)+'</span>').join("")||'<span class="muted">бренды не выбраны</span>')+'</div>'
+        :'<p class="muted small" style="margin:6px 0 0">'+(s.items?esc(s.items):'список не заполнен')+'</p>')
+      +((s.files||[]).length?'<div class="bchips">'+s.files.map(f=>'<a href="'+esc(f.url)+'" target="_blank" rel="noopener" class="tag">'+esc(f.name||"файл")+'</a>').join("")+'</div>':"")
+      +'</div>').join("")
+    +(!inType.length?'<p class="hintline">Пока никого нет в этой категории.</p>':"")
+    +(supType==="kalyan"&&free.length?'<div class="scard"><h3>Без поставщика</h3><p class="muted small" style="margin:4px 0 8px">Нажми на бренд, чтобы привязать его к поставщику.</p><div class="bchips">'+free.map(b=>'<button type="button" class="bfree" data-free="'+esc(b)+'">'+esc(b)+' +</button>').join("")+'</div></div>':"")}
+$("#sup").addEventListener("click",e=>{const t=e.target.closest("[data-st]");if(t){supType=t.dataset.st;render();return}const f=e.target.closest("[data-free]");if(f){pickSup(f.dataset.free);return}const b=e.target.closest("[data-sedit]");if(b){editSup(sups.find(s=>s.id===b.dataset.sedit));return}if(e.target.closest("#s-add"))editSup(null)});
+function pickSup(brand){if(!db)return;const kal=sups.filter(s=>(s.ctype||"kalyan")==="kalyan");
+  showDlg('<h2>'+esc(brand)+'</h2><p class="muted">У кого заказываем этот бренд?</p><div class="dlg-btns" style="flex-direction:column;align-items:stretch">'+kal.map(s=>'<button class="btn" type="button" data-to="'+s.id+'">'+esc(s.name)+'</button>').join("")+'<button class="btn go" type="button" id="to-new">+ Новый поставщик</button><button class="btn" type="button" id="dlg-back">Отмена</button></div>');
   $("#dlg-back").onclick=closeDlg;$("#to-new").onclick=()=>editSup(null,brand);
-  $("#dlg-body").querySelectorAll("[data-to]").forEach(b=>b.onclick=async()=>{const s=sups.find(x=>x.id===b.dataset.to);try{await db.doc("suppliers/"+s.id).set({name:s.name,contact:s.contact||"",brands:[...(s.brands||[]),brand]});closeDlg()}catch(e){setStatus("Не сохранилось: "+(e&&e.message||""),true)}})}
-function editSup(s,pre){const all=[...new Set(DATA.map(x=>x.b))].sort(abc),mine=new Set(s?s.brands||[]:(pre?[pre]:[]));
-  showDlg('<h2>'+(s?"Поставщик":"Новый поставщик")+'</h2><label class="f">Название<input id="s-n" value="'+esc(s?s.name:"")+'" autocomplete="off"></label>'
-    +'<label class="f">Куда отправлять заказ: телефон, @telegram или почта<input id="s-c" value="'+esc(s?s.contact||"":"")+'" autocomplete="off"></label>'
-    +'<label class="f">Бренды</label><div class="blist">'+all.map(b=>{const o=supOf(b);return'<label><input type="checkbox" value="'+esc(b)+'"'+(mine.has(b)?" checked":"")+'>'+esc(b)+(o&&(!s||o.id!==s.id)?' <small>· '+esc(o.name)+'</small>':"")+'</label>'}).join("")+'</div>'
-    +'<p class="muted small">Если бренд уже у другого поставщика, он перейдёт к этому.</p><div class="dlg-btns"><button class="btn go" type="button" id="s-ok">Сохранить</button>'+(s?'<button class="btn" type="button" id="s-del">Удалить</button>':"")+'<button class="btn" type="button" id="dlg-back">Отмена</button></div>');
+  $("#dlg-body").querySelectorAll("[data-to]").forEach(b=>b.onclick=async()=>{const s=kal.find(x=>x.id===b.dataset.to);try{await db.doc("suppliers/"+s.id).set({name:s.name,contact:s.contact||"",ctype:s.ctype,addr:s.addr,req:s.req,items:s.items,files:s.files,brands:[...(s.brands||[]),brand]});closeDlg()}catch(e){setStatus("Не сохранилось: "+(e&&e.message||""),true)}})}
+const filesToText=fs=>(fs||[]).map(f=>(f.name?f.name+": ":"")+f.url).join("\n");
+const textToFiles=t=>t.split("\n").map(l=>l.trim()).filter(Boolean).map(l=>{const m=l.match(/^(.+?):\s*(https?:\/\/\S+)$/);return m?{name:m[1].trim(),url:m[2]}:{name:"",url:l}});
+function editSup(s,pre){const all=[...new Set(DATA.map(x=>x.b))].sort(abc),mine=new Set(s?s.brands||[]:(pre?[pre]:[])),ct=s?(s.ctype||"kalyan"):(pre?"kalyan":supType);
+  showDlg('<h2>'+(s?"Контрагент":"Новый контрагент")+'</h2>'
+    +'<label class="f">Тип<select id="s-t">'+CTYPES.map(([k,l])=>'<option value="'+k+'"'+(k===ct?" selected":"")+'>'+l+'</option>').join("")+'</select></label>'
+    +'<label class="f">Название<input id="s-n" value="'+esc(s?s.name:"")+'" autocomplete="off"></label>'
+    +'<label class="f">Контакт: телефон, @telegram или почта<input id="s-c" value="'+esc(s?s.contact||"":"")+'" autocomplete="off"></label>'
+    +'<label class="f">Юр. адрес<input id="s-a" value="'+esc(s?s.addr||"":"")+'" autocomplete="off"></label>'
+    +'<label class="f">Реквизиты<textarea id="s-r" rows="2">'+esc(s?s.req||"":"")+'</textarea></label>'
+    +'<div id="s-kalyan"'+(ct==="kalyan"?"":" hidden")+'><label class="f">Бренды</label><div class="blist">'+all.map(b=>{const o=supOf(b);return'<label><input type="checkbox" value="'+esc(b)+'"'+(mine.has(b)?" checked":"")+'>'+esc(b)+(o&&(!s||o.id!==s.id)?' <small>· '+esc(o.name)+'</small>':"")+'</label>'}).join("")+'</div><p class="muted small">Если бренд уже у другого поставщика, он перейдёт к этому.</p></div>'
+    +'<div id="s-other"'+(ct!=="kalyan"?"":" hidden")+'><label class="f">Что заказываем<textarea id="s-items" rows="3" placeholder="сироп, газированная вода, салфетки...">'+esc(s?s.items||"":"")+'</textarea></label></div>'
+    +'<label class="f">Файлы — по ссылке на строку, можно «Название: URL»<textarea id="s-files" rows="2" placeholder="https://...">'+esc(filesToText(s&&s.files))+'</textarea></label>'
+    +'<div class="dlg-btns"><button class="btn go" type="button" id="s-ok">Сохранить</button>'+(s?'<button class="btn" type="button" id="s-del">Удалить</button>':"")+'<button class="btn" type="button" id="dlg-back">Отмена</button></div>');
   $("#dlg-back").onclick=closeDlg;
+  $("#s-t").onchange=e=>{const k=e.target.value;$("#s-kalyan").hidden=k!=="kalyan";$("#s-other").hidden=k==="kalyan"};
   $("#s-ok").onclick=async()=>{const name=$("#s-n").value.trim();if(!name){$("#s-n").focus();return}
-    const brands=[...$("#dlg-body").querySelectorAll(".blist input:checked")].map(i=>i.value),id=s?s.id:"s"+Date.now().toString(36);
-    try{for(const o of sups){if(o.id!==id&&(o.brands||[]).some(b=>brands.includes(b)))await db.doc("suppliers/"+o.id).set({name:o.name,contact:o.contact||"",brands:(o.brands||[]).filter(b=>!brands.includes(b))})}
-      await db.doc("suppliers/"+id).set({name,contact:$("#s-c").value.trim(),brands});closeDlg()}catch(e){setStatus("Поставщик не сохранился: "+(e&&e.message||"нет доступа"),true)}};
+    const ctype=$("#s-t").value,id=s?s.id:"s"+Date.now().toString(36),files=textToFiles($("#s-files").value);
+    const brands=ctype==="kalyan"?[...$("#dlg-body").querySelectorAll(".blist input:checked")].map(i=>i.value):[];
+    try{if(ctype==="kalyan")for(const o of sups){if(o.id!==id&&(o.brands||[]).some(b=>brands.includes(b)))await db.doc("suppliers/"+o.id).set({name:o.name,contact:o.contact||"",brands:(o.brands||[]).filter(b=>!brands.includes(b)),ctype:o.ctype,addr:o.addr,req:o.req,items:o.items,files:o.files})}
+      await db.doc("suppliers/"+id).set({name,contact:$("#s-c").value.trim(),addr:$("#s-a").value.trim(),req:$("#s-r").value.trim(),ctype,brands,items:ctype==="kalyan"?"":$("#s-items").value.trim(),files});closeDlg()}catch(e){setStatus("Контрагент не сохранился: "+(e&&e.message||"нет доступа"),true)}};
   if(s)$("#s-del").onclick=async()=>{try{await db.doc("suppliers/"+s.id).delete();closeDlg()}catch(e){setStatus("Не удалилось: "+(e&&e.message||""),true)}}}
 function edit(a,id){
   const x=byId[id];if(!x||!db||busy)return;
@@ -1536,7 +1556,7 @@ if(true){
    ["Взять банку со склада на стойку","<p>Открой «Склад» или «Стойку», найди вкус и нажми на него. Появятся кнопки:</p><ul><li><b>Взять 1 банку</b> — одно нажатие, штука уходит со склада на стойку.</li><li><b>Взять несколько</b> — выбери число или впиши своё и нажми «Взять».</li></ul><p>Вверху списка висит плашка «Взято со склада за 30 мин»: видно, что и сколько ты взял. Нажми ✕ на плашке, чтобы отменить взятие. Если брал несколько раз подряд, склад предложит отменить всё или только последнюю.</p>"],
    ["Фото банок одним снимком","<p>Нажми «Сфоткать банки» на главной. Выложи банки этикетками к камере и сделай одно фото. Склад покажет список найденных вкусов. Поправь количество кнопками − и +, выбери вкус для банок, которые не распознал, и нажми «Забрать со склада». Всё перенесётся на стойку за раз.</p><p class=\"muted small\">В демо распознавание имитируется. В приложении фото разберёт ИИ.</p>"],
    ["Вкус закончился или его нет","<ul><li>Закончилась штука на стойке: возьми новую со склада.</li><li>Нет на складе: вкус попадает в «Заказ». Управляющий делает заказ.</li><li>Вкуса нет и не будет: нажми <b>«В стоп-лист»</b>. Вкус пропадёт из табачной карты и из миксов.</li></ul><p>Мастер может добавить вкус в стоп-лист. Вернуть его из стопа может управляющий.</p>"],
-   ["Заказ и поставщики (управляющий)","<p>В «Заказе» вкусы собираются сами: что на складе кончается, добавляется в список. Количество можно поправить. Заказ делится по поставщикам. Для каждого есть <b>«Отправить поставщику»</b> (в мессенджер), <b>Excel</b> и <b>«Скопировать»</b>. Поставщиков и их бренды заводят в разделе «Поставщики» (через «Ещё»).</p>"],
+   ["Заказ и контрагенты (управляющий)","<p>В «Заказе» вкусы собираются сами: что на складе кончается, добавляется в список. Количество можно поправить. Заказ делится по поставщикам табака. Для каждого есть <b>«Отправить поставщику»</b> (в мессенджер), <b>Excel</b> и <b>«Скопировать»</b>. Контрагентов (кальян, бар, хозы) заводят в разделе «Контрагенты» (через «Ещё»).</p>"],
    ["Инвентаризация склада (управляющий)","<p>«Ещё» → «Инвентаризация». Иди по полке. Если число штук как в списке, жми <b>«✓»</b>. Если нет, жми <b>«✕»</b> и впиши, сколько реально стоит. Внизу «Сверить» покажет расхождения, а «Привести склад к факту» запишет их.</p>"],
    ["Неликвид и вывод из палитры (управляющий)","<p>Отметь вкус кнопкой «В неликвид». Такие вкусы нужно продвигать. Если вкус из неликвида закончился и на складе, и на стойке, склад спросит <b>«Вывести вкус из палитры?»</b>. Вывод убирает его со стойки, склада и из карты, но не удаляет из базы. Найти и вернуть можно через поиск (кнопка «Вернуть в палитру»).</p>"],
    ["Пополнение и списание (управляющий)","<p>На складе нажми вкус → <b>«Пополнить»</b>: выбери число и подтверди. <b>«Списать»</b> убирает штуки со склада с причиной (брак, просрочка, потеря). Списывать может только управляющий.</p>"],
