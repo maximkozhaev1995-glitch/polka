@@ -1203,6 +1203,9 @@ $("#clear").onclick=()=>{q.value="";st.q="";$("#clear").hidden=true;q.focus();re
 render();
 // ИИ-ассистент склада: Claude видит склад через функции страницы, остатки меняет только черновиком (подтверждение — обычным окном)
 let sampleFn=null,aiTurns=[],aiCtl=null,aiImgs=[],aiCanImg=false;
+// Правило Максима: агент сам ставит в заказ только вкусы с фото банок и из стоп-листа, и не из неликвида; остальное — только советует
+let aiOrdPhoto=false;
+const ordGate=(x,photo)=>flag(x,"slow")?"вкус в неликвиде — в заказ не ставь, можно только порекомендовать управляющему":!photo&&!flag(x,"stop")?"вкуса нет ни на фото, ни в стоп-листе — в заказ не ставь, только порекомендуй дозаказать":"";
 const AI_RULES=`Ты — второй мастер за стойкой кальянной, правая рука кальянного мастера Максима (10 лет опыта). Говоришь как опытный коллега: по-русски, коротко, уверенно, по делу, без канцелярита и без markdown (списки — строками с «— », проценты пиши цифрами).
 
 ЧТО У ТЕБЯ ЕСТЬ
@@ -1210,6 +1213,7 @@ const AI_RULES=`Ты — второй мастер за стойкой каль�
 — find_items — поиск по всему каталогу (стойка и склад), когда нужен склад, заказ или вкус не со стойки.
 — stage_stock — черновик списания/пополнения (минус — списание). Записывается только после того, как Максим нажмёт внизу «Списание / пополнение» → «Подтвердить»; напоминай об этом одной строкой.
 — set_order — количество к заказу; set_flag — стоп / неликвид.
+— ЗАКАЗ: сам ставь в заказ только вкусы с фото банок и из стоп-листа, и только если они не в неликвиде. Всё остальное (кончается на складе, просят гости, часто берут) — только рекомендуй дособрать заказ словами, set_order для них не вызывай.
 
 МИКСЫ — главное
 — Собирай как мастер. Доли только по десяткам, сумма 100: три вкуса 50/30/20, четыре вкуса 40/30/20/10. Холодок только Darkside Supernova и не больше 10%. Всегда давай проценты. Не пиши про колесо вкусов.
@@ -1243,9 +1247,10 @@ const AI_TOOLS=[
    if(wh(x)+(cur.d||0)+d<0)throw new Error("на складе всего "+(wh(x)+(cur.d||0))+" шт., столько списать нельзя");
    cur.d=(cur.d||0)+d;if(typeof i.toBar==="boolean"){if(i.toBar===onBar(x))delete cur.bar;else cur.bar=i.toBar}
    draft[x.id]=cur;saveDraft();render();return aiItem(x)}},
- {name:"set_order",description:"Ставит, сколько штук вкуса заказать (qty, 0 — убрать из заказа). Сохраняется сразу.",
+ {name:"set_order",description:"Ставит, сколько штук вкуса заказать (qty, 0 — убрать из заказа). Сохраняется сразу. Только вкусы с фото банок и из стоп-листа, не неликвид.",
   inputSchema:{type:"object",properties:{id:{type:"string"},qty:{type:"number"}},required:["id","qty"]},
   execute(i){const x=byId[String(i.id)];if(!x)throw new Error("нет такого id");const k=Math.max(0,Math.round(Number(i.qty)||0));
+   if(k&&!i._ok){const e=ordGate(x,aiOrdPhoto);if(e)throw new Error(e)}
    if(k)orderQ[x.id]=k;else{revertWish(wishIdsFor(x.id));delete orderQ[x.id]}saveOrder();render();return aiItem(x)}},
  {name:"set_flag",description:"Ставит (on=true) или снимает (on=false) метку flag: stop — вкус в стоп-листе, slow — неликвид. Сохраняется сразу.",
   inputSchema:{type:"object",properties:{id:{type:"string"},flag:{type:"string",enum:["stop","slow"]},on:{type:"boolean"}},required:["id","flag","on"]},
@@ -1269,7 +1274,7 @@ if(window.visualViewport)visualViewport.addEventListener("resize",()=>{if(st.tab
 function aiErr(c){return({not_granted:"Ассистент не разрешён для этой страницы.",sampling_disabled:"Claude недоступен для этого аккаунта.",not_configured:"Ассистент ещё не подключён. Скажи управляющему.",busy:"ИИ сейчас перегружен. Повтори вопрос через минуту.",rate_limited:"ИИ сейчас перегружен. Подожди минуту и повтори.",session_expired:"Нужно заново войти в claude.ai.",image_rejected:"Фото не подошло, попробуй другое.",refused:"Claude не стал отвечать на это. Сформулируй иначе.",prompt_too_large:"Слишком длинный разговор. Нажми «Новый разговор»."})[c]||"Не получилось. Попробуй ещё раз."}
 async function aiSend(){
   const box=$("#ai-in"),t=box.value.trim();if((!t&&!aiImgs.length)||aiCtl||!sampleFn)return;
-  const imgs=aiImgs;aiImgs=[];renderAiImgs();
+  const imgs=aiImgs;aiImgs=[];renderAiImgs();aiOrdPhoto=imgs.length>0;
   aiBubble("user",(t||"Фото")+(imgs.length?"  [фото: "+imgs.length+"]":""));box.value="";
   aiTurns.push({role:"user",content:(t||"Разбери фото.")+(imgs.length?"\n(К сообщению приложено фото: "+imgs.length+")":"")});
   const out=aiBubble("assistant","Думаю…","wait");aiCtl=new AbortController();aiUi();
@@ -1315,10 +1320,11 @@ const HELP={
  wh:{q:["Что заканчивается на складе?","Пришла поставка, внеси по фото накладной","Как списать банку?"],img:1,
   rules:()=>"Фото накладной или банок: найди каждую позицию через find_items и подготовь пополнение stage_stock (плюс штуки). Чего не нашёл в каталоге — перечисли отдельно, ничего не придумывай.",
   ctx:()=>{const L=DATA.filter(x=>tracked(x)&&wh(x)<=1);return "На складе "+DATA.reduce((a,x)=>a+wh(x),0)+" шт., "+DATA.filter(x=>wh(x)>0).length+" вкусов. В черновике "+Object.keys(draft).length+" позиций.\nЗАКАНЧИВАЕТСЯ (0–1 шт.):\n"+hlpList(L,x=>"— "+hlpFlav(x)+": "+wh(x)+" шт."+(oq(x)?", в заказе "+oq(x):""))}},
- order:{q:["Что заказать?","Добавь в заказ всё, чего 0","Как отправить заказ поставщику?"],img:1,mgr:1,
-  rules:()=>"Предлагая заказ, опирайся на остаток (0–1 шт.), пожелания гостей и то, что брали часто. Фото накладной: сверь с заказом и скажи, что пришло, а чего нет. Фото банок (пустые, почти пустые или просто что стоит на полке): найди каждый вкус через find_items и предложи заказ через set_order — пустым и тем, чего на складе 0–1 шт., по 1–2 шт., остальное перечисли без заказа. Не узнал вкус на фото — назови, что видишь, и спроси.",
+ order:{q:["Что заказать?","Собери заказ по стоп-листу","Как отправить заказ поставщику?"],img:1,mgr:1,
+  rules:()=>"ЗАКАЗ СОБИРАЕТСЯ ТАК: через set_order ставь только вкусы с фото банок и из стоп-листа, и только если у них нет пометки «Неликвид». Всё остальное (кончается на складе, просят гости, часто берут) — только рекомендуй дособрать заказ словами, set_order не вызывай. Фото банок: найди каждый вкус через find_items и поставь в заказ по 1–2 шт. (неликвид — пропусти и скажи об этом). Не узнал вкус на фото — назови, что видишь, и спроси. Фото накладной: сверь с заказом и скажи, что пришло, а чего нет.",
   ctx:()=>{const O=DATA.filter(x=>oq(x)>0),L=DATA.filter(x=>tracked(x)&&wh(x)<=1&&!oq(x));let w={};wishes.filter(x=>x.state==="new").forEach(x=>{const k=x.b+" "+x.f;w[k]=(w[k]||0)+1});
-   return "В ЗАКАЗЕ:\n"+hlpList(O,x=>"— "+hlpFlav(x)+": "+oq(x)+" шт. (на складе "+wh(x)+")")+"\n\nКОНЧАЕТСЯ, НО НЕ В ЗАКАЗЕ:\n"+hlpList(L,x=>"— "+hlpFlav(x)+": "+wh(x)+" шт.")+"\n\nПРОСЯТ ГОСТИ:\n"+hlpList(Object.entries(w),([k,n])=>"— "+k+": "+n)}},
+   const S=DATA.filter(x=>flag(x,"stop")&&!oq(x));
+   return "В ЗАКАЗЕ:\n"+hlpList(O,x=>"— "+hlpFlav(x)+": "+oq(x)+" шт. (на складе "+wh(x)+")")+"\n\nВ СТОП-ЛИСТЕ, НО НЕ В ЗАКАЗЕ:\n"+hlpList(S,x=>"— "+hlpFlav(x)+": на складе "+wh(x)+" шт."+(flag(x,"slow")?" (неликвид — не заказывать)":""))+"\n\nКОНЧАЕТСЯ, НО НЕ В ЗАКАЗЕ (только рекомендовать):\n"+hlpList(L,x=>"— "+hlpFlav(x)+": "+wh(x)+" шт.")+"\n\nПРОСЯТ ГОСТИ:\n"+hlpList(Object.entries(w),([k,n])=>"— "+k+": "+n)}},
  stop:{q:["Что сейчас в стопе?","Что можно вернуть из стопа?","Как поставить вкус в стоп?"],
   ctx:()=>{const S=DATA.filter(x=>flag(x,"stop"));return "В СТОПЕ ("+S.length+"):\n"+hlpList(S,x=>"— "+hlpFlav(x)+" (на складе "+wh(x)+", "+(onBar(x)?"на стойке":"не на стойке")+")")}},
  slow:{q:["Как продвинуть неликвид?","Собери микс из неликвида","Что вывести из палитры?"],rules:()=>hlpMixRules()+"\nЗдесь можно прямо говорить, что вкус в неликвиде.",
@@ -1361,7 +1367,7 @@ function hlpTools(tab,acts){const T=[hlpT("find_items")];
      if(i.toBar===true&&!can("take"))throw new Error("нет права ставить на стойку");if(i.toBar===false&&!can("offbar"))throw new Error("нет права убирать со стойки");
      const r=st0.execute(i);acts.stock=true;return Object.assign(r,{note:"в черновике, ждёт подтверждения"})}});
   if(isMgr&&["order","wh","wish","home","inv","slow"].includes(tab)){const o=hlpT("set_order");T.push({name:o.name,description:"Предлагает, сколько штук вкуса заказать (qty, 0 — убрать из заказа). Запишется после «Подтвердить».",inputSchema:o.inputSchema,
-    execute(i){const x=byId[String(i.id)];if(!x)throw new Error("нет такого id");const k=Math.max(0,Math.round(Number(i.qty)||0));acts.list.push({t:"order",id:x.id,qty:k,txt:nm(x)+": "+(k?"заказать "+k+" шт.":"убрать из заказа")});return {queued:true,item:hlpFlav(x),qty:k}}})}
+    execute(i){const x=byId[String(i.id)];if(!x)throw new Error("нет такого id");const k=Math.max(0,Math.round(Number(i.qty)||0));if(k){const e=ordGate(x,acts.photo);if(e)throw new Error(e)}acts.list.push({t:"order",id:x.id,qty:k,txt:nm(x)+": "+(k?"заказать "+k+" шт.":"убрать из заказа")});return {queued:true,item:hlpFlav(x),qty:k}}})}
   if(["bar","smena","stop","slow","wh","home"].includes(tab)){const f=hlpT("set_flag");T.push({name:f.name,description:"Предлагает поставить (on=true) или снять (on=false) метку flag: stop — стоп-лист, slow — неликвид. Запишется после «Подтвердить».",inputSchema:f.inputSchema,
     execute(i){const x=byId[String(i.id)],k=String(i.flag);if(!x)throw new Error("нет такого id");if(k!=="stop"&&k!=="slow")throw new Error("flag: stop или slow");
      if(k==="slow"&&!can("slow"))throw new Error("неликвид отмечает управляющий");if(k==="stop"&&!i.on&&!can("unstop"))throw new Error("снять со стопа может управляющий");
@@ -1392,7 +1398,7 @@ async function hSend(){const box=$("#hsh-in"),t=box.value.trim();if((!t&&!hImgs.
   c.view.push({role:"user",text:(t||"Фото")+(imgs.length?"  [фото: "+imgs.length+"]":"")});
   c.turns.push({role:"user",content:(t||"Разбери фото.")+(imgs.length?"\n(К сообщению приложено фото: "+imgs.length+")":"")});
   const out={role:"assistant",text:"Думаю…",cls:"wait"};c.view.push(out);hCtl=new AbortController();hDraw();
-  const acts={list:[],stock:false};
+  const acts={list:[],stock:false,photo:imgs.length>0};
   try{const r=await sampleFn([{role:"user",content:hlpSystem(tab)},{role:"assistant",content:"Понял."},...c.turns.slice(-12)],{tools:hlpTools(tab,acts),signal:hCtl.signal,images:imgs.length?imgs:undefined,
       onText:({text})=>{out.cls="";out.text=text;if(hTab()===tab&&!$("#hsh").hidden)hDraw()}});
     out.cls="";out.text=r.text;out.src=r.src;c.turns.push({role:"assistant",content:r.text});out.acts=acts.list;out.stock=acts.stock}
@@ -1401,7 +1407,7 @@ async function hSend(){const box=$("#hsh-in"),t=box.value.trim();if((!t&&!hImgs.
   hCtl=null;hDraw();render()}
 async function hApply(m){m.done="Сохраняю…";hDraw();let ok=0,bad=0;
   for(const a of m.acts){const x=byId[a.id];
-    try{if(a.t==="order"){hlpT("set_order").execute({id:a.id,qty:a.qty});ok++}
+    try{if(a.t==="order"){hlpT("set_order").execute({id:a.id,qty:a.qty,_ok:true});ok++}
       else if(a.t==="flag"){await hlpT("set_flag").execute({id:a.id,flag:a.k,on:a.on});ok++}
       else if(a.t==="know"){hClose();editSection(null,{title:a.title,text:a.text});ok++}}
     catch(e){bad++}}
