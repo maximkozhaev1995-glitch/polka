@@ -1,2 +1,8 @@
 __pycache__/
 supabase/.temp/
+
+# Локальные секреты (токен бота, ключ сервиса) — только в секретах Supabase
+.env
+.env.*
+supabase/.env
+supabase/functions/.env
