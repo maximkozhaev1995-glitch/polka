@@ -294,6 +294,7 @@ body.inv-mode .chip[aria-pressed="true"]{background:var(--fg);border-color:var(-
 .isum{margin:2px 0 6px}.hl{margin:0;padding-left:18px;display:grid;gap:8px}
 .sback{margin:10px 0 0;min-height:44px;background:transparent;border:1px solid var(--line);color:var(--fg)}
 .linklike{background:none;border:0;padding:0;font:inherit;color:var(--accent);text-decoration:underline;cursor:pointer}
+.frow{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:14px}.frow span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .strl{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding:10px 0;border-bottom:1px solid var(--line);margin-top:6px}.strl select,.strr select{height:40px;font:inherit;font-size:16px;border:1px solid var(--line-ctl);border-radius:8px;background:var(--surface);color:var(--fg);padding:0 8px}.strl label{margin-left:auto}.strr{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--line);font-size:14px}.strr .sword{flex:none;margin-left:auto;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.02em}
 </style>
 
@@ -465,7 +466,19 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
         if(c==="order"){await rest("orders?on_conflict=venue_id",{method:"POST",headers:Object.assign(H(),{Prefer:"resolution=merge-duplicates"}),body:JSON.stringify({venue_id:V(),items:o,updated_at:new Date().toISOString()})});bump(c);return}
         const m=MAP[c];if(m.patch){await rest(m.table+"?"+m.key+"=eq."+encodeURIComponent(id)+(m.table==="flavors"?"":"&venue_id=eq."+V()),{method:"PATCH",body:JSON.stringify(m.fromDoc(id,o))});bump(c);return}
         await rest(m.table+"?on_conflict="+(m.conflict||m.key),{method:"POST",headers:Object.assign(H(),{Prefer:"resolution=merge-duplicates"}),body:JSON.stringify(m.fromDoc(id,o))});bump(c)},
-      delete:async()=>{const m=MAP[c];await rest(m.table+"?"+m.key+"=eq."+encodeURIComponent(id)+"&venue_id=eq."+V(),{method:"DELETE"});bump(c)}}}
+      delete:async()=>{const m=MAP[c];await rest(m.table+"?"+m.key+"=eq."+encodeURIComponent(id)+"&venue_id=eq."+V(),{method:"DELETE"});bump(c)}}},
+    uploadFile:async(folder,file)=>{
+      const safe=file.name.replace(/[^\w.\-]+/g,"_").slice(-80),path=V()+"/"+folder+"/"+Date.now().toString(36)+"_"+safe;
+      const r=await fetch(CFG.url+"/storage/v1/object/files/"+path,{method:"POST",headers:{Authorization:"Bearer "+session.token,apikey:CFG.anon,"Content-Type":file.type||"application/octet-stream","x-upsert":"true"},body:file});
+      if(!r.ok){let t="";try{t=(await r.json()).message}catch(e){}throw new Error(t||("HTTP "+r.status))}
+      return {path,name:file.name};
+    },
+    signFile:async path=>{
+      const r=await fetch(CFG.url+"/storage/v1/object/sign/files/"+path,{method:"POST",headers:{Authorization:"Bearer "+session.token,apikey:CFG.anon,"Content-Type":"application/json"},body:JSON.stringify({expiresIn:3600})});
+      if(!r.ok)throw new Error("HTTP "+r.status);
+      const j=await r.json();return CFG.url+"/storage/v1"+j.signedURL;
+    },
+    deleteFile:async path=>{await fetch(CFG.url+"/storage/v1/object/files/"+path,{method:"DELETE",headers:{Authorization:"Bearer "+session.token,apikey:CFG.anon}})}
   };
   const downloads={save:async({filename,data})=>{const b=new Blob([data],{type:"application/octet-stream"}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download=filename;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(u);a.remove()},1500)}};
   // ИИ-ассистент: цикл «запрос → инструменты → ответ» выполняется здесь, ключ ИИ остаётся на сервере
@@ -1018,18 +1031,20 @@ function renderSup(){const el=$("#sup"),all=[...new Set(DATA.map(x=>x.b))],free=
       +(s.addr?'<br><span class="muted small">'+esc(s.addr)+'</span>':"")+(s.req?'<br><span class="muted small">'+esc(s.req)+'</span>':"")+'</div>'
       +(supType==="kalyan"?'<div class="bchips">'+((s.brands||[]).slice().sort(abc).map(b=>'<span>'+esc(b)+'</span>').join("")||'<span class="muted">бренды не выбраны</span>')+'</div>'
         :'<p class="muted small" style="margin:6px 0 0">'+(s.items?esc(s.items):'список не заполнен')+'</p>')
-      +((s.files||[]).length?'<div class="bchips">'+s.files.map(f=>'<a href="'+esc(f.url)+'" target="_blank" rel="noopener" class="tag">'+esc(f.name||"файл")+'</a>').join("")+'</div>':"")
+      +((s.files||[]).length?'<div class="bchips">'+s.files.map((f,i)=>'<button type="button" class="tag" data-sfile="'+s.id+'" data-sfi="'+i+'" style="border:0;cursor:pointer">'+esc(f.name||"файл")+'</button>').join("")+'</div>':"")
       +'</div>').join("")
     +(!inType.length?'<p class="hintline">Пока никого нет в этой категории.</p>':"")
     +(supType==="kalyan"&&free.length?'<div class="scard"><h3>Без поставщика</h3><p class="muted small" style="margin:4px 0 8px">Нажми на бренд, чтобы привязать его к поставщику.</p><div class="bchips">'+free.map(b=>'<button type="button" class="bfree" data-free="'+esc(b)+'">'+esc(b)+' +</button>').join("")+'</div></div>':"")}
-$("#sup").addEventListener("click",e=>{const t=e.target.closest("[data-st]");if(t){supType=t.dataset.st;render();return}const f=e.target.closest("[data-free]");if(f){pickSup(f.dataset.free);return}const b=e.target.closest("[data-sedit]");if(b){editSup(sups.find(s=>s.id===b.dataset.sedit));return}if(e.target.closest("#s-add"))editSup(null)});
+$("#sup").addEventListener("click",async e=>{const t=e.target.closest("[data-st]");if(t){supType=t.dataset.st;render();return}
+  const sf=e.target.closest("[data-sfile]");if(sf){const s=sups.find(x=>x.id===sf.dataset.sfile),f=s&&s.files&&s.files[+sf.dataset.sfi];if(!f||!db)return;try{const url=await db.signFile(f.path);window.open(url,"_blank")}catch(e){setStatus("Не открылось: "+(e&&e.message||""),true)}return}
+  const f=e.target.closest("[data-free]");if(f){pickSup(f.dataset.free);return}const b=e.target.closest("[data-sedit]");if(b){editSup(sups.find(s=>s.id===b.dataset.sedit));return}if(e.target.closest("#s-add"))editSup(null)});
 function pickSup(brand){if(!db)return;const kal=sups.filter(s=>(s.ctype||"kalyan")==="kalyan");
   showDlg('<h2>'+esc(brand)+'</h2><p class="muted">У кого заказываем этот бренд?</p><div class="dlg-btns" style="flex-direction:column;align-items:stretch">'+kal.map(s=>'<button class="btn" type="button" data-to="'+s.id+'">'+esc(s.name)+'</button>').join("")+'<button class="btn go" type="button" id="to-new">+ Новый поставщик</button><button class="btn" type="button" id="dlg-back">Отмена</button></div>');
   $("#dlg-back").onclick=closeDlg;$("#to-new").onclick=()=>editSup(null,brand);
   $("#dlg-body").querySelectorAll("[data-to]").forEach(b=>b.onclick=async()=>{const s=kal.find(x=>x.id===b.dataset.to);try{await db.doc("suppliers/"+s.id).set({name:s.name,contact:s.contact||"",ctype:s.ctype,addr:s.addr,req:s.req,items:s.items,files:s.files,brands:[...(s.brands||[]),brand]});closeDlg()}catch(e){setStatus("Не сохранилось: "+(e&&e.message||""),true)}})}
-const filesToText=fs=>(fs||[]).map(f=>(f.name?f.name+": ":"")+f.url).join("\n");
-const textToFiles=t=>t.split("\n").map(l=>l.trim()).filter(Boolean).map(l=>{const m=l.match(/^(.+?):\s*(https?:\/\/\S+)$/);return m?{name:m[1].trim(),url:m[2]}:{name:"",url:l}});
-function editSup(s,pre){const all=[...new Set(DATA.map(x=>x.b))].sort(abc),mine=new Set(s?s.brands||[]:(pre?[pre]:[])),ct=s?(s.ctype||"kalyan"):(pre?"kalyan":supType);
+function filesListHtml(fs){return(fs||[]).map((f,i)=>'<div class="frow" data-fi="'+i+'"><span>'+esc(f.name||"файл")+'</span><button type="button" class="btn sm" data-fopen="'+i+'">Открыть</button><button type="button" class="btn sm" data-fdel="'+i+'" aria-label="Удалить">✕</button></div>').join("")||'<p class="muted small" style="margin:4px 0">Файлов пока нет.</p>'}
+function editSup(s,pre){const all=[...new Set(DATA.map(x=>x.b))].sort(abc),mine=new Set(s?s.brands||[]:(pre?[pre]:[])),ct=s?(s.ctype||"kalyan"):(pre?"kalyan":supType),id=s?s.id:"s"+Date.now().toString(36);
+  let filesTmp=(s&&s.files||[]).slice();
   showDlg('<h2>'+(s?"Контрагент":"Новый контрагент")+'</h2>'
     +'<label class="f">Тип<select id="s-t">'+CTYPES.map(([k,l])=>'<option value="'+k+'"'+(k===ct?" selected":"")+'>'+l+'</option>').join("")+'</select></label>'
     +'<label class="f">Название<input id="s-n" value="'+esc(s?s.name:"")+'" autocomplete="off"></label>'
@@ -1038,16 +1053,26 @@ function editSup(s,pre){const all=[...new Set(DATA.map(x=>x.b))].sort(abc),mine=
     +'<label class="f">Реквизиты<textarea id="s-r" rows="2">'+esc(s?s.req||"":"")+'</textarea></label>'
     +'<div id="s-kalyan"'+(ct==="kalyan"?"":" hidden")+'><label class="f">Бренды</label><div class="blist">'+all.map(b=>{const o=supOf(b);return'<label><input type="checkbox" value="'+esc(b)+'"'+(mine.has(b)?" checked":"")+'>'+esc(b)+(o&&(!s||o.id!==s.id)?' <small>· '+esc(o.name)+'</small>':"")+'</label>'}).join("")+'</div><p class="muted small">Если бренд уже у другого поставщика, он перейдёт к этому.</p></div>'
     +'<div id="s-other"'+(ct!=="kalyan"?"":" hidden")+'><label class="f">Что заказываем<textarea id="s-items" rows="3" placeholder="сироп, газированная вода, салфетки...">'+esc(s?s.items||"":"")+'</textarea></label></div>'
-    +'<label class="f">Файлы — по ссылке на строку, можно «Название: URL»<textarea id="s-files" rows="2" placeholder="https://...">'+esc(filesToText(s&&s.files))+'</textarea></label>'
+    +'<label class="f">Файлы (PDF, фото — до 15 МБ)</label><div id="s-files-list">'+filesListHtml(filesTmp)+'</div>'
+    +'<input id="s-fup" type="file" accept="application/pdf,image/*" hidden><button class="btn" type="button" id="s-fup-btn">+ Загрузить файл</button>'
     +'<div class="dlg-btns"><button class="btn go" type="button" id="s-ok">Сохранить</button>'+(s?'<button class="btn" type="button" id="s-del">Удалить</button>':"")+'<button class="btn" type="button" id="dlg-back">Отмена</button></div>');
   $("#dlg-back").onclick=closeDlg;
   $("#s-t").onchange=e=>{const k=e.target.value;$("#s-kalyan").hidden=k!=="kalyan";$("#s-other").hidden=k==="kalyan"};
+  const redrawFiles=()=>{$("#s-files-list").innerHTML=filesListHtml(filesTmp)};
+  $("#s-fup-btn").onclick=()=>$("#s-fup").click();
+  $("#s-fup").onchange=async()=>{const f=$("#s-fup").files[0];if(!f||!db)return;const btn=$("#s-fup-btn");btn.disabled=true;btn.textContent="Загружаю…";
+    try{const r=await db.uploadFile("contractors/"+id,f);filesTmp.push({name:f.name,path:r.path});redrawFiles()}
+    catch(e){setStatus("Файл не загрузился: "+(e&&e.message||""),true)}
+    btn.disabled=false;btn.textContent="+ Загрузить файл";$("#s-fup").value=""};
+  $("#s-files-list").addEventListener("click",async e=>{
+    const o=e.target.closest("[data-fopen]");if(o){const f=filesTmp[+o.dataset.fopen];if(!f)return;try{const url=await db.signFile(f.path);window.open(url,"_blank")}catch(e){setStatus("Не открылось: "+(e&&e.message||""),true)}return}
+    const d=e.target.closest("[data-fdel]");if(d){const f=filesTmp[+d.dataset.fdel];filesTmp.splice(+d.dataset.fdel,1);redrawFiles();if(f)db.deleteFile(f.path).catch(()=>{})}});
   $("#s-ok").onclick=async()=>{const name=$("#s-n").value.trim();if(!name){$("#s-n").focus();return}
-    const ctype=$("#s-t").value,id=s?s.id:"s"+Date.now().toString(36),files=textToFiles($("#s-files").value);
+    const ctype=$("#s-t").value,files=filesTmp;
     const brands=ctype==="kalyan"?[...$("#dlg-body").querySelectorAll(".blist input:checked")].map(i=>i.value):[];
     try{if(ctype==="kalyan")for(const o of sups){if(o.id!==id&&(o.brands||[]).some(b=>brands.includes(b)))await db.doc("suppliers/"+o.id).set({name:o.name,contact:o.contact||"",brands:(o.brands||[]).filter(b=>!brands.includes(b)),ctype:o.ctype,addr:o.addr,req:o.req,items:o.items,files:o.files})}
       await db.doc("suppliers/"+id).set({name,contact:$("#s-c").value.trim(),addr:$("#s-a").value.trim(),req:$("#s-r").value.trim(),ctype,brands,items:ctype==="kalyan"?"":$("#s-items").value.trim(),files});closeDlg()}catch(e){setStatus("Контрагент не сохранился: "+(e&&e.message||"нет доступа"),true)}};
-  if(s)$("#s-del").onclick=async()=>{try{await db.doc("suppliers/"+s.id).delete();closeDlg()}catch(e){setStatus("Не удалилось: "+(e&&e.message||""),true)}}}
+  if(s)$("#s-del").onclick=async()=>{try{await db.doc("suppliers/"+s.id).delete();for(const f of filesTmp)db.deleteFile(f.path).catch(()=>{});closeDlg()}catch(e){setStatus("Не удалилось: "+(e&&e.message||""),true)}}}
 function edit(a,id){
   const x=byId[id];if(!x||!db||busy)return;
   if(a==="fin"){finish(x);return}
