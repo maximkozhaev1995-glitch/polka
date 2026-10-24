@@ -1178,8 +1178,9 @@ const HELP={
   ctx:()=>{const O=DATA.filter(x=>oq(x)>0),L=DATA.filter(x=>tracked(x)&&wh(x)<=1&&!oq(x));let w={};wishes.filter(x=>x.state==="new").forEach(x=>{const k=x.b+" "+x.f;w[k]=(w[k]||0)+1});
    const S=DATA.filter(x=>flag(x,"stop")&&!oq(x));
    return "В ЗАКАЗЕ:\n"+hlpList(O,x=>"— "+hlpFlav(x)+": "+oq(x)+" шт. (на складе "+wh(x)+")")+"\n\nВ СТОП-ЛИСТЕ, НО НЕ В ЗАКАЗЕ:\n"+hlpList(S,x=>"— "+hlpFlav(x)+": на складе "+wh(x)+" шт."+(flag(x,"slow")?" (неликвид — не заказывать)":""))+"\n\nКОНЧАЕТСЯ, НО НЕ В ЗАКАЗЕ (только рекомендовать):\n"+hlpList(L,x=>"— "+hlpFlav(x)+": "+wh(x)+" шт.")+"\n\nПРОСЯТ ГОСТИ:\n"+hlpList(Object.entries(w),([k,n])=>"— "+k+": "+n)}},
- stop:{q:["Что сейчас в стопе?","Что можно вернуть из стопа?","Как поставить вкус в стоп?"],
-  ctx:()=>{const S=DATA.filter(x=>flag(x,"stop"));return "В СТОПЕ ("+S.length+"):\n"+hlpList(S,x=>"— "+hlpFlav(x)+" (на складе "+wh(x)+", "+(onBar(x)?"на стойке":"не на стойке")+")")}},
+ stop:{q:["Что сейчас в стопе?","Что можно вернуть из стопа?","Как поставить вкус в стоп?","Собери заказ по стоп-листу"],
+  rules:()=>"Управляющий здесь тоже может собрать заказ: через set_order ставь только вкусы из стоп-листа, и только если у них нет пометки «Неликвид» (set_order сам откажет на неликвиде — объясни почему и пропусти). Вкус, который уже в заказе, не дублируй. Если просят ещё и то, что на складе заканчивается, — это уже не по стоп-листу, только порекомендуй словами, set_order не вызывай.",
+  ctx:()=>{const S=DATA.filter(x=>flag(x,"stop"));return "В СТОПЕ ("+S.length+"):\n"+hlpList(S,x=>"— "+hlpFlav(x)+" (на складе "+wh(x)+", "+(onBar(x)?"на стойке":"не на стойке")+(flag(x,"slow")?", неликвид":"")+(oq(x)?", в заказе "+oq(x):"")+")")}},
  slow:{q:["Как продвинуть неликвид?","Собери микс из неликвида","Что вывести из палитры?"],rules:()=>hlpMixRules()+"\nЗдесь можно прямо говорить, что вкус в неликвиде.",
   ctx:()=>{const S=DATA.filter(x=>flag(x,"slow"));return "НЕЛИКВИД ("+S.length+"):\n"+hlpList(S,x=>"— "+hlpFlav(x)+": "+wh(x)+" шт."+(onBar(x)?", на стойке":"")+(idleText(x)?", "+idleText(x):"")+(x.d?" — "+x.d:""))}},
  inv:{q:["Как провести инвентаризацию?","Что не сошлось?","Как считается недостача в ₽?"],img:1,mgr:1,
@@ -1219,7 +1220,7 @@ function hlpTools(tab,acts){const T=[hlpT("find_items")];if((HELP[tab]||{}).img)
      if(d<0&&!can("take"))throw new Error("у этого сотрудника нет права брать со склада");if(d>0&&!can("add"))throw new Error("у этого сотрудника нет права пополнять склад");
      if(i.toBar===true&&!can("take"))throw new Error("нет права ставить на стойку");if(i.toBar===false&&!can("offbar"))throw new Error("нет права убирать со стойки");
      const r=st0.execute(i);acts.stock=true;return Object.assign(r,{note:"в черновике, ждёт подтверждения"})}});
-  if(isMgr&&["order","wh","wish","home","inv","slow"].includes(tab)){const o=hlpT("set_order");T.push({name:o.name,description:"Предлагает, сколько штук вкуса заказать (qty, 0 — убрать из заказа). Запишется после «Подтвердить».",inputSchema:o.inputSchema,
+  if(isMgr&&["order","wh","wish","home","inv","slow","stop"].includes(tab)){const o=hlpT("set_order");T.push({name:o.name,description:"Предлагает, сколько штук вкуса заказать (qty, 0 — убрать из заказа). Запишется после «Подтвердить».",inputSchema:o.inputSchema,
     execute(i){const x=byId[String(i.id)];if(!x)throw new Error("нет такого id");const k=Math.max(0,Math.round(Number(i.qty)||0));if(k){const e=ordGate(x,acts.photo);if(e)throw new Error(e)}
      if(acts.list.some(a=>a.t==="order"&&a.id===x.id))return {queued:false,item:hlpFlav(x),note:"этот вкус уже в списке на заказ — одна строка, не дублируй и не суммируй"};acts.list.push({t:"order",id:x.id,qty:k,txt:nm(x)+": "+(k?"заказать "+k+" шт.":"убрать из заказа")});return {queued:true,item:hlpFlav(x),qty:k}}})}
   if(["bar","smena","stop","slow","wh","home"].includes(tab)){const f=hlpT("set_flag");T.push({name:f.name,description:"Предлагает поставить (on=true) или снять (on=false) метку flag: stop — стоп-лист, slow — неликвид. Запишется после «Подтвердить».",inputSchema:f.inputSchema,
