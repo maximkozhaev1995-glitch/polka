@@ -443,9 +443,9 @@ async function toBar(x,k){if(!db||busy)return;busy=true;const id=x.id,n=wh(x),at
   try{const d0=Object.assign({},stock[id]||{},{wh:n-take,bar:true});if(d0.stop&&d0.stopAuto){delete d0.stop;delete d0.stopAuto}await db.doc("stock/"+id).set(d0);await db.collection("moves").add({item:id,qty:-take,left:n-take,prev,at,barTo:true,kind:"tobar"})}catch(e){busy=false;setStatus("Не сохранилось",true);return}
   busy=false;const ao=take?autoOrder(x,n-take):0;toast('<b>'+esc(nm(x))+'</b>: взято '+take+', на стойке. На складе осталось '+(n-take)+(ao?" · в заказ "+ao+" шт.":""),()=>{if(ao){delete orderQ[id];saveOrder()}askUndo(id)});render()}
 const IGROUPS=[["main","Обычные"],["cigar","Хука сигар"],["perfume","Парфюм"]];
-// Хука сигар — только настоящий сигарный табак (линейка Kraken Cigar). Kraken Medium Seco/Strong
-// Ligero, Jent Cigar, Bonche, Dogma — несмотря на имена, учитываются как обычные (так дешевле и проще).
-const invGroupOf=x=>{if(x.b==="Kraken"&&x.l==="Cigar")return"cigar";if(x.b==="Deus"&&x.l==="Perfume")return"perfume";return"main"};
+// Хука сигар — весь Kraken (включая Royal и Cigar), кроме Medium Seco и Strong Ligero —
+// эти два, хоть и звучат по-сигарному, у нас обычный табак. Jent Cigar, Bonche, Dogma — обычные.
+const invGroupOf=x=>{if(x.b==="Kraken")return(x.l==="Medium Seco"||x.l==="Strong Ligero")?"main":"cigar";if(x.b==="Deus"&&x.l==="Perfume")return"perfume";return"main"};
 const invSec=invGroupOf;
 const invDiff=()=>Object.keys(invD).filter(id=>byId[id]&&invD[id]!==wh(byId[id]));
 function invCalc(D){let sh=0,ov=0,gs=0,go=0,nog=0;D.forEach(id=>{const x=byId[id],d=invD[id]-wh(x);if(d<0)sh-=d;else ov+=d;const g=packMap[id];if(g){if(d<0)gs-=d*g;else go+=d*g}else nog++});return {sh,ov,gs,go,nog}}
