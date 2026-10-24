@@ -20,5 +20,8 @@ alter table knowledge add column if not exists cat_id bigint references knowledg
 alter table knowledge add column if not exists title text;
 alter table knowledge add column if not exists body text;
 alter table knowledge add column if not exists body2 text;
+-- Упростили редактор: вместо отдельных полей «до/после фото» — список
+-- блоков (текст/картинка) произвольной длины и порядка.
+alter table knowledge add column if not exists blocks jsonb;
 alter table knowledge alter column path drop not null;
 alter table knowledge alter column name drop not null;

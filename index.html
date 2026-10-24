@@ -473,9 +473,9 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
       toDoc:r=>({name:r.name,at:r.created_at}),
       fromDoc:(id,o)=>{const b={venue_id:V(),name:o.name,by_tg:session.user.tg_id};if(id)b.id=id;return b}},
     knowledge:{table:"knowledge",key:"id",
-      list:()=>"knowledge?select=id,cat_id,title,body,body2,name,path,created_at&venue_id=eq."+V()+"&order=created_at.asc&limit=500",
-      toDoc:r=>({catId:r.cat_id?String(r.cat_id):"",title:r.title||"",body:r.body||"",body2:r.body2||"",name:r.name||"",path:r.path||"",at:r.created_at}),
-      fromDoc:(id,o)=>{const b={venue_id:V(),cat_id:+o.catId,title:o.title||"",body:o.body||"",body2:o.body2||"",name:o.name||null,path:o.path||null,by_tg:session.user.tg_id};if(id)b.id=id;return b}},
+      list:()=>"knowledge?select=id,cat_id,title,body,body2,name,path,blocks,created_at&venue_id=eq."+V()+"&order=created_at.asc&limit=500",
+      toDoc:r=>({catId:r.cat_id?String(r.cat_id):"",title:r.title||"",body:r.body||"",body2:r.body2||"",name:r.name||"",path:r.path||"",blocks:r.blocks||null,at:r.created_at}),
+      fromDoc:(id,o)=>{const b={venue_id:V(),cat_id:+o.catId,title:o.title||"",blocks:o.blocks||[],by_tg:session.user.tg_id};if(id)b.id=id;return b}},
   };
   const subs={};
   const snapDocs=async c=>{
@@ -1433,6 +1433,8 @@ $("#list").addEventListener("change",e=>{if(st.tab!=="chk"||!db)return;
 /* База знаний: файлы, доступна всей команде, загружает и удаляет управляющий */
 var knowCat=null,knowcats=[],knowImgCache={};
 const isImg=n=>/\.(jpe?g|png|webp|heic|gif)$/i.test(n||"");
+const kBlocks=k=>{if(k.blocks&&k.blocks.length)return k.blocks;
+  const bs=[];if(k.body)bs.push({t:"text",v:k.body});if(k.path)bs.push({t:"img",path:k.path,name:k.name});if(k.body2)bs.push({t:"text",v:k.body2});return bs};
 function renderKnowledge(){
   if(!mixHide)return;mixHide.forEach(q=>{const e=$(q);if(e)e.hidden=true});$("#list").hidden=false;$(".ttl .stats").hidden=true;document.body.classList.remove("ai-mode","has-tray");
   let h='<button type="button" class="btn sm sback" id="kn-back" style="margin-bottom:10px">← Назад</button>';
@@ -1443,10 +1445,8 @@ function renderKnowledge(){
     const cat=knowcats.find(c=>c.id===knowCat),secs=knowledge.filter(k=>k.catId===knowCat);
     h+='<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 10px"><h2 style="margin:0">'+esc(cat?cat.name:"")+'</h2>'+(isMgr?'<button type="button" class="btn sm" id="kc-menu" aria-label="Ещё">⋯</button>':"")+'</div>'
       +(secs.length?secs.map(k=>'<div class="scard"><h3>'+esc(k.title||"Без названия")+(isMgr?'<button class="btn sm" type="button" data-kedit="'+k.id+'">Изменить</button>':"")+'</h3>'
-        +(k.body?'<p style="white-space:pre-wrap;margin:8px 0 0">'+esc(k.body)+'</p>':"")
-        +(k.path&&isImg(k.name)?'<div class="kimg" data-kimgsrc="'+esc(k.path)+'" style="margin-top:8px">'+(knowImgCache[k.path]?'<img src="'+esc(knowImgCache[k.path])+'" style="max-width:100%;border-radius:10px;display:block;cursor:pointer">':'<p class="hintline">Загружаю фото…</p>')+'</div>':"")
-        +(k.path&&!isImg(k.name)?'<div class="bchips" style="margin-top:8px"><button type="button" class="tag" data-kopen="'+k.id+'" style="border:0;cursor:pointer">'+esc(k.name||"файл")+'</button></div>':"")
-        +(k.body2?'<p style="white-space:pre-wrap;margin:8px 0 0">'+esc(k.body2)+'</p>':"")
+        +kBlocks(k).map(bl=>bl.t==="img"?(isImg(bl.name)?'<div class="kimg" data-kimgsrc="'+esc(bl.path)+'" style="margin-top:8px">'+(knowImgCache[bl.path]?'<img src="'+esc(knowImgCache[bl.path])+'" style="max-width:100%;border-radius:10px;display:block;cursor:pointer">':'<p class="hintline">Загружаю фото…</p>')+'</div>':'<div class="bchips" style="margin-top:8px"><button type="button" class="tag" data-kfile="'+esc(bl.path)+'" style="border:0;cursor:pointer">'+esc(bl.name||"файл")+'</button></div>')
+          :(bl.v?'<p style="white-space:pre-wrap;margin:8px 0 0">'+esc(bl.v)+'</p>':"")).join("")
         +'</div>').join(""):'<p class="hintline">В этой базе пока нет разделов.</p>')
       +(isMgr?'<button type="button" class="btn go wide" id="ks-add" style="margin-top:10px">+ Добавить раздел</button>':"");
   }
@@ -1454,26 +1454,31 @@ function renderKnowledge(){
   $("#list").querySelectorAll("[data-kimgsrc]").forEach(el=>{const p=el.dataset.kimgsrc;if(knowImgCache[p]||!db)return;
     db.signFile(p).then(url=>{knowImgCache[p]=url;if(el.isConnected)el.innerHTML='<img src="'+esc(url)+'" style="max-width:100%;border-radius:10px;display:block;cursor:pointer">'})
       .catch(()=>{if(el.isConnected)el.innerHTML='<p class="hintline">Не удалось загрузить фото.</p>'})})}
-function editSection(k){let filesTmp=k&&k.path?{name:k.name,path:k.path}:null;
+function editSection(k){let blocks=(k?kBlocks(k):[{t:"text",v:""}]).map(b=>Object.assign({},b));
+  if(!blocks.length)blocks=[{t:"text",v:""}];
   showDlg('<h2>'+(k?"Раздел":"Новый раздел")+'</h2><label class="f">Заголовок<input id="ks-t" value="'+esc(k?k.title||"":"")+'" autocomplete="off" placeholder="Например: Внешний вид"></label>'
-    +'<label class="f">Текст до фото<textarea id="ks-b" rows="4" placeholder="Текст раздела…">'+esc(k?k.body||"":"")+'</textarea></label>'
-    +'<label class="f">Файл (необязательно)</label><div id="ks-file-row">'+(filesTmp?'<div class="frow"><span>'+esc(filesTmp.name)+'</span><button type="button" class="btn sm" id="ks-file-del" aria-label="Убрать">✕</button></div>':'<p class="muted small" style="margin:4px 0">Файл не прикреплён.</p>')+'</div>'
-    +'<input id="ks-file" type="file" accept="application/pdf,image/*" hidden><button class="btn" type="button" id="ks-file-btn">+ Прикрепить файл</button>'
-    +'<label class="f" style="margin-top:10px">Текст после фото<textarea id="ks-b2" rows="4" placeholder="Продолжение текста…">'+esc(k?k.body2||"":"")+'</textarea></label>'
+    +'<label class="f">Текст и фото — пиши и вставляй фото там, где нужно</label><div id="ks-blocks"></div>'
+    +'<input id="ks-file" type="file" accept="image/*" hidden><button class="btn" type="button" id="ks-file-btn" style="margin-top:8px">+ Фото</button>'
     +'<div class="dlg-btns" style="margin-top:14px"><button class="btn go" type="button" id="ks-ok">Сохранить</button>'+(k?'<button class="btn" type="button" id="ks-del">Удалить</button>':"")+'<button class="btn" type="button" id="dlg-back">Отмена</button></div>');
+  const draw=()=>{$("#ks-blocks").innerHTML=blocks.map((b,i)=>b.t==="img"
+    ?'<div class="frow" data-bi="'+i+'"><span>📷 '+esc(b.name||"фото")+'</span><button type="button" class="btn sm" data-brm="'+i+'" aria-label="Убрать">✕</button></div>'
+    :'<textarea class="ks-bt" data-bi="'+i+'" rows="3" placeholder="Текст…" style="width:100%;margin-top:6px">'+esc(b.v||"")+'</textarea>').join("")};
+  draw();
   $("#dlg-back").onclick=closeDlg;
-  const redraw=()=>{$("#ks-file-row").innerHTML=filesTmp?'<div class="frow"><span>'+esc(filesTmp.name)+'</span><button type="button" class="btn sm" id="ks-file-del" aria-label="Убрать">✕</button></div>':'<p class="muted small" style="margin:4px 0">Файл не прикреплён.</p>'};
+  $("#ks-blocks").addEventListener("input",e=>{const ta=e.target.closest(".ks-bt");if(ta)blocks[+ta.dataset.bi].v=ta.value});
+  $("#ks-blocks").addEventListener("click",e=>{const rm=e.target.closest("[data-brm]");if(rm){const bl=blocks[+rm.dataset.brm];if(bl&&bl.path)db.deleteFile(bl.path).catch(()=>{});blocks.splice(+rm.dataset.brm,1);if(!blocks.length)blocks.push({t:"text",v:""});draw()}});
   $("#ks-file-btn").onclick=()=>$("#ks-file").click();
   $("#ks-file").onchange=async()=>{const f=$("#ks-file").files[0];if(!f||!db)return;const btn=$("#ks-file-btn");btn.disabled=true;btn.textContent="Загружаю…";
-    try{const r=await db.uploadFile("knowledge",f);filesTmp={name:f.name,path:r.path};redraw()}catch(e){setStatus("Файл не загрузился: "+(e&&e.message||""),true)}
-    btn.disabled=false;btn.textContent="+ Прикрепить файл";$("#ks-file").value=""};
-  $("#ks-file-row").addEventListener("click",e=>{if(e.target.closest("#ks-file-del")){filesTmp=null;redraw()}});
+    try{const r=await db.uploadFile("knowledge",f);blocks.push({t:"img",path:r.path,name:f.name});blocks.push({t:"text",v:""});draw()}
+    catch(e){setStatus("Фото не загрузилось: "+(e&&e.message||""),true)}
+    btn.disabled=false;btn.textContent="+ Фото";$("#ks-file").value=""};
   $("#ks-ok").onclick=async()=>{const title=$("#ks-t").value.trim();if(!title){$("#ks-t").focus();return}
-    const btn=$("#ks-ok"),body=$("#ks-b").value.trim(),body2=$("#ks-b2").value.trim(),id=k?k.id:null;btn.disabled=true;btn.textContent="Сохраняю…";
-    const payload={catId:knowCat,title,body,body2,name:filesTmp?filesTmp.name:"",path:filesTmp?filesTmp.path:""};
+    const btn=$("#ks-ok"),id=k?k.id:null;btn.disabled=true;btn.textContent="Сохраняю…";
+    const clean=blocks.filter(b=>b.t==="img"||(b.v&&b.v.trim()));
+    const payload={catId:knowCat,title,blocks:clean};
     try{if(id)await db.doc("knowledge/"+id).set(payload);else await db.collection("knowledge").add(payload);closeDlg()}
     catch(e){btn.disabled=false;btn.textContent="Сохранить";setStatus("Не сохранилось: "+(e&&e.message||""),true)}};
-  if(k)$("#ks-del").onclick=async()=>{try{await db.doc("knowledge/"+k.id).delete();if(k.path)db.deleteFile(k.path);closeDlg()}catch(e){setStatus("Не удалилось: "+(e&&e.message||""),true)}}}
+  if(k)$("#ks-del").onclick=async()=>{try{await db.doc("knowledge/"+k.id).delete();kBlocks(k).forEach(b=>{if(b.t==="img")db.deleteFile(b.path).catch(()=>{})});closeDlg()}catch(e){setStatus("Не удалилось: "+(e&&e.message||""),true)}}}
 $("#list").addEventListener("click",e=>{if(st.tab!=="know"||!db)return;
   const kc=e.target.closest("[data-kcat]");if(kc){knowCat=kc.dataset.kcat;render();return}
   if(e.target.closest("#kn-back")){if(knowCat){knowCat=null;render()}else go("home");return}
@@ -1499,7 +1504,7 @@ $("#list").addEventListener("click",e=>{if(st.tab!=="know"||!db)return;
     $("#kc-ok").onclick=mk;$("#kc-n").onkeydown=e2=>{if(e2.key==="Enter"){e2.preventDefault();mk()}};return}
   if(e.target.closest("#ks-add")){editSection(null);return}
   const ke=e.target.closest("[data-kedit]");if(ke){editSection(knowledge.find(x=>x.id===ke.dataset.kedit));return}
-  const kopen=e.target.closest("[data-kopen]");if(kopen){const k=knowledge.find(x=>x.id===kopen.dataset.kopen);if(!k)return;db.signFile(k.path).then(url=>window.open(url,"_blank")).catch(x=>setStatus("Не открылось: "+(x&&x.message||""),true));return}});
+  const kopen=e.target.closest("[data-kfile]");if(kopen){db.signFile(kopen.dataset.kfile).then(url=>window.open(url,"_blank")).catch(x=>setStatus("Не открылось: "+(x&&x.message||""),true));return}});
 /* Журнал: все движения склада, в том числе списания */
 var logF="all";
 function renderJournal(){
