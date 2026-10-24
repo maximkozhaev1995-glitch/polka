@@ -1262,9 +1262,10 @@ function renderKnowledge(){
     const cat=knowcats.find(c=>c.id===knowCat),secs=knowledge.filter(k=>k.catId===knowCat);
     h+='<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 10px"><h2 style="margin:0">'+esc(cat?cat.name:"")+'</h2>'+(isMgr?'<button type="button" class="btn sm" id="kc-menu" aria-label="Ещё">⋯</button>':"")+'</div>'
       +(secs.length?secs.map(k=>'<div class="scard"><h3>'+esc(k.title||"Без названия")+(isMgr?'<button class="btn sm" type="button" data-kedit="'+k.id+'">Изменить</button>':"")+'</h3>'
-        +(k.path&&isImg(k.name)?'<div class="kimg" data-kimgsrc="'+esc(k.path)+'" style="margin-top:8px">'+(knowImgCache[k.path]?'<img src="'+esc(knowImgCache[k.path])+'" style="max-width:100%;border-radius:10px;display:block;cursor:pointer">':'<p class="hintline">Загружаю фото…</p>')+'</div>':"")
         +(k.body?'<p style="white-space:pre-wrap;margin:8px 0 0">'+esc(k.body)+'</p>':"")
+        +(k.path&&isImg(k.name)?'<div class="kimg" data-kimgsrc="'+esc(k.path)+'" style="margin-top:8px">'+(knowImgCache[k.path]?'<img src="'+esc(knowImgCache[k.path])+'" style="max-width:100%;border-radius:10px;display:block;cursor:pointer">':'<p class="hintline">Загружаю фото…</p>')+'</div>':"")
         +(k.path&&!isImg(k.name)?'<div class="bchips" style="margin-top:8px"><button type="button" class="tag" data-kopen="'+k.id+'" style="border:0;cursor:pointer">'+esc(k.name||"файл")+'</button></div>':"")
+        +(k.body2?'<p style="white-space:pre-wrap;margin:8px 0 0">'+esc(k.body2)+'</p>':"")
         +'</div>').join(""):'<p class="hintline">В этой базе пока нет разделов.</p>')
       +(isMgr?'<button type="button" class="btn go wide" id="ks-add" style="margin-top:10px">+ Добавить раздел</button>':"");
   }
@@ -1274,9 +1275,10 @@ function renderKnowledge(){
       .catch(()=>{if(el.isConnected)el.innerHTML='<p class="hintline">Не удалось загрузить фото.</p>'})})}
 function editSection(k){let filesTmp=k&&k.path?{name:k.name,path:k.path}:null;
   showDlg('<h2>'+(k?"Раздел":"Новый раздел")+'</h2><label class="f">Заголовок<input id="ks-t" value="'+esc(k?k.title||"":"")+'" autocomplete="off" placeholder="Например: Внешний вид"></label>'
-    +'<label class="f">Описание<textarea id="ks-b" rows="5" placeholder="Текст раздела…">'+esc(k?k.body||"":"")+'</textarea></label>'
+    +'<label class="f">Текст до фото<textarea id="ks-b" rows="4" placeholder="Текст раздела…">'+esc(k?k.body||"":"")+'</textarea></label>'
     +'<label class="f">Файл (необязательно)</label><div id="ks-file-row">'+(filesTmp?'<div class="frow"><span>'+esc(filesTmp.name)+'</span><button type="button" class="btn sm" id="ks-file-del" aria-label="Убрать">✕</button></div>':'<p class="muted small" style="margin:4px 0">Файл не прикреплён.</p>')+'</div>'
     +'<input id="ks-file" type="file" accept="application/pdf,image/*" hidden><button class="btn" type="button" id="ks-file-btn">+ Прикрепить файл</button>'
+    +'<label class="f" style="margin-top:10px">Текст после фото<textarea id="ks-b2" rows="4" placeholder="Продолжение текста…">'+esc(k?k.body2||"":"")+'</textarea></label>'
     +'<div class="dlg-btns" style="margin-top:14px"><button class="btn go" type="button" id="ks-ok">Сохранить</button>'+(k?'<button class="btn" type="button" id="ks-del">Удалить</button>':"")+'<button class="btn" type="button" id="dlg-back">Отмена</button></div>');
   $("#dlg-back").onclick=closeDlg;
   const redraw=()=>{$("#ks-file-row").innerHTML=filesTmp?'<div class="frow"><span>'+esc(filesTmp.name)+'</span><button type="button" class="btn sm" id="ks-file-del" aria-label="Убрать">✕</button></div>':'<p class="muted small" style="margin:4px 0">Файл не прикреплён.</p>'};
@@ -1286,8 +1288,8 @@ function editSection(k){let filesTmp=k&&k.path?{name:k.name,path:k.path}:null;
     btn.disabled=false;btn.textContent="+ Прикрепить файл";$("#ks-file").value=""};
   $("#ks-file-row").addEventListener("click",e=>{if(e.target.closest("#ks-file-del")){filesTmp=null;redraw()}});
   $("#ks-ok").onclick=async()=>{const title=$("#ks-t").value.trim();if(!title){$("#ks-t").focus();return}
-    const btn=$("#ks-ok"),body=$("#ks-b").value.trim(),id=k?k.id:null;btn.disabled=true;btn.textContent="Сохраняю…";
-    const payload={catId:knowCat,title,body,name:filesTmp?filesTmp.name:"",path:filesTmp?filesTmp.path:""};
+    const btn=$("#ks-ok"),body=$("#ks-b").value.trim(),body2=$("#ks-b2").value.trim(),id=k?k.id:null;btn.disabled=true;btn.textContent="Сохраняю…";
+    const payload={catId:knowCat,title,body,body2,name:filesTmp?filesTmp.name:"",path:filesTmp?filesTmp.path:""};
     try{if(id)await db.doc("knowledge/"+id).set(payload);else await db.collection("knowledge").add(payload);closeDlg()}
     catch(e){btn.disabled=false;btn.textContent="Сохранить";setStatus("Не сохранилось: "+(e&&e.message||""),true)}};
   if(k)$("#ks-del").onclick=async()=>{try{await db.doc("knowledge/"+k.id).delete();if(k.path)db.deleteFile(k.path);closeDlg()}catch(e){setStatus("Не удалилось: "+(e&&e.message||""),true)}}}

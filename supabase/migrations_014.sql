@@ -19,5 +19,6 @@ create policy knowledge_cat_delete on knowledge_cat for delete using (venue_id =
 alter table knowledge add column if not exists cat_id bigint references knowledge_cat(id) on delete cascade;
 alter table knowledge add column if not exists title text;
 alter table knowledge add column if not exists body text;
+alter table knowledge add column if not exists body2 text;
 alter table knowledge alter column path drop not null;
 alter table knowledge alter column name drop not null;
