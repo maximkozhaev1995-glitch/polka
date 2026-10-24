@@ -1464,9 +1464,12 @@ function editSection(k){let filesTmp=k&&k.path?{name:k.name,path:k.path}:null;
 $("#list").addEventListener("click",e=>{if(st.tab!=="know"||!db)return;
   const kc=e.target.closest("[data-kcat]");if(kc){knowCat=kc.dataset.kcat;render();return}
   if(e.target.closest("#kc-back")){knowCat=null;render();return}
-  if(e.target.closest("#kc-add")){showDlg('<h2>Новая база знаний</h2><label class="f">Название<input id="kc-n" autocomplete="off" placeholder="Руководство для администратора"></label><div class="dlg-btns"><button class="btn go" type="button" id="kc-ok">Создать</button><button class="btn" type="button" id="dlg-back">Отмена</button></div>');
+  if(e.target.closest("#kc-add")){showDlg('<h2>Новая база знаний</h2><label class="f">Название<input id="kc-n" autocomplete="off" enterkeyhint="done" placeholder="Руководство для администратора"></label><div class="dlg-btns"><button class="btn go" type="button" id="kc-ok">Создать</button><button class="btn" type="button" id="dlg-back">Отмена</button></div>');
     $("#dlg-back").onclick=closeDlg;$("#kc-n").focus();
-    $("#kc-ok").onclick=()=>{const v=$("#kc-n").value.trim();if(!v){$("#kc-n").focus();return}db.collection("knowcat").add({name:v}).then(r=>{knowCat=r.id;closeDlg()}).catch(x=>setStatus("Не сохранилось: "+(x&&x.message||""),true))};return}
+    const mk=async()=>{const n=$("#kc-n"),b=$("#kc-ok"),v=n.value.trim();if(!v){n.focus();return}b.disabled=true;
+      try{const r=await db.collection("knowcat").add({name:v});knowCat=r.id;closeDlg();render()}
+      catch(x){b.disabled=false;setStatus("Не сохранилось: "+(x&&x.message||""),true)}};
+    $("#kc-ok").onclick=mk;$("#kc-n").onkeydown=e2=>{if(e2.key==="Enter"){e2.preventDefault();mk()}};return}
   if(e.target.closest("#ks-add")){editSection(null);return}
   const ke=e.target.closest("[data-kedit]");if(ke){editSection(knowledge.find(x=>x.id===ke.dataset.kedit));return}
   const kopen=e.target.closest("[data-kopen]");if(kopen){const k=knowledge.find(x=>x.id===kopen.dataset.kopen);if(!k)return;db.signFile(k.path).then(url=>window.open(url,"_blank")).catch(x=>setStatus("Не открылось: "+(x&&x.message||""),true));return}});
