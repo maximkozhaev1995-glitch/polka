@@ -286,14 +286,15 @@ body.inv-mode .chip[aria-pressed="true"]{background:var(--fg);border-color:var(-
 .oseg .chip small{background:rgba(255,255,255,.25);border-radius:999px;padding:0 6px;font-size:11px;font-weight:700}
 .oseg .chip[aria-pressed="false"] small{background:var(--accent-soft);color:var(--accent)}
 .chip[data-os][aria-pressed="true"]{background:var(--fg);border-color:var(--fg);color:var(--bg)}
-.itiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0 8px}
+.itiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:16px 0 14px}
 .itile{display:grid;gap:4px;justify-items:start;text-align:left;border:1.5px solid var(--line);background:var(--surface);color:var(--fg);font:inherit;border-radius:14px;padding:12px 10px;cursor:pointer;min-width:0}
 .itile b{font:800 22px/1.1 var(--display)}.itile span{font-size:12px;color:var(--muted);line-height:1.25}
 .itile[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
 .itile[aria-pressed="true"] b{color:var(--accent)}
 .ctiles .cico{width:20px;height:20px;margin-bottom:2px;color:var(--muted)}.ctiles .itile[aria-pressed="true"] .cico{color:var(--accent)}
-.iutil{margin:0 0 10px;gap:6px}.iutil .chip{min-height:36px;font-size:12.5px}.ihelp{color:var(--muted)}
-.isumcard{display:flex;gap:0;margin:6px 0 10px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--surface)}
+.iutil{margin:0 0 14px;gap:8px}.iutil .chip{min-height:36px;font-size:12.5px}.ihelp{color:var(--muted)}
+.isumcard{display:flex;gap:0;margin:0 0 18px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--surface)}
+.inosz{margin:0 0 18px!important}
 .isumcard>div{flex:1;padding:10px 12px;text-align:center}.isumcard>div+div{border-left:1px solid var(--line)}
 .isumcard b{display:block;font:800 18px/1.1 var(--display)}.isumcard span{font-size:11px;color:var(--muted)}
 .isumcard .bad b{color:var(--pend)}.isumcard .rub b{color:var(--accent)}
@@ -631,7 +632,7 @@ function render(){
     html+='<div class="itiles">'+IGROUPS.map(([k,l])=>'<button type="button" class="itile" data-ig="'+k+'" aria-pressed="'+(st.ig===k)+'"><b>'+cnt(k)+'</b><span>'+esc(l)+'</span></button>').join("")+'</div>'
       +'<div class="qchips iutil"><button type="button" class="chip ihelp" id="inv-help">Как это работает</button><button type="button" class="chip" id="inv-log">Журнал'+(invLog.length?' · '+invLog.length:'')+'</button></div>'
       +'<div class="isumcard"><div><b>'+w.n+'</b><span>шт.</span></div>'+(w.g?'<div><b>'+(w.g/1000).toFixed(1)+'</b><span>кг</span></div>':"")+'</div>'
-      +(w.no?'<p class="hintline"><button type="button" class="linklike" id="inv-nosz" aria-pressed="'+invNoSz+'">'+(invNoSz?"← показать все":"⚠ у "+w.no+" шт. не указан размер — проставить")+'</button></p>':'')}
+      +(w.no?'<p class="hintline inosz"><button type="button" class="linklike" id="inv-nosz" aria-pressed="'+invNoSz+'">'+(invNoSz?"← показать все":"⚠ у "+w.no+" шт. не указан размер — проставить")+'</button></p>':'')}
   if(st.tab==="order")html+=ordSw("order");
   if(st.tab==="order")html+='<details class="hint"><summary>Как это работает</summary><p class="hintline">Нажми «+», чтобы добавить вкус в заказ. Здесь показаны вкусы, которых на складе 0–1 банка, и то, что уже в заказе. Любой другой вкус найдётся через поиск.</p></details>';
   const fr=(st.tab==="bar"||st.tab==="wh"||st.tab==="smena")&&!st.q&&!st.brand&&!st.f?freqList().filter(x=>items.includes(x)):[];
