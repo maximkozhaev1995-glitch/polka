@@ -9,7 +9,7 @@ const cors = {
   "Content-Type": "application/json",
 };
 const out = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: cors });
-const DAILY_LIMIT = 75; // запросов на человека в сутки
+const DAILY_LIMIT = 300; // запросов на человека в сутки (считаются только вопросы человека, не шаги инструментов — см. ниже)
 const MODELS = ["claude-haiku-5-5", "claude-sonnet-5-5"];
 
 function tgId(req: Request): number | null {
@@ -286,9 +286,14 @@ Deno.serve(async (req) => {
     // отдельными запросами (по одному), чтобы не упираться в лимит времени функции на нескольких фото сразу.
     // В дневной лимит не считаем — модель (Yandex/Gemini/Claude) тут не вызывается вообще.
     if (ocr_only) { const r = hasImg ? await yandexOcr(messages) : false; return out({ ocr: r ? "yandex" : undefined, ocr_texts: r || undefined }); }
-    const hit = await db.rpc("ai_hit", { p: tg });
-    if (hit.error) return out({ error: "server_error" }, 500);
-    if (Number(hit.data) > DAILY_LIMIT) return out({ error: "rate_limited", scope: "daily" }, 429);
+    // Считаем только вопрос человека, не каждый шаг цикла инструментов: продолжение диалога внутри одного
+    // вопроса всегда несёт результат инструмента (tool_result) — такие шаги не тратят дневной лимит
+    const isToolStep = messages.some((m: any) => Array.isArray(m.content) && m.content.some((b: any) => b.type === "tool_result"));
+    if (!isToolStep) {
+      const hit = await db.rpc("ai_hit", { p: tg });
+      if (hit.error) return out({ error: "server_error" }, 500);
+      if (Number(hit.data) > DAILY_LIMIT) return out({ error: "rate_limited", scope: "daily" }, 429);
+    }
     // Фото: если Yandex подключён — картинки становятся текстом, и дальше их понимает любая модель
     const ocr = hasImg ? await yandexOcr(messages) : false;
     if (Deno.env.get("AI_PROVIDER") === "local" && (!hasImg || ocr)) {
