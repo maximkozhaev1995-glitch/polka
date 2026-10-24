@@ -1253,6 +1253,7 @@ $("#list").addEventListener("change",e=>{if(st.tab!=="chk"||!db)return;
 /* База знаний: файлы, доступна всей команде, загружает и удаляет управляющий */
 var knowCat=null,knowcats=[],knowImgCache={};
 const isImg=n=>/\.(jpe?g|png|webp|heic|gif)$/i.test(n||"");
+const isVid=n=>/\.(mp4|webm|mov|m4v)$/i.test(n||"");
 const kBlocks=k=>{if(k.blocks&&k.blocks.length)return k.blocks;
   const bs=[];if(k.body)bs.push({t:"text",v:k.body});if(k.path)bs.push({t:"img",path:k.path,name:k.name});if(k.body2)bs.push({t:"text",v:k.body2});return bs};
 function renderKnowledge(){
@@ -1266,6 +1267,7 @@ function renderKnowledge(){
     h+='<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 10px"><h2 style="margin:0">'+esc(cat?cat.name:"")+(cat&&cat.protected?' 🔒':"")+'</h2>'+(isMgr?'<button type="button" class="btn sm" id="kc-menu" aria-label="Ещё">⋯</button>':"")+'</div>'
       +(secs.length?secs.map(k=>'<div class="scard"><h3>'+esc(k.title||"Без названия")+(isMgr?'<button class="btn sm" type="button" data-kedit="'+k.id+'">Изменить</button>':"")+'</h3>'
         +kBlocks(k).map(bl=>bl.t==="img"?(isImg(bl.name)?'<div class="kimg" data-kimgsrc="'+esc(bl.path)+'" style="margin-top:8px">'+(knowImgCache[bl.path]?'<img class="kthumb" src="'+esc(knowImgCache[bl.path])+'">':'<p class="hintline">Загружаю фото…</p>')+'</div>':'<div class="bchips" style="margin-top:8px"><button type="button" class="tag" data-kfile="'+esc(bl.path)+'" style="border:0;cursor:pointer">'+esc(bl.name||"файл")+'</button></div>')
+          :bl.t==="video"?'<div class="kvid" data-kvidsrc="'+esc(bl.path)+'" style="margin-top:8px">'+(knowImgCache[bl.path]?'<video class="kthumb" style="width:100%;height:auto;max-height:260px;border-radius:10px" controls playsinline src="'+esc(knowImgCache[bl.path])+'"></video>':'<p class="hintline">Загружаю видео…</p>')+'</div>'
           :(bl.v?'<p style="white-space:pre-wrap;margin:8px 0 0">'+esc(bl.v)+'</p>':"")).join("")
         +'</div>').join(""):'<p class="hintline">В этой базе пока нет разделов.</p>')
       +(isMgr?'<button type="button" class="btn go wide" id="ks-add" style="margin-top:10px">+ Добавить раздел</button>':"");
@@ -1273,32 +1275,42 @@ function renderKnowledge(){
   $("#list").innerHTML=h;
   $("#list").querySelectorAll("[data-kimgsrc]").forEach(el=>{const p=el.dataset.kimgsrc;if(knowImgCache[p]||!db)return;
     db.signFile(p).then(url=>{knowImgCache[p]=url;if(el.isConnected)el.innerHTML='<img class="kthumb" src="'+esc(url)+'">'})
-      .catch(()=>{if(el.isConnected)el.innerHTML='<p class="hintline">Не удалось загрузить фото.</p>'})})}
+      .catch(()=>{if(el.isConnected)el.innerHTML='<p class="hintline">Не удалось загрузить фото.</p>'})});
+  $("#list").querySelectorAll("[data-kvidsrc]").forEach(el=>{const p=el.dataset.kvidsrc;if(knowImgCache[p]||!db)return;
+    db.signFile(p).then(url=>{knowImgCache[p]=url;if(el.isConnected)el.innerHTML='<video class="kthumb" style="width:100%;height:auto;max-height:260px;border-radius:10px" controls playsinline src="'+esc(url)+'"></video>'})
+      .catch(()=>{if(el.isConnected)el.innerHTML='<p class="hintline">Не удалось загрузить видео.</p>'})})}
 function editSection(k){let blocks=(k?kBlocks(k):[{t:"text",v:""}]).map(b=>Object.assign({},b));
   if(!blocks.length)blocks=[{t:"text",v:""}];
   showDlg('<h2>'+(k?"Раздел":"Новый раздел")+'</h2><label class="f">Заголовок<input id="ks-t" value="'+esc(k?k.title||"":"")+'" autocomplete="off" placeholder="Например: Внешний вид"></label>'
-    +'<label class="f">Текст и фото — пиши и вставляй фото там, где нужно</label><div id="ks-blocks"></div>'
-    +'<input id="ks-file" type="file" accept="image/*" hidden><button class="btn" type="button" id="ks-file-btn" style="margin-top:8px">+ Фото</button>'
+    +'<label class="f">Текст, фото и видео — пиши и вставляй вложения там, где нужно</label><div id="ks-blocks"></div>'
+    +'<input id="ks-file" type="file" accept="image/*" hidden><input id="ks-vid" type="file" accept="video/*" hidden>'
+    +'<div class="acts2" style="margin-top:8px"><button class="btn" type="button" id="ks-file-btn">+ Фото</button><button class="btn" type="button" id="ks-vid-btn">+ Видео</button></div>'
     +'<div class="dlg-btns" style="margin-top:14px"><button class="btn go" type="button" id="ks-ok">Сохранить</button>'+(k?'<button class="btn" type="button" id="ks-del">Удалить</button>':"")+'<button class="btn" type="button" id="dlg-back">Отмена</button></div>');
   const draw=()=>{$("#ks-blocks").innerHTML=blocks.map((b,i)=>b.t==="img"
     ?'<div class="frow" data-bi="'+i+'"><span>📷 '+esc(b.name||"фото")+'</span><button type="button" class="btn sm" data-brm="'+i+'" aria-label="Убрать">✕</button></div>'
+    :b.t==="video"?'<div class="frow" data-bi="'+i+'"><span>🎥 '+esc(b.name||"видео")+'</span><button type="button" class="btn sm" data-brm="'+i+'" aria-label="Убрать">✕</button></div>'
     :'<textarea class="ks-bt" data-bi="'+i+'" rows="3" placeholder="Текст…" style="width:100%;margin-top:6px">'+esc(b.v||"")+'</textarea>').join("")};
   draw();
   $("#dlg-back").onclick=closeDlg;
   $("#ks-blocks").addEventListener("input",e=>{const ta=e.target.closest(".ks-bt");if(ta)blocks[+ta.dataset.bi].v=ta.value});
   $("#ks-blocks").addEventListener("click",e=>{const rm=e.target.closest("[data-brm]");if(rm){const bl=blocks[+rm.dataset.brm];if(bl&&bl.path)db.deleteFile(bl.path).catch(()=>{});blocks.splice(+rm.dataset.brm,1);if(!blocks.length)blocks.push({t:"text",v:""});draw()}});
   $("#ks-file-btn").onclick=()=>$("#ks-file").click();
+  $("#ks-vid-btn").onclick=()=>$("#ks-vid").click();
   $("#ks-file").onchange=async()=>{const f=$("#ks-file").files[0];if(!f||!db)return;const btn=$("#ks-file-btn");btn.disabled=true;btn.textContent="Загружаю…";
     try{const r=await db.uploadFile("knowledge",f);blocks.push({t:"img",path:r.path,name:f.name});blocks.push({t:"text",v:""});draw()}
     catch(e){setStatus("Фото не загрузилось: "+(e&&e.message||""),true)}
     btn.disabled=false;btn.textContent="+ Фото";$("#ks-file").value=""};
+  $("#ks-vid").onchange=async()=>{const f=$("#ks-vid").files[0];if(!f||!db)return;const btn=$("#ks-vid-btn");btn.disabled=true;btn.textContent="Загружаю…";
+    try{const r=await db.uploadFile("knowledge",f);blocks.push({t:"video",path:r.path,name:f.name});blocks.push({t:"text",v:""});draw()}
+    catch(e){setStatus("Видео не загрузилось: "+(e&&e.message||""),true)}
+    btn.disabled=false;btn.textContent="+ Видео";$("#ks-vid").value=""};
   $("#ks-ok").onclick=async()=>{const title=$("#ks-t").value.trim();if(!title){$("#ks-t").focus();return}
     const btn=$("#ks-ok"),id=k?k.id:null;btn.disabled=true;btn.textContent="Сохраняю…";
-    const clean=blocks.filter(b=>b.t==="img"||(b.v&&b.v.trim()));
+    const clean=blocks.filter(b=>b.t==="img"||b.t==="video"||(b.v&&b.v.trim()));
     const payload={catId:knowCat,title,blocks:clean};
     try{if(id)await db.doc("knowledge/"+id).set(payload);else await db.collection("knowledge").add(payload);closeDlg()}
     catch(e){btn.disabled=false;btn.textContent="Сохранить";setStatus("Не сохранилось: "+(e&&e.message||""),true)}};
-  if(k)$("#ks-del").onclick=async()=>{try{await db.doc("knowledge/"+k.id).delete();kBlocks(k).forEach(b=>{if(b.t==="img")db.deleteFile(b.path).catch(()=>{})});closeDlg()}catch(e){setStatus("Не удалилось: "+(e&&e.message||""),true)}}}
+  if(k)$("#ks-del").onclick=async()=>{try{await db.doc("knowledge/"+k.id).delete();kBlocks(k).forEach(b=>{if(b.t==="img"||b.t==="video")db.deleteFile(b.path).catch(()=>{})});closeDlg()}catch(e){setStatus("Не удалилось: "+(e&&e.message||""),true)}}}
 $("#list").addEventListener("click",e=>{if(st.tab!=="know"||!db)return;
   const kc=e.target.closest("[data-kcat]");if(kc){knowCat=kc.dataset.kcat;render();return}
   if(e.target.closest("#kn-back")){if(knowCat){knowCat=null;render()}else go("home");return}
