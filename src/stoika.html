@@ -352,6 +352,8 @@ body.inv-mode .chip[aria-pressed="true"]{background:var(--fg);border-color:var(-
       <button class="tab" id="t-log" type="button">Журнал<small></small></button>
       <button class="tab" id="t-ai" type="button">Ассистент<small>ИИ</small></button>
       <button class="tab" id="t-sup" type="button" hidden style="display:none">Контрагенты<small id="c-sup"></small></button>
+      <button class="tab" id="t-chk" type="button">Чек-лист смены<small id="c-chk"></small></button>
+      <button class="tab" id="t-know" type="button">База знаний<small></small></button>
     </div>
     <div id="d-set" hidden>
       <p class="dgrp">Гости и команда</p>
@@ -407,12 +409,17 @@ const newWh=x=>wh(x)+dd(x);
 const newBar=x=>(draft[x.id]&&draft[x.id].bar!==undefined)?draft[x.id].bar:onBar(x);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const norm=s=>s.toLowerCase().replace(/ё/g,"е");
-var packMap={},packSizes={};var checklist=[],knowledge=[];
+var packMap={},packSizes={};var checklist=[],knowledge=[],tasklog=[];
+const WD=["Воскресенье","Понедельник","Вторник","Среда","Четверг","Пятница","Суббота"];
+function todayStr(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function chkTodayOpen(){const wd=new Date().getDay(),ds=todayStr();
+  const today=checklist.filter(t=>t.recur==="daily"||(t.recur==="weekly"&&+t.weekday===wd));
+  return today.filter(t=>!tasklog.some(l=>l.taskId===String(t.id)&&l.date===ds)).length||""}
 const szOf=x=>packSizes[x.b+"|"+(x.l||"")]||packSizes[x.b]||[];
 const multiSz=x=>!!x&&szOf(x).length>1&&!!packMap[x.id];
 const szTag=x=>multiSz(x)?'<span class="ln">'+packMap[x.id]+" г</span>":"";
 const packOpts=(L0,v)=>'<option value="">размер?</option>'+L0.map(g=>'<option value="'+g+'"'+(g===v?" selected":"")+'>'+g+' г</option>').join("");
-const packCtl=(x,v)=>szOf(x).length?'<select data-pf="'+x.id+'" aria-label="Размер банки '+esc(x.n)+'">'+packOpts(szOf(x),v)+'</select>':'<input data-pf="'+x.id+'" type="number" inputmode="numeric" min="5" max="2000" placeholder="г" value="'+(v||"")+'" style="width:84px;height:40px;font-size:16px">';
+const packCtl=(x,v)=>szOf(x).length?'<select data-pf="'+x.id+'" aria-label="Размер банки '+esc(x.n)+'">'+packOpts(szOf(x),v)+'</select>':'<input class="oin" data-pf="'+x.id+'" type="number" inputmode="numeric" min="5" max="2000" placeholder="г" value="'+(v||"")+'" style="width:84px;height:40px;font-size:16px">';
 const nm=x=>x?x.b+" "+x.n+(multiSz(x)?" · "+packMap[x.id]+" г":""):"вкус";
 function hl(text){const t=esc(text);if(!st.q)return t;const q=esc(st.q).replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
   return t.replace(new RegExp(q.replace(/е/gi,"[её]"),"gi"),m=>"<mark>"+m+"</mark>")}
@@ -429,7 +436,7 @@ const inOrder=x=>stockLoaded&&(oq(x)>0||hint(x)||!!st.q);
 const flag=(x,k)=>!!(stock[x.id]&&stock[x.id][k]);
 const inTab=x=>st.q&&(st.tab==="bar"||st.tab==="wh")?true:st.tab==="smena"?(onBar(x)||wh(x)>0||!!st.q):st.tab==="inv"?stockLoaded&&((tracked(x)&&wh(x)>0&&invSec(x)===st.ig&&(!invNoSz||!packMap[x.id]))||!!st.q):st.tab==="bar"?onBar(x):st.tab==="order"?(stockLoaded&&!flag(x,"retired")):(st.tab==="stop"||st.tab==="slow")?stockLoaded&&(flag(x,st.tab)||!!st.q||!!st.brand):(wh(x)>0||!!draft[x.id]||!!st.q);
 const NEWUI=!!window.__demoDB;let invD={};const invEd=new Set();
-const TABS={pack:"Граммовка",wish:"Пожелания гостей",str:"Крепость табаков",team:"Команда",log:"Журнал",mixes:"Альбом миксов",smena:"Смена",inv:"Инвентаризация",bar:"Стойка",wh:"Склад",order:"Заказ",stop:"Стоп-лист",slow:"Неликвид",ai:"Ассистент",sup:"Контрагенты"};
+const TABS={pack:"Граммовка",wish:"Пожелания гостей",str:"Крепость табаков",team:"Команда",log:"Журнал",mixes:"Альбом миксов",smena:"Смена",inv:"Инвентаризация",bar:"Стойка",wh:"Склад",order:"Заказ",stop:"Стоп-лист",slow:"Неликвид",ai:"Ассистент",sup:"Контрагенты",chk:"Чек-лист смены",know:"База знаний"};
 const fOK=(x,k)=>k==="low"?wh(x)===1:k==="pend"?x.s==="pend":x.t.includes(k);
 function renderChips(){
   const all=st.tab==="stop"||st.tab==="slow";
@@ -596,14 +603,16 @@ function render(){
   const barN=DATA.filter(x=>onBar(x)&&!flag(x,"stop")).length,whItems=DATA.filter(x=>wh(x)>0),whPacks=whItems.reduce((a,x)=>a+wh(x),0);
   const ordSel=DATA.filter(x=>stockLoaded&&oq(x)>0);
   const stopN=DATA.filter(x=>flag(x,"stop")).length,slowN=DATA.filter(x=>flag(x,"slow")).length,slowP=DATA.filter(x=>flag(x,"slow")).reduce((a,x)=>a+wh(x),0);
-  $("#c-bar").textContent=barN;$("#c-wh").textContent=whPacks;$("#c-or").textContent=db?ordSel.length:"";$("#c-stop").textContent=stockLoaded?stopN:"";$("#c-slow").textContent=stockLoaded?slowN:"";$("#c-team").textContent=checklist.filter(t=>!t.done).length||"";
-  [["bar","t-bar"],["wh","t-wh"],["order","t-or"],["stop","t-stop"],["slow","t-slow"],["ai","t-ai"],["sup","t-sup"],["inv","t-inv"],["mixes","t-mix"],["log","t-log"],["team","t-team"],["str","t-str"],["wish","t-wish"],["pack","t-pack"]].forEach(([k,i])=>$("#"+i).setAttribute("aria-current",st.tab===k?"page":"false"));
+  $("#c-bar").textContent=barN;$("#c-wh").textContent=whPacks;$("#c-or").textContent=db?ordSel.length:"";$("#c-stop").textContent=stockLoaded?stopN:"";$("#c-slow").textContent=stockLoaded?slowN:"";
+  [["bar","t-bar"],["wh","t-wh"],["order","t-or"],["stop","t-stop"],["slow","t-slow"],["ai","t-ai"],["sup","t-sup"],["inv","t-inv"],["mixes","t-mix"],["log","t-log"],["team","t-team"],["str","t-str"],["wish","t-wish"],["pack","t-pack"],["chk","t-chk"],["know","t-know"]].forEach(([k,i])=>$("#"+i).setAttribute("aria-current",st.tab===k?"page":"false"));
   $("#sect").textContent=TABS[st.tab]||"Стойка";document.body.classList.toggle("inv-mode",st.tab==="inv");
-  if(!isMgr&&(st.tab==="inv"||st.tab==="sup"||st.tab==="log"||st.tab==="str"||st.tab==="pack"||st.tab==="wish"))st.tab="bar";
-  $("#t-str").hidden=!isMgr;$("#t-wish").hidden=!isMgr;$("#t-pack").hidden=!isMgr;{const ds=$("#d-set");ds.hidden=false;if(["wish","pack","str","team"].includes(st.tab))ds.open=true}$("#t-team").hidden=false;$("#t-log").hidden=!isMgr;$("#t-inv").hidden=!isMgr;$("#t-sup").hidden=!isMgr;$("#who").textContent=isMgr?"Управляющий":"Мастер";
+  if(!isMgr&&(st.tab==="inv"||st.tab==="sup"||st.tab==="log"||st.tab==="str"||st.tab==="pack"||st.tab==="wish"||st.tab==="team"))st.tab="bar";
+  $("#t-str").hidden=!isMgr;$("#t-wish").hidden=!isMgr;$("#t-pack").hidden=!isMgr;{const ds=$("#d-set");ds.hidden=false;if(["wish","pack","str","team","chk","know"].includes(st.tab))ds.open=true}$("#t-team").hidden=!isMgr;$("#t-log").hidden=!isMgr;$("#t-inv").hidden=!isMgr;$("#t-sup").hidden=!isMgr;$("#c-chk").textContent=chkTodayOpen();$("#who").textContent=isMgr?"Управляющий":"Мастер";
   if(st.tab==="mixes"){renderMixes();return}
   if(st.tab==="log"){renderJournal();return}
   if(st.tab==="team"){renderTeam();return}
+  if(st.tab==="chk"){renderChecklist();return}
+  if(st.tab==="know"){renderKnowledge();return}
   if(st.tab==="str"){renderStrength();return}
   if(st.tab==="wish"){renderWishes();return}
   if(st.tab==="pack"){renderPack();return}
@@ -1092,8 +1101,9 @@ aiUi();
   db.collection("packsizes").onSnapshot(s=>{packSizes={};s.docs.forEach(d=>{packSizes[d.id]=d.data().sizes});render()},()=>{});
   db.collection("wishes").onSnapshot(s=>{wishes=s.docs.map(d=>Object.assign({id:d.id},d.data()));if(st.tab==="wish")render()},()=>{});
   db.collection("invlog").onSnapshot(s=>{invLog=s.docs.map(d=>Object.assign({id:d.id},d.data()))},()=>{});
-  db.collection("tasks").onSnapshot(s=>{checklist=s.docs.map(d=>Object.assign({id:d.id},d.data()));if(st.tab==="team"||st.tab==="home")render()},()=>{});
-  db.collection("knowledge").onSnapshot(s=>{knowledge=s.docs.map(d=>Object.assign({id:d.id},d.data()));if(st.tab==="team")render()},()=>{});
+  db.collection("tasks").onSnapshot(s=>{checklist=s.docs.map(d=>Object.assign({id:d.id},d.data()));if(st.tab==="chk"||st.tab==="home")render()},()=>{});
+  db.collection("tasklog").onSnapshot(s=>{tasklog=s.docs.map(d=>Object.assign({id:d.id},d.data()));if(st.tab==="chk"||st.tab==="home")render()},()=>{});
+  db.collection("knowledge").onSnapshot(s=>{knowledge=s.docs.map(d=>Object.assign({id:d.id},d.data()));if(st.tab==="know")render()},()=>{});
   db.collection("team").onSnapshot(s=>{team=s.docs.map(d=>Object.assign({id:d.id},d.data()));render()},()=>{});
   db.collection("invites").onSnapshot(s=>{invites=s.docs.map(d=>Object.assign({id:d.id},d.data()));render()},()=>{});
   db.collection("mixes").onSnapshot(s=>{mixes=s.docs.map(d=>Object.assign({id:d.id},d.data()));seedMixes();render()},()=>{});
@@ -1188,15 +1198,7 @@ $("#list").addEventListener("change",async e=>{if((st.tab!=="pack"&&st.tab!=="in
 /* Команда: приглашения и права мастеров */
 function renderTeam(){
   if(!mixHide)return;mixHide.forEach(q=>{const e=$(q);if(e)e.hidden=true});$("#list").hidden=false;$(".ttl .stats").hidden=true;document.body.classList.remove("ai-mode","has-tray");
-  const me=window.__me||"";
-  const open=checklist.filter(t=>!t.done),done=checklist.filter(t=>t.done);
-  let h='<h3 class="sub">Чек-лист смены</h3>'
-    +(open.length||done.length?open.concat(done).map(t=>'<label class="trow2"><input type="checkbox" data-tdone="'+t.id+'"'+(t.done?" checked":"")+'><span'+(t.done?' style="text-decoration:line-through;color:var(--muted)"':'')+'>'+esc(t.t)+'</span>'+(isMgr?'<button type="button" class="btn sm" data-tdel2="'+t.id+'" aria-label="Удалить">✕</button>':'')+'</label>').join(""):'<p class="hintline">Дел пока нет.</p>')
-    +(isMgr?'<div class="qchips" style="margin:8px 0"><input id="tk-new" placeholder="Новое дело…" autocomplete="off" style="flex:1;min-width:120px;height:40px;border:1px solid var(--line-ctl);border-radius:10px;padding:0 10px;background:var(--surface);color:var(--fg)"><button type="button" class="btn go" id="tk-add">+ Добавить</button></div>':'')
-    +'<h3 class="sub">База знаний</h3>'
-    +(knowledge.length?knowledge.map(k=>'<div class="frow"><span>'+esc(k.name)+'</span><button type="button" class="btn sm" data-kopen="'+k.id+'">Открыть</button>'+(isMgr?'<button type="button" class="btn sm" data-kdel="'+k.id+'" aria-label="Удалить">✕</button>':'')+'</div>').join(""):'<p class="hintline">Файлов пока нет.</p>')
-    +(isMgr?'<input id="tk-file" type="file" accept="application/pdf,image/*" hidden><button class="btn" type="button" id="tk-file-btn" style="margin:8px 0">+ Загрузить файл</button>':'')
-    ;
+  let h="";
   if(isMgr){
     h+='<button type="button" class="btn go wide" id="tm-inv" style="margin-top:10px">＋ Пригласить мастера</button>';
     if(invites.length)h+='<h3 class="sub">Ждут входа</h3>'+invites.map(i=>'<div class="hfeed"><span><b>'+esc(i.id)+'</b><br><small>код работает до первого входа</small></span><button type="button" class="btn sm" data-ivdel="'+esc(i.id)+'">Отозвать</button></div>').join("");
@@ -1212,14 +1214,46 @@ $("#list").addEventListener("click",e=>{if(st.tab!=="team"||!db)return;
       $("#dlg-back").onclick=closeDlg;$("#iv-c").onclick=async()=>{try{await navigator.clipboard.writeText(txt);$("#iv-c").textContent="Скопировано"}catch(x){$("#iv-t").select()}}}).catch(x=>setStatus("Код не создался: "+(x&&x.message||"нет доступа"),true));return}
   const dv=e.target.closest("[data-ivdel]");if(dv){db.doc("invites/"+dv.dataset.ivdel).delete();return}
   const pm=e.target.closest("[data-pm]");if(pm){const u=team.find(x=>x.id===pm.dataset.tid);if(!u)return;const p=new Set(u.perms||[]);const k=pm.dataset.pm;if(p.has(k))p.delete(k);else p.add(k);db.doc("team/"+u.id).set({name:u.name,role:u.role,perms:[...p]});return}
-  const td=e.target.closest("[data-tdel]");if(td){const u=team.find(x=>x.id===td.dataset.tdel);if(!u)return;showDlg('<h2>Убрать из команды?</h2><p><b>'+esc(u.name)+'</b> потеряет доступ. Вернуть можно новым приглашением.</p><div class="dlg-btns"><button class="btn danger" type="button" id="td-ok">Убрать</button><button class="btn" type="button" id="dlg-back">Отмена</button></div>');$("#dlg-back").onclick=closeDlg;$("#td-ok").onclick=async()=>{closeDlg();await db.doc("team/"+u.id).delete()};return}
-  if(e.target.closest("#tk-add")){const i=$("#tk-new"),v=i.value.trim();if(!v)return;i.disabled=true;db.collection("tasks").add({t:v}).then(()=>{i.value="";i.disabled=false;i.focus()}).catch(x=>{i.disabled=false;setStatus("Не сохранилось: "+(x&&x.message||""),true)});return}
-  const tdel2=e.target.closest("[data-tdel2]");if(tdel2){db.doc("tasks/"+tdel2.dataset.tdel2).delete().catch(()=>{});return}
+  const td=e.target.closest("[data-tdel]");if(td){const u=team.find(x=>x.id===td.dataset.tdel);if(!u)return;showDlg('<h2>Убрать из команды?</h2><p><b>'+esc(u.name)+'</b> потеряет доступ. Вернуть можно новым приглашением.</p><div class="dlg-btns"><button class="btn danger" type="button" id="td-ok">Убрать</button><button class="btn" type="button" id="dlg-back">Отмена</button></div>');$("#dlg-back").onclick=closeDlg;$("#td-ok").onclick=async()=>{closeDlg();await db.doc("team/"+u.id).delete()};return}});
+/* Чек-лист смены: повторяющиеся шаблоны (каждый день / по дню недели) + журнал отметок */
+function renderChecklist(){
+  if(!mixHide)return;mixHide.forEach(q=>{const e=$(q);if(e)e.hidden=true});$("#list").hidden=false;$(".ttl .stats").hidden=true;document.body.classList.remove("ai-mode","has-tray");
+  const wd=new Date().getDay(),ds=todayStr(),isToday=t=>t.recur==="daily"||(t.recur==="weekly"&&+t.weekday===wd);
+  const today=checklist.filter(isToday),rest=checklist.filter(t=>!isToday(t));
+  const row=t=>{const log=tasklog.find(l=>l.taskId===String(t.id)&&l.date===ds);
+    return '<label class="trow2"><input type="checkbox" data-tdone="'+t.id+'"'+(log?" checked":"")+'><span'+(log?' style="text-decoration:line-through;color:var(--muted)"':'')+'>'+esc(t.t)
+      +(t.recur==="weekly"?'<br><small class="muted">по '+WD[t.weekday].toLowerCase()+'ам</small>':'')
+      +(log?'<br><small class="muted">'+esc(log.byName||"")+' · '+new Date(log.at).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})+'</small>':'')
+      +'</span>'+(isMgr?'<button type="button" class="btn sm" data-tdel2="'+t.id+'" aria-label="Удалить">✕</button>':'')+'</label>'};
+  let h='<p class="hintline">Сегодня, '+new Date().toLocaleDateString("ru-RU",{day:"numeric",month:"long"})+'</p>'
+    +(today.length?today.map(row).join(""):'<p class="hintline">На сегодня дел нет.</p>');
+  if(rest.length)h+='<h3 class="sub">Другие дни</h3>'+rest.map(t=>'<div class="trow2" style="opacity:.65"><span>'+esc(t.t)+'<br><small class="muted">по '+WD[t.weekday].toLowerCase()+'ам</small></span>'+(isMgr?'<button type="button" class="btn sm" data-tdel2="'+t.id+'" aria-label="Удалить">✕</button>':'')+'</div>').join("");
+  if(isMgr)h+='<h3 class="sub">Новое дело</h3>'
+    +'<input id="tk-new" placeholder="Что сделать…" autocomplete="off" style="width:100%;height:40px;border:1px solid var(--line-ctl);border-radius:10px;padding:0 10px;background:var(--surface);color:var(--fg);margin-bottom:8px">'
+    +'<div class="qchips" style="margin-bottom:8px"><label class="chip" style="display:inline-flex;align-items:center;gap:6px"><input type="radio" name="tk-r" value="daily" checked>Каждый день</label><label class="chip" style="display:inline-flex;align-items:center;gap:6px"><input type="radio" name="tk-r" value="weekly">По дню недели</label></div>'
+    +'<select id="tk-wd" hidden style="width:100%;height:40px;border:1px solid var(--line-ctl);border-radius:10px;background:var(--surface);color:var(--fg);margin-bottom:8px">'+WD.map((w,i)=>'<option value="'+i+'">'+w+'</option>').join("")+'</select>'
+    +'<button type="button" class="btn go wide" id="tk-add">+ Добавить дело</button>';
+  $("#list").innerHTML=h}
+$("#list").addEventListener("click",e=>{if(st.tab!=="chk"||!db)return;
+  if(e.target.closest("#tk-add")){const i=$("#tk-new"),v=i.value.trim();if(!v)return;const recur=document.querySelector('input[name="tk-r"]:checked').value,weekday=recur==="weekly"?+$("#tk-wd").value:null;
+    i.disabled=true;db.collection("tasks").add({t:v,recur,weekday}).then(()=>{i.value="";i.disabled=false;i.focus()}).catch(x=>{i.disabled=false;setStatus("Не сохранилось: "+(x&&x.message||""),true)});return}
+  const tdel2=e.target.closest("[data-tdel2]");if(tdel2){db.doc("tasks/"+tdel2.dataset.tdel2).delete().catch(()=>{});return}});
+$("#list").addEventListener("change",e=>{if(st.tab!=="chk"||!db)return;
+  if(e.target.name==="tk-r"){$("#tk-wd").hidden=e.target.value!=="weekly";return}
+  const cb=e.target.closest("[data-tdone]");if(cb){const id=cb.dataset.tdone,ds=todayStr();
+    if(cb.checked)db.collection("tasklog").add({taskId:id,date:ds}).catch(()=>{cb.checked=false});
+    else{const log=tasklog.find(l=>l.taskId===id&&l.date===ds);if(log)db.doc("tasklog/"+log.id).delete().catch(()=>{cb.checked=true})}}});
+/* База знаний: файлы, доступна всей команде, загружает и удаляет управляющий */
+function renderKnowledge(){
+  if(!mixHide)return;mixHide.forEach(q=>{const e=$(q);if(e)e.hidden=true});$("#list").hidden=false;$(".ttl .stats").hidden=true;document.body.classList.remove("ai-mode","has-tray");
+  let h=(knowledge.length?knowledge.map(k=>'<div class="frow"><span>'+esc(k.name)+'</span><button type="button" class="btn sm" data-kopen="'+k.id+'">Открыть</button>'+(isMgr?'<button type="button" class="btn sm" data-kdel="'+k.id+'" aria-label="Удалить">✕</button>':'')+'</div>').join(""):'<p class="hintline">Файлов пока нет.</p>')
+    +(isMgr?'<input id="tk-file" type="file" accept="application/pdf,image/*" hidden><button class="btn go wide" type="button" id="tk-file-btn" style="margin-top:10px">+ Загрузить файл</button>':'');
+  $("#list").innerHTML=h}
+$("#list").addEventListener("click",e=>{if(st.tab!=="know"||!db)return;
   const kopen=e.target.closest("[data-kopen]");if(kopen){const k=knowledge.find(x=>x.id===kopen.dataset.kopen);if(!k)return;db.signFile(k.path).then(url=>window.open(url,"_blank")).catch(x=>setStatus("Не открылось: "+(x&&x.message||""),true));return}
   const kdel=e.target.closest("[data-kdel]");if(kdel){const k=knowledge.find(x=>x.id===kdel.dataset.kdel);if(!k)return;db.doc("knowledge/"+k.id).delete().then(()=>db.deleteFile(k.path)).catch(()=>{});return}
   if(e.target.closest("#tk-file-btn")){$("#tk-file").click();return}});
-$("#list").addEventListener("change",e=>{if(st.tab!=="team"||!db)return;
-  const cb=e.target.closest("[data-tdone]");if(cb){db.doc("tasks/"+cb.dataset.tdone).set({done:cb.checked}).catch(()=>{cb.checked=!cb.checked});return}
+$("#list").addEventListener("change",e=>{if(st.tab!=="know"||!db)return;
   if(e.target.id==="tk-file"){const f=e.target.files[0];if(!f)return;const btn=$("#tk-file-btn");btn.disabled=true;btn.textContent="Загружаю…";
     db.uploadFile("knowledge",f).then(r=>db.collection("knowledge").add({name:f.name,path:r.path})).then(()=>{btn.disabled=false;btn.textContent="+ Загрузить файл";e.target.value=""}).catch(x=>{btn.disabled=false;btn.textContent="+ Загрузить файл";setStatus("Файл не загрузился: "+(x&&x.message||""),true)})}});
 /* Журнал: все движения склада, в том числе списания */
@@ -1407,11 +1441,11 @@ if(true){
   const dayName=d=>{const t=new Date(),y=new Date(Date.now()-864e5),same=(a,b)=>a.toDateString()===b.toDateString();return same(d,t)?"Сегодня":same(d,y)?"Вчера":d.toLocaleDateString("ru-RU",{day:"numeric",month:"long"})};
   const HIC={eye:"M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z",scale:"M12 4v16M6 20h12M5 8h14M5 8l-2 6a3 3 0 0 0 6 0zM19 8l-2 6a3 3 0 0 0 6 0z",flame:"M12 3c1 4-4 5-4 10a4 4 0 0 0 8 0c0-3-2-4-2-6 3 2 5 5 5 8a7 7 0 0 1-14 0c0-6 5-8 7-12z",list:"M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01",book:"M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3zM5 17a3 3 0 0 1 3-3h11",msg:"M4 5h16v11H9l-5 4z",team:"M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3 20a6 6 0 0 1 12 0M16 11a3 3 0 1 0 0-6M17 14a6 6 0 0 1 4 6",cart:"M3 4h2l2 12h11l2-8H6M9 20h.01M17 20h.01",chk:"M5 12l5 5 9-10",heart:"M12 20s-7-4.5-7-10a4 4 0 0 1 7-2 4 4 0 0 1 7 2c0 5.5-7 10-7 10z",clock:"M12 7v5l3 2M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z",stop:"M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM6 6l12 12",box:"M3 8l9-5 9 5v8l-9 5-9-5zM3 8l9 5 9-5M12 13v8",cam:"M4 8h3l2-3h6l2 3h3v11H4zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",spark:"M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z"};
   const ic=n=>'<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="'+HIC[n]+'"/></svg>';
-  [["t-bar","box"],["t-wh","box"],["t-or","cart"],["t-stop","stop"],["t-inv","chk"],["t-pack","scale"],["t-str","flame"],["t-slow","clock"],["t-mix","book"],["t-log","list"],["t-ai","spark"],["t-wish","msg"],["t-team","team"]].forEach(([i,n])=>{const e=$("#"+i);if(e&&!e.querySelector(".ico"))e.insertAdjacentHTML("afterbegin",ic(n))});
+  [["t-bar","box"],["t-wh","box"],["t-or","cart"],["t-stop","stop"],["t-inv","chk"],["t-pack","scale"],["t-str","flame"],["t-slow","clock"],["t-mix","book"],["t-log","list"],["t-ai","spark"],["t-wish","msg"],["t-team","team"],["t-chk","chk"],["t-know","book"]].forEach(([i,n])=>{const e=$("#"+i);if(e&&!e.querySelector(".ico"))e.insertAdjacentHTML("afterbegin",ic(n))});
   const whWeight0=()=>DATA.reduce((a,x)=>a+(packMap[x.id]?wh(x)*packMap[x.id]:0),0);
   let feedOpen=false;
   const drawHome=()=>{
-    HIDE.forEach(q=>{const e=$(q);if(e)e.hidden=true});$("#list").hidden=false;$(".ttl .stats").hidden=true;document.body.classList.remove("ai-mode","has-tray");$("#sect").textContent="Главная";$("#t-str").hidden=!isMgr;$("#t-team").hidden=false;$("#t-log").hidden=!isMgr;$("#t-inv").hidden=!isMgr;$("#t-sup").hidden=!isMgr;$("#who").textContent=isMgr?"Управляющий":"Мастер";
+    HIDE.forEach(q=>{const e=$(q);if(e)e.hidden=true});$("#list").hidden=false;$(".ttl .stats").hidden=true;document.body.classList.remove("ai-mode","has-tray");$("#sect").textContent="Главная";$("#t-str").hidden=!isMgr;$("#t-team").hidden=!isMgr;$("#t-log").hidden=!isMgr;$("#t-inv").hidden=!isMgr;$("#t-sup").hidden=!isMgr;$("#who").textContent=isMgr?"Управляющий":"Мастер";
     const barN=DATA.filter(x=>onBar(x)&&!flag(x,"stop")).length,low=DATA.filter(x=>onBar(x)&&wh(x)<1).length,ord=DATA.filter(x=>oq(x)>0).length,stp=DATA.filter(x=>flag(x,"stop")).length,slw=DATA.filter(x=>flag(x,"slow")).length,gn=DATA.filter(gone).length;
     const card=(n,l,t,x)=>'<button type="button" class="hcard" data-go="'+t+'"'+(x?' data-x="'+x+'"':"")+'><b>'+n+'</b><span>'+l+'</span></button>';
     const att=(n,l,t)=>n?'<button type="button" class="hrow" data-go="'+t+'"><span>'+l+'</span><b>'+n+'</b><i>›</i></button>':"";
@@ -1423,8 +1457,8 @@ if(true){
     const tile=(n,l,t)=>'<button type="button" class="hs-t" data-go="'+t+'"><b>'+n+'</b><span>'+l+'</span></button>';
     const trow=(ico,ttl,sub,act,t,x)=>'<button type="button" class="trow" data-go="'+t+'"'+(x?' data-x="'+x+'"':"")+'><span class="ti">'+ic(ico)+'</span><span class="tt"><b>'+ttl+'</b>'+(sub?'<small>'+sub+'</small>':"")+'</span><span class="ta">'+act+'</span></button>';
     const tasks=[];
-    const chkOpen=checklist.filter(t=>!t.done).length;
-    tasks.push(trow("chk",chkOpen?"Дела смены: "+chkOpen:"Чек-лист смены",chkOpen?"чек-лист от управляющего":"список дел и база знаний","Открыть","team"));
+    const chkN=chkTodayOpen();
+    tasks.push(trow("chk",chkN?"Дела смены: "+chkN:"Чек-лист смены",chkN?"ещё не отмечено сегодня":"на сегодня всё сделано","Открыть","chk"));
     if(isMgr){
       if(ord>0)tasks.push(trow("cart","В заказе "+ord+" "+(ord===1?"позиция":"позиций"),"проверь и отправь поставщику","Открыть","order"));
       else if(low>0)tasks.push(trow("cart","Нет на складе: "+low+" поз.","на стойке есть, на складе нет","Заказ","order"));
@@ -1459,7 +1493,7 @@ if(true){
   const guide=()=>'<details class="hdet gd"><summary>Как пользоваться</summary><div class="guide" style="margin-top:8px">'+GUIDE.filter((g,i)=>(isMgr||![4,5,6,7,10].includes(i))&&(NEWUI||i!==2)).map(g=>'<details><summary>'+g[0]+'</summary>'+g[1]+'</details>').join("")+'</div></details>';
   $("#list").addEventListener("click",e=>{if(st.tab!=="home")return;if(e.target.closest("#h-photo")){const f=$("#scan-fab");if(f){f.hidden=false;f.click()}return}
     const g=e.target.closest("[data-go]");if(g){if(g.dataset.x==="low")whLow=true;go(g.dataset.go)}});
-  const SUB=new Set(["wish","pack","str","team","log","mixes","inv","sup","stop","slow","smena"]);
+  const SUB=new Set(["wish","pack","str","team","log","mixes","inv","sup","stop","slow","smena","chk","know"]);
   const tgw=window.Telegram&&window.Telegram.WebApp;let tgBack=false;
   const navVis=()=>{["t-str","t-wish","t-pack","t-team","t-log","t-inv"].forEach(i=>{const e=$("#"+i);if(e)e.hidden=!isMgr});const ds=$("#d-set");if(ds)ds.hidden=!isMgr;const g1=$("#dg1");if(g1)g1.textContent=isMgr?"Управление":"Работа"};
   const TH=[["auto","авто"],["dark","тёмная"],["light","светлая"]];let thm="auto";try{thm=localStorage.getItem("polka_theme")||"auto"}catch(e){}
@@ -1468,6 +1502,7 @@ if(true){
   const vw=$("#view-sw");
   const vwSync=()=>{vw.hidden=!realMgr;vw.innerHTML=ic("eye")+(isMgr?"Посмотреть как мастер":"Вернуться к управляющему")};
   vw.onclick=()=>{isMgr=!isMgr;try{localStorage.setItem("polka_view",isMgr?"manager":"master")}catch(e){}if(!isMgr&&["inv","sup","log","team","str","pack","wish","order"].includes(st.tab))st.tab="home";menu(false);$("#who").textContent=isMgr?"Управляющий":"Мастер · просмотр";render();window.scrollTo(0,0)};
+  $("#t-chk").onclick=()=>go("chk");$("#t-know").onclick=()=>go("know");
   const backSync=()=>{navVis();vwSync();if(realMgr)$("#who").textContent=isMgr?"Управляющий":"Мастер · просмотр";const sub=st.tab!=="home";if(tgw&&tgw.BackButton){try{if(!tgBack){tgw.BackButton.onClick(()=>go("home"));tgBack=true}sub?tgw.BackButton.show():tgw.BackButton.hide()}catch(e){}}
     const l=$("#list");if(SUB.has(st.tab)&&!l.hidden&&!l.querySelector("#s-back"))l.insertAdjacentHTML("afterbegin",'<button type="button" class="btn sback" id="s-back">← На главную</button>')};
   $("#list").addEventListener("click",e=>{if(e.target.closest("#s-back"))go("home")});
