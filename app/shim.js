@@ -78,6 +78,14 @@
       list:()=>"inv_log?select=id,ig,items,shortage_units,shortage_g,price_per_g,shortage_rub,at&venue_id=eq."+V()+"&order=at.desc&limit=200",
       toDoc:r=>({ig:r.ig,items:r.items,units:r.shortage_units,g:r.shortage_g,price:r.price_per_g,rub:r.shortage_rub,at:r.at}),
       fromDoc:(id,o)=>({venue_id:V(),ig:o.ig,items:o.items||0,shortage_units:o.units||0,shortage_g:o.g||0,price_per_g:o.price||null,shortage_rub:o.rub||null,by_tg:session.user.tg_id,at:o.at||new Date().toISOString()})},
+    tasks:{table:"tasks",key:"id",patch:true,
+      list:()=>"tasks?select=id,text,done,done_by,created_at&venue_id=eq."+V()+"&order=created_at.desc&limit=200",
+      toDoc:r=>({t:r.text,done:r.done,doneBy:r.done_by,at:r.created_at}),
+      fromDoc:(id,o)=>o.t!==undefined?{venue_id:V(),text:o.t,done:!!o.done,by_tg:session.user.tg_id}:{done:!!o.done,done_by:o.done?(o.doneBy||session.user.name||""):null}},
+    knowledge:{table:"knowledge",key:"id",
+      list:()=>"knowledge?select=id,name,path,created_at&venue_id=eq."+V()+"&order=created_at.desc&limit=200",
+      toDoc:r=>({name:r.name,path:r.path,at:r.created_at}),
+      fromDoc:(id,o)=>({venue_id:V(),name:o.name,path:o.path,by_tg:session.user.tg_id})},
   };
   const subs={};
   const snapDocs=async c=>{

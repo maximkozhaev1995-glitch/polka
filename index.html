@@ -295,6 +295,7 @@ body.inv-mode .chip[aria-pressed="true"]{background:var(--fg);border-color:var(-
 .sback{margin:10px 0 0;min-height:44px;background:transparent;border:1px solid var(--line);color:var(--fg)}
 .linklike{background:none;border:0;padding:0;font:inherit;color:var(--accent);text-decoration:underline;cursor:pointer}
 .frow{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:14px}.frow span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.trow2{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px;cursor:pointer}.trow2 input{width:20px;height:20px;flex:none}.trow2 span{flex:1;min-width:0}
 .strl{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding:10px 0;border-bottom:1px solid var(--line);margin-top:6px}.strl select,.strr select{height:40px;font:inherit;font-size:16px;border:1px solid var(--line-ctl);border-radius:8px;background:var(--surface);color:var(--fg);padding:0 8px}.strl label{margin-left:auto}.strr{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--line);font-size:14px}.strr .sword{flex:none;margin-left:auto;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.02em}
 </style>
 
@@ -446,6 +447,14 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
       list:()=>"inv_log?select=id,ig,items,shortage_units,shortage_g,price_per_g,shortage_rub,at&venue_id=eq."+V()+"&order=at.desc&limit=200",
       toDoc:r=>({ig:r.ig,items:r.items,units:r.shortage_units,g:r.shortage_g,price:r.price_per_g,rub:r.shortage_rub,at:r.at}),
       fromDoc:(id,o)=>({venue_id:V(),ig:o.ig,items:o.items||0,shortage_units:o.units||0,shortage_g:o.g||0,price_per_g:o.price||null,shortage_rub:o.rub||null,by_tg:session.user.tg_id,at:o.at||new Date().toISOString()})},
+    tasks:{table:"tasks",key:"id",patch:true,
+      list:()=>"tasks?select=id,text,done,done_by,created_at&venue_id=eq."+V()+"&order=created_at.desc&limit=200",
+      toDoc:r=>({t:r.text,done:r.done,doneBy:r.done_by,at:r.created_at}),
+      fromDoc:(id,o)=>o.t!==undefined?{venue_id:V(),text:o.t,done:!!o.done,by_tg:session.user.tg_id}:{done:!!o.done,done_by:o.done?(o.doneBy||session.user.name||""):null}},
+    knowledge:{table:"knowledge",key:"id",
+      list:()=>"knowledge?select=id,name,path,created_at&venue_id=eq."+V()+"&order=created_at.desc&limit=200",
+      toDoc:r=>({name:r.name,path:r.path,at:r.created_at}),
+      fromDoc:(id,o)=>({venue_id:V(),name:o.name,path:o.path,by_tg:session.user.tg_id})},
   };
   const subs={};
   const snapDocs=async c=>{
@@ -754,7 +763,7 @@ function render(){
   $("#c-bar").textContent=barN;$("#c-wh").textContent=whPacks;$("#c-or").textContent=db?ordSel.length:"";$("#c-stop").textContent=stockLoaded?stopN:"";$("#c-slow").textContent=stockLoaded?slowN:"";
   [["bar","t-bar"],["wh","t-wh"],["order","t-or"],["stop","t-stop"],["slow","t-slow"],["ai","t-ai"],["sup","t-sup"],["inv","t-inv"],["mixes","t-mix"],["log","t-log"],["team","t-team"],["str","t-str"],["wish","t-wish"],["pack","t-pack"]].forEach(([k,i])=>$("#"+i).setAttribute("aria-current",st.tab===k?"page":"false"));
   $("#sect").textContent=TABS[st.tab]||"Стойка";document.body.classList.toggle("inv-mode",st.tab==="inv");
-  if(!isMgr&&(st.tab==="inv"||st.tab==="sup"||st.tab==="log"||st.tab==="team"||st.tab==="str"||st.tab==="pack"||st.tab==="wish"))st.tab="bar";
+  if(!isMgr&&(st.tab==="inv"||st.tab==="sup"||st.tab==="log"||st.tab==="str"||st.tab==="pack"||st.tab==="wish"))st.tab="bar";
   $("#t-str").hidden=!isMgr;$("#t-wish").hidden=!isMgr;$("#t-pack").hidden=!isMgr;{const ds=$("#d-set");ds.hidden=!isMgr;if(["wish","pack","str","team"].includes(st.tab))ds.open=true}$("#t-team").hidden=!isMgr;$("#t-log").hidden=!isMgr;$("#t-inv").hidden=!isMgr;$("#t-sup").hidden=!isMgr;$("#who").textContent=isMgr?"Управляющий":"Мастер";
   if(st.tab==="mixes"){renderMixes();return}
   if(st.tab==="log"){renderJournal();return}
@@ -1246,6 +1255,8 @@ aiUi();
   db.collection("packsizes").onSnapshot(s=>{packSizes={};s.docs.forEach(d=>{packSizes[d.id]=d.data().sizes});render()},()=>{});
   db.collection("wishes").onSnapshot(s=>{wishes=s.docs.map(d=>Object.assign({id:d.id},d.data()));if(st.tab==="wish")render()},()=>{});
   db.collection("invlog").onSnapshot(s=>{invLog=s.docs.map(d=>Object.assign({id:d.id},d.data()))},()=>{});
+  db.collection("tasks").onSnapshot(s=>{checklist=s.docs.map(d=>Object.assign({id:d.id},d.data()));if(st.tab==="team"||st.tab==="home")render()},()=>{});
+  db.collection("knowledge").onSnapshot(s=>{knowledge=s.docs.map(d=>Object.assign({id:d.id},d.data()));if(st.tab==="team")render()},()=>{});
   db.collection("team").onSnapshot(s=>{team=s.docs.map(d=>Object.assign({id:d.id},d.data()));render()},()=>{});
   db.collection("invites").onSnapshot(s=>{invites=s.docs.map(d=>Object.assign({id:d.id},d.data()));render()},()=>{});
   db.collection("mixes").onSnapshot(s=>{mixes=s.docs.map(d=>Object.assign({id:d.id},d.data()));seedMixes();render()},()=>{});
@@ -1341,12 +1352,21 @@ $("#list").addEventListener("change",async e=>{if((st.tab!=="pack"&&st.tab!=="in
 function renderTeam(){
   if(!mixHide)return;mixHide.forEach(q=>{const e=$(q);if(e)e.hidden=true});$("#list").hidden=false;$(".ttl .stats").hidden=true;document.body.classList.remove("ai-mode","has-tray");
   const me=window.__me||"";
-  let h='<button type="button" class="btn go wide" id="tm-inv" style="margin-top:10px">＋ Пригласить мастера</button>';
-  if(invites.length)h+='<h3 class="sub">Ждут входа</h3>'+invites.map(i=>'<div class="hfeed"><span><b>'+esc(i.id)+'</b><br><small>код работает до первого входа</small></span><button type="button" class="btn sm" data-ivdel="'+esc(i.id)+'">Отозвать</button></div>').join("");
-  h+='<h3 class="sub">Команда</h3>'+(team.length?team.map(u=>{const mgr=u.role==="manager",pm=u.perms||[];
-    return '<article class="mcard"><div class="mtop"><span class="mk'+(mgr?' k-week':'')+'">'+(mgr?"Управляющий":"Мастер")+'</span></div><h3>'+esc(u.name)+'</h3>'
-     +(mgr?'<p class="muted small">Видит и меняет всё.</p>':'<p class="muted small">Всегда может добавить вкус в стоп-лист. Остальное по правам.</p><details class="more2"><summary>Права</summary><div class="qchips">'+PERMS.map(([k,t])=>'<button type="button" class="chip" data-pm="'+k+'" data-tid="'+esc(u.id)+'" aria-pressed="'+pm.includes(k)+'">'+t+'</button>').join("")+'</div><div class="acts2" style="margin-top:8px"><button type="button" class="ab bad" data-tdel="'+esc(u.id)+'">Убрать из команды</button></div></details>')
-     +'</article>'}).join(""):'<p class="hintline">Пока только вы.</p>');
+  const open=checklist.filter(t=>!t.done),done=checklist.filter(t=>t.done);
+  let h='<h3 class="sub">Чек-лист смены</h3>'
+    +(open.length||done.length?open.concat(done).map(t=>'<label class="trow2"><input type="checkbox" data-tdone="'+t.id+'"'+(t.done?" checked":"")+'><span'+(t.done?' style="text-decoration:line-through;color:var(--muted)"':'')+'>'+esc(t.t)+'</span>'+(isMgr?'<button type="button" class="btn sm" data-tdel2="'+t.id+'" aria-label="Удалить">✕</button>':'')+'</label>').join(""):'<p class="hintline">Дел пока нет.</p>')
+    +(isMgr?'<div class="qchips" style="margin:8px 0"><input id="tk-new" placeholder="Новое дело…" autocomplete="off" style="flex:1;min-width:120px;height:40px;border:1px solid var(--line-ctl);border-radius:10px;padding:0 10px;background:var(--surface);color:var(--fg)"><button type="button" class="btn go" id="tk-add">+ Добавить</button></div>':'')
+    +'<h3 class="sub">База знаний</h3>'
+    +(knowledge.length?knowledge.map(k=>'<div class="frow"><span>'+esc(k.name)+'</span><button type="button" class="btn sm" data-kopen="'+k.id+'">Открыть</button>'+(isMgr?'<button type="button" class="btn sm" data-kdel="'+k.id+'" aria-label="Удалить">✕</button>':'')+'</div>').join(""):'<p class="hintline">Файлов пока нет.</p>')
+    +(isMgr?'<input id="tk-file" type="file" accept="application/pdf,image/*" hidden><button class="btn" type="button" id="tk-file-btn" style="margin:8px 0">+ Загрузить файл</button>':'')
+    ;
+  if(isMgr){
+    h+='<button type="button" class="btn go wide" id="tm-inv" style="margin-top:10px">＋ Пригласить мастера</button>';
+    if(invites.length)h+='<h3 class="sub">Ждут входа</h3>'+invites.map(i=>'<div class="hfeed"><span><b>'+esc(i.id)+'</b><br><small>код работает до первого входа</small></span><button type="button" class="btn sm" data-ivdel="'+esc(i.id)+'">Отозвать</button></div>').join("");
+    h+='<h3 class="sub">Команда</h3>'+(team.length?team.map(u=>{const mgr=u.role==="manager",pm=u.perms||[];
+      return '<article class="mcard"><div class="mtop"><span class="mk'+(mgr?' k-week':'')+'">'+(mgr?"Управляющий":"Мастер")+'</span></div><h3>'+esc(u.name)+'</h3>'
+       +(mgr?'<p class="muted small">Видит и меняет всё.</p>':'<p class="muted small">Всегда может добавить вкус в стоп-лист. Остальное по правам.</p><details class="more2"><summary>Права</summary><div class="qchips">'+PERMS.map(([k,t])=>'<button type="button" class="chip" data-pm="'+k+'" data-tid="'+esc(u.id)+'" aria-pressed="'+pm.includes(k)+'">'+t+'</button>').join("")+'</div><div class="acts2" style="margin-top:8px"><button type="button" class="ab bad" data-tdel="'+esc(u.id)+'">Убрать из команды</button></div></details>')
+       +'</article>'}).join(""):'<p class="hintline">Пока только вы.</p>')}
   $("#list").innerHTML=h}
 $("#list").addEventListener("click",e=>{if(st.tab!=="team"||!db)return;
   if(e.target.closest("#tm-inv")){const A="abcdefghjkmnpqrstuvwxyz23456789";const a=new Uint32Array(8);crypto.getRandomValues(a);const code=[...a].map(n=>A[n%A.length]).join("");
@@ -1355,7 +1375,16 @@ $("#list").addEventListener("click",e=>{if(st.tab!=="team"||!db)return;
       $("#dlg-back").onclick=closeDlg;$("#iv-c").onclick=async()=>{try{await navigator.clipboard.writeText(txt);$("#iv-c").textContent="Скопировано"}catch(x){$("#iv-t").select()}}}).catch(x=>setStatus("Код не создался: "+(x&&x.message||"нет доступа"),true));return}
   const dv=e.target.closest("[data-ivdel]");if(dv){db.doc("invites/"+dv.dataset.ivdel).delete();return}
   const pm=e.target.closest("[data-pm]");if(pm){const u=team.find(x=>x.id===pm.dataset.tid);if(!u)return;const p=new Set(u.perms||[]);const k=pm.dataset.pm;if(p.has(k))p.delete(k);else p.add(k);db.doc("team/"+u.id).set({name:u.name,role:u.role,perms:[...p]});return}
-  const td=e.target.closest("[data-tdel]");if(td){const u=team.find(x=>x.id===td.dataset.tdel);if(!u)return;showDlg('<h2>Убрать из команды?</h2><p><b>'+esc(u.name)+'</b> потеряет доступ. Вернуть можно новым приглашением.</p><div class="dlg-btns"><button class="btn danger" type="button" id="td-ok">Убрать</button><button class="btn" type="button" id="dlg-back">Отмена</button></div>');$("#dlg-back").onclick=closeDlg;$("#td-ok").onclick=async()=>{closeDlg();await db.doc("team/"+u.id).delete()}}});
+  const td=e.target.closest("[data-tdel]");if(td){const u=team.find(x=>x.id===td.dataset.tdel);if(!u)return;showDlg('<h2>Убрать из команды?</h2><p><b>'+esc(u.name)+'</b> потеряет доступ. Вернуть можно новым приглашением.</p><div class="dlg-btns"><button class="btn danger" type="button" id="td-ok">Убрать</button><button class="btn" type="button" id="dlg-back">Отмена</button></div>');$("#dlg-back").onclick=closeDlg;$("#td-ok").onclick=async()=>{closeDlg();await db.doc("team/"+u.id).delete()};return}
+  if(e.target.closest("#tk-add")){const i=$("#tk-new"),v=i.value.trim();if(!v)return;i.disabled=true;db.collection("tasks").add({t:v}).then(()=>{i.value="";i.disabled=false;i.focus()}).catch(x=>{i.disabled=false;setStatus("Не сохранилось: "+(x&&x.message||""),true)});return}
+  const tdel2=e.target.closest("[data-tdel2]");if(tdel2){db.doc("tasks/"+tdel2.dataset.tdel2).delete().catch(()=>{});return}
+  const kopen=e.target.closest("[data-kopen]");if(kopen){const k=knowledge.find(x=>x.id===kopen.dataset.kopen);if(!k)return;db.signFile(k.path).then(url=>window.open(url,"_blank")).catch(x=>setStatus("Не открылось: "+(x&&x.message||""),true));return}
+  const kdel=e.target.closest("[data-kdel]");if(kdel){const k=knowledge.find(x=>x.id===kdel.dataset.kdel);if(!k)return;db.doc("knowledge/"+k.id).delete().then(()=>db.deleteFile(k.path)).catch(()=>{});return}
+  if(e.target.closest("#tk-file-btn")){$("#tk-file").click();return}});
+$("#list").addEventListener("change",e=>{if(st.tab!=="team"||!db)return;
+  const cb=e.target.closest("[data-tdone]");if(cb){db.doc("tasks/"+cb.dataset.tdone).set({done:cb.checked}).catch(()=>{cb.checked=!cb.checked});return}
+  if(e.target.id==="tk-file"){const f=e.target.files[0];if(!f)return;const btn=$("#tk-file-btn");btn.disabled=true;btn.textContent="Загружаю…";
+    db.uploadFile("knowledge",f).then(r=>db.collection("knowledge").add({name:f.name,path:r.path})).then(()=>{btn.disabled=false;btn.textContent="+ Загрузить файл";e.target.value=""}).catch(x=>{btn.disabled=false;btn.textContent="+ Загрузить файл";setStatus("Файл не загрузился: "+(x&&x.message||""),true)})}});
 /* Журнал: все движения склада, в том числе списания */
 var logF="all";
 function renderJournal(){
@@ -1371,7 +1400,7 @@ function renderJournal(){
 $("#list").addEventListener("click",e=>{if(st.tab!=="log")return;const b=e.target.closest("[data-lf]");if(b){logF=b.dataset.lf;render()}});
 /* Миксы: мастера выставляют свои, управляющий отмечает микс недели и сезонные */
 var mixes=[];var MK={week:"Микс недели",season:"Сезонное предложение",master:"Микс мастера"};
-var myPerms=[];var can=p=>isMgr||myPerms.includes(p);var team=[],invites=[];var PERMS=[["take","Брать со склада на стойку"],["add","Пополнять склад"],["offbar","Убирать со стойки"],["slow","Отмечать неликвид"],["unstop","Возвращать вкус из стопа"]];var mixSeeded=false;var MTAGS=["ягодный","цитрусовый","фруктовый","десертный","свежий","пряный","цветочный","напиточный","кислый","сладкий","крепкий","лёгкий"];var mixTag="";
+var myPerms=[];var can=p=>isMgr||myPerms.includes(p);var team=[],invites=[],checklist=[],knowledge=[];var PERMS=[["take","Брать со склада на стойку"],["add","Пополнять склад"],["offbar","Убирать со стойки"],["slow","Отмечать неликвид"],["unstop","Возвращать вкус из стопа"]];var mixSeeded=false;var MTAGS=["ягодный","цитрусовый","фруктовый","десертный","свежий","пряный","цветочный","напиточный","кислый","сладкий","крепкий","лёгкий"];var mixTag="";
 function seedMixes(){if(!NEWUI||mixSeeded)return;mixSeeded=true;if(mixes.length)return;const pick=(...n)=>n.map(t=>DATA.find(x=>(x.b+" "+x.n).toLowerCase().includes(t))).filter(Boolean);
   const mk=(title,kind,note,items,pcts,by,tags)=>{const it=items;if(!it.length)return;db.collection("mixes").add({title,kind,note,by,tags:tags||[],at:new Date().toISOString(),parts:it.map((x,i)=>({id:x.id,pct:pcts[i]}))})};
   mk("Тёплый вечер","week","Мягкий десерт с ягодной кислинкой. Берём, когда хочется уюта.",pick("pan raas","red cherry","kesar"),[50,30,20],"Управляющий",["пряный","ягодный","сладкий"]);
@@ -1557,6 +1586,8 @@ if(true){
     const tile=(n,l,t)=>'<button type="button" class="hs-t" data-go="'+t+'"><b>'+n+'</b><span>'+l+'</span></button>';
     const trow=(ico,ttl,sub,act,t,x)=>'<button type="button" class="trow" data-go="'+t+'"'+(x?' data-x="'+x+'"':"")+'><span class="ti">'+ic(ico)+'</span><span class="tt"><b>'+ttl+'</b>'+(sub?'<small>'+sub+'</small>':"")+'</span><span class="ta">'+act+'</span></button>';
     const tasks=[];
+    const chkOpen=checklist.filter(t=>!t.done).length;
+    if(chkOpen>0)tasks.push(trow("chk","Дела смены: "+chkOpen,"чек-лист от управляющего","Открыть","team"));
     if(isMgr){
       if(ord>0)tasks.push(trow("cart","В заказе "+ord+" "+(ord===1?"позиция":"позиций"),"проверь и отправь поставщику","Открыть","order"));
       else if(low>0)tasks.push(trow("cart","Нет на складе: "+low+" поз.","на стойке есть, на складе нет","Заказ","order"));
