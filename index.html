@@ -180,6 +180,12 @@ body.ai-mode .wrap{overscroll-behavior:none}
 .ai-in .btn{height:42px}
 .ai-in textarea{min-height:42px;line-height:1.35}
 .ai-ph{display:grid;place-content:center;cursor:pointer;font-size:18px}
+.hlp{flex:none;align-self:center;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:var(--surface);font-size:16px;line-height:1;cursor:pointer;padding:0}
+.hsh-scrim{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:140}
+.hsh{position:fixed;z-index:150;left:0;right:0;bottom:0;margin:0 auto;max-width:860px;height:min(78vh,720px);display:flex;flex-direction:column;gap:8px;background:var(--bg);border-top-left-radius:18px;border-top-right-radius:18px;box-shadow:0 -8px 30px rgba(0,0,0,.25);padding:12px max(16px,env(safe-area-inset-left,0px)) max(4px,env(safe-area-inset-bottom,0px))}
+.hsh-h{display:flex;align-items:center;gap:8px}.hsh-h b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body.hsh-on{overflow:hidden}
+.hacts{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;white-space:normal}.hacts ul{flex-basis:100%;margin:0;padding-left:18px}
 .ai-imgs{align-self:flex-start;border:1px dashed var(--accent);background:var(--accent-soft);color:var(--accent);font:inherit;font-size:13px;border-radius:999px;padding:4px 12px;cursor:pointer}
 [hidden]{display:none!important}
 html,body{overflow-x:hidden;max-width:100%;-webkit-text-size-adjust:100%;touch-action:pan-x pan-y}
@@ -313,7 +319,7 @@ body.inv-mode .chip[aria-pressed="true"]{background:var(--fg);border-color:var(-
 <div class="wrap">
 <div class="bar">
   <div class="topbar"><button class="burger" id="menu-btn" type="button" aria-label="Меню" aria-expanded="false" aria-controls="drawer"><i></i><i></i><i></i></button>
-    <div class="ttl"><h1 id="sect">Стойка</h1><i class="sync" id="sync" title="Подключаю склад"></i><span class="stats"><b id="total">0</b> <span id="totlabel">вкусов на стойке</span></span></div></div>
+    <div class="ttl"><h1 id="sect">Стойка</h1><button class="hlp" id="hlp-btn" type="button" aria-label="Помощник раздела" title="Помощник раздела" hidden>✨</button><i class="sync" id="sync" title="Подключаю склад"></i><span class="stats"><b id="total">0</b> <span id="totlabel">вкусов на стойке</span></span></div></div>
   <label class="search" for="q"><svg class="lupa" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="q" type="search" enterkeyhint="done" placeholder="Вкус, бренд или описание" autocomplete="off"><button id="clear" type="button" hidden>Очистить</button></label>
   <div class="chips" id="brands" role="group" aria-label="Бренды"></div>
   <div class="chips" id="filters" role="group" aria-label="Фильтры"></div>
@@ -334,6 +340,16 @@ body.inv-mode .chip[aria-pressed="true"]{background:var(--fg);border-color:var(-
 <section class="log" id="logbox" hidden><h3>Последние действия</h3><ul id="log"></ul></section>
 </div>
 <div class="scrim" id="scrim" hidden></div>
+<div class="hsh-scrim" id="hsh-scrim" hidden></div>
+<section class="hsh" id="hsh" hidden role="dialog" aria-label="Помощник раздела">
+  <div class="hsh-h"><b id="hsh-t">✨ Помощник</b><button class="btn sm" type="button" id="hsh-new">Заново</button><button class="btn sm" type="button" id="hsh-x" aria-label="Закрыть">✕</button></div>
+  <div class="ai-log" id="hsh-log" aria-live="polite"></div>
+  <div class="ai-quick" id="hsh-q"></div>
+  <button class="ai-imgs" id="hsh-imgs" type="button" hidden></button>
+  <div class="ai-in"><label class="btn ai-ph" id="hsh-ph-l" hidden title="Фото накладной или банок" aria-label="Приложить фото">📷<input type="file" id="hsh-ph" accept="image/*" multiple hidden></label>
+    <textarea id="hsh-in" rows="1" placeholder="Спроси или попроси…" enterkeyhint="send"></textarea>
+    <button class="btn go" type="button" id="hsh-send">Отправить</button><button class="btn" type="button" id="hsh-stop" hidden>Стоп</button></div>
+</section>
 <nav class="drawer" id="drawer" aria-label="Разделы" aria-hidden="true">
   <div class="lgrow"><div class="lgm"><svg viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="46" width="48" height="6" rx="3" fill="var(--fg)"/><rect x="9" y="26" width="14" height="16" rx="3.5" fill="var(--accent)"/><rect x="25" y="26" width="14" height="16" rx="3.5" fill="var(--accent)"/><rect x="41" y="26" width="14" height="16" rx="3.5" fill="var(--accent)"/></svg></div><span class="dtitle">Полка</span><button type="button" class="dclose" id="d-close" aria-label="Закрыть меню">×</button></div>
   <p class="who" id="who"></p>
@@ -1160,7 +1176,7 @@ scrim.onclick=()=>menu(false);
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&drawer.classList.contains("open"))menu(false)});
 let tx=null;drawer.addEventListener("touchstart",e=>{tx=e.touches[0].clientX},{passive:true});
 drawer.addEventListener("touchend",e=>{if(tx!==null&&tx-e.changedTouches[0].clientX>50)menu(false);tx=null},{passive:true});
-const go=t=>{st.tab=t;st.f="";st.q="";selId="";{const q=$("#q");if(q)q.value="";const c=$("#clear");if(c)c.hidden=true}if(t!=="stop"&&t!=="slow")st.brand="";save();render();menu(false);window.scrollTo(0,0)};
+const go=t=>{if(!$("#hsh").hidden)hClose();st.tab=t;st.f="";st.q="";selId="";{const q=$("#q");if(q)q.value="";const c=$("#clear");if(c)c.hidden=true}if(t!=="stop"&&t!=="slow")st.brand="";save();render();hlpUi();menu(false);window.scrollTo(0,0)};
 $("#t-or").onclick=()=>go("order");
 $("#t-bar").onclick=()=>go("bar");$("#t-mix").onclick=()=>go("mixes");$("#t-log").onclick=()=>go("log");$("#t-team").onclick=()=>go("team");$("#t-str").onclick=()=>go("str");$("#list").addEventListener("click",e=>{if(st.tab!=="inv")return;const c=e.target.closest("[data-ig]");if(c){st.ig=c.dataset.ig;render();return}
   if(e.target.closest("#inv-nosz")){invNoSz=!invNoSz;render();return}
@@ -1276,8 +1292,126 @@ const AI_HELLO="Я помогу со складом. Напиши, что пер
 aiBubble("assistant",AI_HELLO);
 (async()=>{try{sampleFn=await window.claude?.use?.("sample")}catch(e){sampleFn=null}
   if(sampleFn){try{const l=await sampleFn.limits();aiCanImg=!!l.images;if(l.images)$("#ai-photo").accept=l.images.mediaTypes.join(",")}catch(e){}}
-  aiUi()})();
+  aiUi();hlpUi()})();
 aiUi();
+// Помощник раздела: кнопка ✨ в шапке любого раздела, у каждого раздела своя переписка и свои данные.
+// Ничего не меняет сам: склад — через черновик и «Проверь изменения», заказ и метки — через «Подтвердить» в чате
+const hlpTxt=h=>String(h).replace(/<li>/g,"\n— ").replace(/<\/p>\s*<p>/g,"\n").replace(/<[^>]+>/g,"").replace(/&nbsp;/g," ").trim();
+const hlpMixRules=()=>{const a=AI_RULES.indexOf("МИКСЫ"),b=AI_RULES.indexOf("\n\nСКЛАД");return a<0?"":AI_RULES.slice(a,b<0?undefined:b)};
+const hlpList=(arr,f,max)=>arr.length?arr.slice(0,max||120).map(f).join("\n")+(arr.length>(max||120)?"\n… и ещё "+(arr.length-(max||120)):""):"(пусто)";
+const hlpFlav=x=>x.b+" "+x.n+(x.l?" ["+x.l+"]":"");
+const HELP={
+ home:{q:["С чего начать смену?","Что сейчас требует внимания?","Где что находится в приложении?"],
+  ctx:()=>aiSnapshot().split("\n\n")[0]},
+ bar:{q:["Собери микс","Что на стойке в стопе?","Как взять банку со склада?"],rules:()=>hlpMixRules(),
+  ctx:()=>aiSnapshot()},
+ smena:{q:["Что закончилось за смену?","Как отметить, что банка закончилась?"],ctx:()=>aiSnapshot()},
+ wh:{q:["Что заканчивается на складе?","Пришла поставка, внеси по фото накладной","Как списать банку?"],img:1,
+  rules:()=>"Фото накладной или банок: найди каждую позицию через find_items и подготовь пополнение stage_stock (плюс штуки). Чего не нашёл в каталоге — перечисли отдельно, ничего не придумывай.",
+  ctx:()=>{const L=DATA.filter(x=>tracked(x)&&wh(x)<=1);return "На складе "+DATA.reduce((a,x)=>a+wh(x),0)+" шт., "+DATA.filter(x=>wh(x)>0).length+" вкусов. В черновике "+Object.keys(draft).length+" позиций.\nЗАКАНЧИВАЕТСЯ (0–1 шт.):\n"+hlpList(L,x=>"— "+hlpFlav(x)+": "+wh(x)+" шт."+(oq(x)?", в заказе "+oq(x):""))}},
+ order:{q:["Что заказать?","Добавь в заказ всё, чего 0","Как отправить заказ поставщику?"],img:1,mgr:1,
+  rules:()=>"Предлагая заказ, опирайся на остаток (0–1 шт.), пожелания гостей и то, что брали часто. Фото накладной: сверь с заказом и скажи, что пришло, а чего нет.",
+  ctx:()=>{const O=DATA.filter(x=>oq(x)>0),L=DATA.filter(x=>tracked(x)&&wh(x)<=1&&!oq(x));let w={};wishes.filter(x=>x.state==="new").forEach(x=>{const k=x.b+" "+x.f;w[k]=(w[k]||0)+1});
+   return "В ЗАКАЗЕ:\n"+hlpList(O,x=>"— "+hlpFlav(x)+": "+oq(x)+" шт. (на складе "+wh(x)+")")+"\n\nКОНЧАЕТСЯ, НО НЕ В ЗАКАЗЕ:\n"+hlpList(L,x=>"— "+hlpFlav(x)+": "+wh(x)+" шт.")+"\n\nПРОСЯТ ГОСТИ:\n"+hlpList(Object.entries(w),([k,n])=>"— "+k+": "+n)}},
+ stop:{q:["Что сейчас в стопе?","Что можно вернуть из стопа?","Как поставить вкус в стоп?"],
+  ctx:()=>{const S=DATA.filter(x=>flag(x,"stop"));return "В СТОПЕ ("+S.length+"):\n"+hlpList(S,x=>"— "+hlpFlav(x)+" (на складе "+wh(x)+", "+(onBar(x)?"на стойке":"не на стойке")+")")}},
+ slow:{q:["Как продвинуть неликвид?","Собери микс из неликвида","Что вывести из палитры?"],rules:()=>hlpMixRules()+"\nЗдесь можно прямо говорить, что вкус в неликвиде.",
+  ctx:()=>{const S=DATA.filter(x=>flag(x,"slow"));return "НЕЛИКВИД ("+S.length+"):\n"+hlpList(S,x=>"— "+hlpFlav(x)+": "+wh(x)+" шт."+(onBar(x)?", на стойке":"")+(idleText(x)?", "+idleText(x):"")+(x.d?" — "+x.d:""))}},
+ inv:{q:["Как провести инвентаризацию?","Что не сошлось?","Как считается недостача в ₽?"],img:1,mgr:1,
+  ctx:()=>{const k=Object.keys(invD);return "Проверено позиций: "+k.length+".\nНЕ СОШЛОСЬ:\n"+hlpList(k.filter(id=>byId[id]&&invD[id]!==wh(byId[id])),id=>"— "+hlpFlav(byId[id])+": по базе "+wh(byId[id])+", по факту "+invD[id])}},
+ pack:{q:["Зачем нужна граммовка?","Как указать вес банки?"],mgr:1,
+  ctx:()=>"Без указанного веса: "+DATA.filter(x=>wh(x)>0&&!packMap[x.id]).length+" позиций на складе."},
+ str:{q:["Как оценить крепость?","Что значит крепость 7?"],mgr:1,
+  rules:()=>"Шкала крепости 1–10: 1–2 лёгкая, 3–4 ниже средней, 5–6 средняя, 7–8 выше средней, 9 крепкая, 10 очень крепкая.",ctx:()=>"Крепость указана у "+Object.keys(strMap).length+" вкусов."},
+ mixes:{q:["Придумай микс недели","Какие миксы сейчас нельзя сделать?","Как добавить микс в альбом?"],rules:()=>hlpMixRules(),
+  ctx:()=>"МИКСЫ В АЛЬБОМЕ:\n"+hlpList(mixes.filter(m=>isMgr||!m.hidden),m=>"— "+m.title+": "+(m.parts||[]).map(p=>{const x=byId[p.id];return (x?hlpFlav(x):"удалён")+" "+p.pct+"%"}).join(", ")+(mixAvail(m).length?" (сейчас не собрать)":""),60)+"\n\n"+aiSnapshot()},
+ log:{q:["Что было сегодня?","Кто больше всего брал со склада?"],mgr:1,
+  ctx:()=>"ПОСЛЕДНИЕ ДЕЙСТВИЯ:\n"+hlpList(moves.slice(0,80),m=>"— "+new Date(m.at).toLocaleString("ru-RU",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})+" "+(byId[m.item]?hlpFlav(byId[m.item]):"?")+": "+actText(m)+(m.byName?" ("+m.byName+")":""))},
+ wish:{q:["Что чаще всего просят гости?","Что из пожеланий заказать?"],mgr:1,
+  ctx:()=>{const w={};wishes.forEach(x=>{const k=x.b+" "+x.f+" ["+({new:"новое",order:"в заказе",done:"пришло"}[x.state]||x.state)+"]";w[k]=(w[k]||0)+1});return "ПОЖЕЛАНИЯ ГОСТЕЙ:\n"+hlpList(Object.entries(w).sort((a,b)=>b[1]-a[1]),([k,n])=>"— "+k+": "+n+" гост.")}},
+ sup:{q:["Как добавить поставщика?","Куда загрузить договор?"],mgr:1,ctx:()=>"КОНТРАГЕНТЫ:\n"+hlpList(sups,s=>"— "+s.name+(s.brands&&s.brands.length?": "+s.brands.join(", "):""))},
+ team:{q:["Как пригласить мастера?","Какие права дать мастеру?"],mgr:1,ctx:()=>"КОМАНДА:\n"+hlpList(team,u=>"— "+(u.name||"без имени")+": "+(u.role==="manager"?"управляющий":"мастер, права: "+((u.perms||[]).join(", ")||"только стоп")))},
+ chk:{q:["Что осталось сделать сегодня?","Предложи дела для закрытия смены"],
+  ctx:()=>{const wd=new Date().getDay(),ds=todayStr();return "ДЕЛА НА СЕГОДНЯ:\n"+hlpList(checklist.filter(t=>t.recur==="daily"||(t.recur==="weekly"&&+t.weekday===wd)),t=>"— "+t.t+(tasklog.some(l=>l.taskId===String(t.id)&&l.date===ds)?" (сделано)":" (не сделано)"))}},
+ know:{q:["Напиши раздел о том, как закрывать смену","Чего не хватает в базе знаний?","Как добавить фото в раздел?"],
+  rules:()=>"Ты помогаешь писать Базу знаний для персонала: простые понятные тексты, короткие абзацы, по шагам. Готовый раздел передавай функцией draft_knowledge — он откроется в редакторе, и человек сам его поправит и сохранит.",
+  ctx:()=>"КАТЕГОРИИ И РАЗДЕЛЫ:\n"+hlpList(knowcats,c=>"— "+c.name+": "+(knowledge.filter(k=>k.catId===c.id).map(k=>k.title).join("; ")||"пусто"))+(knowCat?"\nОткрыта категория: "+((knowcats.find(c=>c.id===knowCat)||{}).name||""):"\nКатегория не открыта.")}
+};
+const HPERM="Мастер всегда может поставить вкус в стоп. С разрешения управляющего: take — брать со склада на стойку, add — пополнять склад, offbar — убирать со стойки, slow — неликвид, unstop — снимать со стопа. Заказ, инвентаризацию, контрагентов, команду и журнал ведёт только управляющий.";
+function hlpSystem(tab){const H=HELP[tab]||HELP.home,ttl=tab==="home"?"Главная":TABS[tab]||"Стойка";
+  return "Ты — помощник в приложении «Полка» (склад и табачная карта кальянной), сейчас в разделе «"+ttl+"». Помогаешь сотруднику ориентироваться в приложении и работать в этом разделе. Говоришь по-русски, коротко и по делу, без markdown (списки — строками с «— »). Кнопки и разделы называй так, как они подписаны. Чего не знаешь — не выдумывай.\n\n"
+   +"КТО СПРАШИВАЕТ: "+(isMgr?"управляющий, ему можно всё.":"мастер, его права: "+(myPerms.join(", ")||"только стоп")+".")+"\n"+HPERM+"\nЕсли человек просит то, на что у него нет прав, — скажи, что это делает управляющий, и ничего не меняй.\n\n"
+   +"ИЗМЕНЕНИЯ: меняй только функциями. Сразу ничего не записывается: человек увидит список и нажмёт «Подтвердить» — напомни об этом одной строкой. Неоднозначно или не найдено — ничего не меняй, переспроси одним вопросом.\n\n"
+   +(H.rules?H.rules()+"\n\n":"")
+   +"КАК ПОЛЬЗОВАТЬСЯ ПРИЛОЖЕНИЕМ:\n"+guideSecs().map(g=>"## "+g[0]+"\n"+hlpTxt(g[1])).join("\n")+"\n\n"
+   +"ДАННЫЕ РАЗДЕЛА СЕЙЧАС (сегодня "+new Date().toLocaleDateString("ru-RU")+"):\n"+(()=>{try{return H.ctx()}catch(e){return "(данные раздела ещё загружаются)"}})()}
+const hlpT=n=>AI_TOOLS.find(t=>t.name===n);
+function hlpTools(tab,acts){const T=[hlpT("find_items")];
+  const st0=hlpT("stage_stock");
+  if(["bar","smena","wh","slow","inv","home"].includes(tab)&&(isMgr||can("take")||can("add")||can("offbar")))T.push({name:st0.name,description:st0.description+" Изменение попадёт в черновик «Списание / пополнение».",inputSchema:st0.inputSchema,
+    execute(i){const d=Math.round(Number(i.delta)||0);
+     if(d<0&&!can("take"))throw new Error("у этого сотрудника нет права брать со склада");if(d>0&&!can("add"))throw new Error("у этого сотрудника нет права пополнять склад");
+     if(i.toBar===true&&!can("take"))throw new Error("нет права ставить на стойку");if(i.toBar===false&&!can("offbar"))throw new Error("нет права убирать со стойки");
+     const r=st0.execute(i);acts.stock=true;return Object.assign(r,{note:"в черновике, ждёт подтверждения"})}});
+  if(isMgr&&["order","wh","wish","home","inv","slow"].includes(tab)){const o=hlpT("set_order");T.push({name:o.name,description:"Предлагает, сколько штук вкуса заказать (qty, 0 — убрать из заказа). Запишется после «Подтвердить».",inputSchema:o.inputSchema,
+    execute(i){const x=byId[String(i.id)];if(!x)throw new Error("нет такого id");const k=Math.max(0,Math.round(Number(i.qty)||0));acts.list.push({t:"order",id:x.id,qty:k,txt:nm(x)+": "+(k?"заказать "+k+" шт.":"убрать из заказа")});return {queued:true,item:hlpFlav(x),qty:k}}})}
+  if(["bar","smena","stop","slow","wh","home"].includes(tab)){const f=hlpT("set_flag");T.push({name:f.name,description:"Предлагает поставить (on=true) или снять (on=false) метку flag: stop — стоп-лист, slow — неликвид. Запишется после «Подтвердить».",inputSchema:f.inputSchema,
+    execute(i){const x=byId[String(i.id)],k=String(i.flag);if(!x)throw new Error("нет такого id");if(k!=="stop"&&k!=="slow")throw new Error("flag: stop или slow");
+     if(k==="slow"&&!can("slow"))throw new Error("неликвид отмечает управляющий");if(k==="stop"&&!i.on&&!can("unstop"))throw new Error("снять со стопа может управляющий");
+     acts.list.push({t:"flag",id:x.id,k,on:!!i.on,txt:nm(x)+": "+(k==="stop"?(i.on?"в стоп":"снять со стопа"):(i.on?"в неликвид":"снять неликвид"))});return {queued:true,item:hlpFlav(x)}}})}
+  if(tab==="know"&&isMgr&&knowCat)T.push({name:"draft_knowledge",description:"Передаёт готовый раздел Базы знаний в редактор (в открытую категорию). title — заголовок, text — текст раздела, абзацы через пустую строку.",
+    inputSchema:{type:"object",properties:{title:{type:"string"},text:{type:"string"}},required:["title","text"]},
+    execute(i){acts.list.push({t:"know",title:String(i.title||""),text:String(i.text||""),txt:"Раздел «"+String(i.title||"")+"» — открыть в редакторе"});return {queued:true}}});
+  return T}
+const hConv={};let hCtl=null,hImgs=[];
+const hTab=()=>st.tab==="ai"?"bar":(st.tab||"home");
+function hConvOf(tab){return hConv[tab]=hConv[tab]||{turns:[],view:[{role:"assistant",text:hlpHello(tab)}]}}
+function hlpHello(tab){const ttl=tab==="home"?"Главная":TABS[tab]||"раздел";return "Я помощник раздела «"+ttl+"». Спроси, как здесь что работает, или попроси сделать дело. Ничего не меняю без твоего «Подтвердить»."}
+function hDraw(){const tab=hTab(),c=hConvOf(tab),H=HELP[tab]||HELP.home;
+  $("#hsh-t").textContent="✨ Помощник · "+(tab==="home"?"Главная":TABS[tab]||"");
+  $("#hsh-log").innerHTML=c.view.map((m,i)=>'<div class="msg '+m.role+(m.cls?" "+m.cls:"")+'">'+esc(m.text)
+    +(m.acts&&m.acts.length&&!m.done?'<div class="hacts"><ul>'+m.acts.map(a=>'<li>'+esc(a.txt)+'</li>').join("")+'</ul><button type="button" class="btn sm go" data-hok="'+i+'">Подтвердить</button><button type="button" class="btn sm" data-hno="'+i+'">Отмена</button></div>':"")
+    +(m.done?'<div class="hacts small muted">'+esc(m.done)+'</div>':"")
+    +(m.stock?'<div class="hacts"><button type="button" class="btn sm go" data-hrev="1">Проверить и подтвердить склад</button></div>':"")+'</div>').join("");
+  $("#hsh-q").innerHTML=c.turns.length?"":H.q.filter(()=>1).map(t=>'<button type="button" class="chip" data-hq>'+esc(t)+'</button>').join("");
+  $("#hsh-ph-l").hidden=!(H.img&&aiCanImg&&sampleFn);
+  $("#hsh-imgs").textContent=hImgs.length?"Фото к сообщению: "+hImgs.length+" (✕ убрать)":"";$("#hsh-imgs").hidden=!hImgs.length;
+  $("#hsh-send").hidden=!!hCtl;$("#hsh-stop").hidden=!hCtl;$("#hsh-send").disabled=$("#hsh-in").disabled=!sampleFn;
+  const l=$("#hsh-log");l.scrollTop=l.scrollHeight}
+function hOpen(){$("#hsh").hidden=false;$("#hsh-scrim").hidden=false;document.body.classList.add("hsh-on");hDraw()}
+function hClose(){$("#hsh").hidden=true;$("#hsh-scrim").hidden=true;document.body.classList.remove("hsh-on")}
+async function hSend(){const box=$("#hsh-in"),t=box.value.trim();if((!t&&!hImgs.length)||hCtl||!sampleFn)return;
+  const tab=hTab(),c=hConvOf(tab),imgs=hImgs;hImgs=[];box.value="";
+  c.view.push({role:"user",text:(t||"Фото")+(imgs.length?"  [фото: "+imgs.length+"]":"")});
+  c.turns.push({role:"user",content:(t||"Разбери фото.")+(imgs.length?"\n(К сообщению приложено фото: "+imgs.length+")":"")});
+  const out={role:"assistant",text:"Думаю…",cls:"wait"};c.view.push(out);hCtl=new AbortController();hDraw();
+  const acts={list:[],stock:false};
+  try{const r=await sampleFn([{role:"user",content:hlpSystem(tab)},{role:"assistant",content:"Понял."},...c.turns.slice(-12)],{tools:hlpTools(tab,acts),signal:hCtl.signal,images:imgs.length?imgs:undefined,
+      onText:({text})=>{out.cls="";out.text=text;if(hTab()===tab&&!$("#hsh").hidden)hDraw()}});
+    out.cls="";out.text=r.text;c.turns.push({role:"assistant",content:r.text});out.acts=acts.list;out.stock=acts.stock}
+  catch(e){if(e&&e.code==="cancelled"){out.cls="";out.text=(e.text?e.text+"\n":"")+"(остановлено)"}else{out.cls="err";out.text=(e&&e.code!=="refused"&&e.text?e.text+"\n":"")+aiErr(e&&e.code)}
+    c.turns.pop();out.acts=acts.list;out.stock=acts.stock}
+  hCtl=null;hDraw();render()}
+async function hApply(m){m.done="Сохраняю…";hDraw();let ok=0,bad=0;
+  for(const a of m.acts){const x=byId[a.id];
+    try{if(a.t==="order"){hlpT("set_order").execute({id:a.id,qty:a.qty});ok++}
+      else if(a.t==="flag"){await hlpT("set_flag").execute({id:a.id,flag:a.k,on:a.on});ok++}
+      else if(a.t==="know"){hClose();editSection(null,{title:a.title,text:a.text});ok++}}
+    catch(e){bad++}}
+  m.done=bad?"Сделано: "+ok+", не получилось: "+bad:"Готово ✓";hDraw();render()}
+$("#hlp-btn").onclick=hOpen;$("#hsh-x").onclick=hClose;$("#hsh-scrim").onclick=hClose;
+$("#hsh-send").onclick=hSend;$("#hsh-stop").onclick=()=>hCtl&&hCtl.abort();
+$("#hsh-in").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();hSend()}});
+$("#hsh-new").onclick=()=>{if(hCtl)hCtl.abort();delete hConv[hTab()];hDraw()};
+$("#hsh-ph").addEventListener("change",e=>{hImgs=[...e.target.files].slice(0,5);e.target.value="";hDraw()});
+$("#hsh-imgs").onclick=()=>{hImgs=[];hDraw()};
+$("#hsh").addEventListener("click",e=>{const c=hConvOf(hTab());
+  const q=e.target.closest("[data-hq]");if(q){$("#hsh-in").value=q.textContent;hSend();return}
+  const ok=e.target.closest("[data-hok]");if(ok){hApply(c.view[+ok.dataset.hok]);return}
+  const no=e.target.closest("[data-hno]");if(no){c.view[+no.dataset.hno].done="Отменено";hDraw();return}
+  if(e.target.closest("[data-hrev]")){hClose();openReview()}});
+function hlpUi(){$("#hlp-btn").hidden=!sampleFn||st.tab==="ai"}
+
 (async()=>{
   try{db=await window.claude?.use?.("db")}catch(e){db=null}
   if(window.__demoDB){try{isMgr=localStorage.getItem("demo-role")!=="mst"}catch(e){isMgr=true}const rs=$("#role-sw");rs.hidden=false;rs.onclick=()=>{isMgr=!isMgr;try{localStorage.setItem("demo-role",isMgr?"mgr":"mst")}catch(e){}render();menu(false)}}
@@ -1486,9 +1620,10 @@ function renderKnowledge(){
   $("#list").querySelectorAll("[data-kvidsrc]").forEach(el=>{const p=el.dataset.kvidsrc;if(knowImgCache[p]||!db)return;
     db.signFile(p).then(url=>{knowImgCache[p]=url;if(el.isConnected)el.innerHTML='<video class="kthumb" style="width:100%;height:auto;max-height:260px;border-radius:10px" controls playsinline src="'+esc(url)+'"></video>'})
       .catch(()=>{if(el.isConnected)el.innerHTML='<p class="hintline">Не удалось загрузить видео.</p>'})})}
-function editSection(k){let blocks=(k?kBlocks(k):[{t:"text",v:""}]).map(b=>Object.assign({},b));
+function editSection(k,pre){let blocks=(k?kBlocks(k):[{t:"text",v:pre?pre.text:""}]).map(b=>Object.assign({},b));
   if(!blocks.length)blocks=[{t:"text",v:""}];
   showDlg('<h2>'+(k?"Раздел":"Новый раздел")+'</h2><label class="f">Заголовок<input id="ks-t" value="'+esc(k?k.title||"":"")+'" autocomplete="off" placeholder="Например: Внешний вид"></label>'
+    +(sampleFn?'<div class="kai"><button class="btn sm" type="button" id="ks-ai-btn">✨ Написать с ИИ</button><div id="ks-ai" hidden><textarea id="ks-ai-in" rows="2" placeholder="О чём раздел или что поправить. Пусто — ИИ улучшит уже написанный текст" style="width:100%;margin-top:6px"></textarea><div class="acts2" style="margin-top:6px"><button class="btn sm go" type="button" id="ks-ai-go">Написать</button><span class="small muted" id="ks-ai-st"></span></div></div></div>':'')
     +'<label class="f">Текст, фото и видео — пиши и вставляй вложения там, где нужно</label><div id="ks-blocks"></div>'
     +'<input id="ks-file" type="file" accept="image/*" hidden><input id="ks-vid" type="file" accept="video/*" hidden>'
     +'<div class="acts2" style="margin-top:8px"><button class="btn" type="button" id="ks-file-btn">+ Фото</button><button class="btn" type="button" id="ks-vid-btn">+ Видео</button></div>'
@@ -1498,6 +1633,25 @@ function editSection(k){let blocks=(k?kBlocks(k):[{t:"text",v:""}]).map(b=>Objec
     :b.t==="video"?'<div class="frow" data-bi="'+i+'"><span>🎥 '+esc(b.name||"видео")+'</span><button type="button" class="btn sm" data-brm="'+i+'" aria-label="Убрать">✕</button></div>'
     :'<textarea class="ks-bt" data-bi="'+i+'" rows="3" placeholder="Текст…" style="width:100%;margin-top:6px">'+esc(b.v||"")+'</textarea>').join("")};
   draw();
+  if(pre&&pre.title)$("#ks-t").value=pre.title;
+  if($("#ks-ai-btn")){$("#ks-ai-btn").onclick=()=>{$("#ks-ai").hidden=!$("#ks-ai").hidden;if(!$("#ks-ai").hidden)$("#ks-ai-in").focus()};
+    $("#ks-ai-go").onclick=async()=>{const ask=$("#ks-ai-in").value.trim(),title=$("#ks-t").value.trim(),texts=blocks.filter(b=>b.t==="text"&&b.v&&b.v.trim()),cur=texts.map(b=>b.v.trim()).join("\n\n");
+      if(!ask&&!cur&&!title){$("#ks-ai-in").focus();return}
+      const btn=$("#ks-ai-go"),stl=$("#ks-ai-st");btn.disabled=true;stl.textContent="Пишу…";
+      const cat=(knowcats.find(c=>c.id===knowCat)||{}).name||"";
+      const q="Ты пишешь раздел Базы знаний для персонала кальянной (приложение «Полка»). Пиши по-русски, просто и понятно для нового сотрудника: короткие абзацы, где уместно — шаги строками с «— ». Без markdown, без заголовка, без вступлений вроде «Конечно». Верни только текст раздела.\n\n"
+        +(cat?"Категория: "+cat+"\n":"")+(title?"Заголовок раздела: "+title+"\n":"")
+        +(cur?"Текущий текст раздела:\n"+cur+"\n\n":"")+(ask?"Задача: "+ask:"Задача: улучши текущий текст — понятнее, без ошибок, ничего важного не теряя.")
+        +"\n\nКак устроено приложение (если раздел о нём):\n"+guideSecs().map(g=>"## "+g[0]+"\n"+hlpTxt(g[1])).join("\n");
+      try{const r=await sampleFn([{role:"user",content:q},{role:"assistant",content:"Понял."},{role:"user",content:ask||"Улучши текст."}],{onText:({text})=>{stl.textContent="Пишу… "+text.length+" зн."}});
+        const t=String(r.text||"").trim();if(!t)throw {code:"empty"};
+        const only=blocks.filter(b=>b.t==="text");
+        if(!ask&&texts.length===1)texts[0].v=t;
+        else if(only.length===1&&!(only[0].v||"").trim())only[0].v=t;
+        else blocks.push({t:"text",v:t});
+        draw();stl.textContent="Готово. Поправь, если нужно, и нажми «Сохранить».";$("#ks-ai-in").value=""}
+      catch(e){stl.textContent=aiErr(e&&e.code)}
+      btn.disabled=false}}
   $("#dlg-back").onclick=closeDlg;
   $("#ks-blocks").addEventListener("input",e=>{const ta=e.target.closest(".ks-bt");if(ta)blocks[+ta.dataset.bi].v=ta.value});
   $("#ks-blocks").addEventListener("click",e=>{const rm=e.target.closest("[data-brm]");if(rm){const bl=blocks[+rm.dataset.brm];if(bl&&bl.path)db.deleteFile(bl.path).catch(()=>{});blocks.splice(+rm.dataset.brm,1);if(!blocks.length)blocks.push({t:"text",v:""});draw()}});

@@ -10,7 +10,7 @@
 - **База и серверная часть**: Supabase (PostgreSQL).
   - `supabase/migrations_*.sql`: схема, права по ролям (RLS), триггеры и SECURITY DEFINER-функции.
   - `supabase/functions/tg-auth`: вход через Telegram. Проверяет подпись `initData`, выдаёт JWT. Гости без входа читают только представления `public_stock`/`public_mixes` и напрямую таблицы `wishes`/`guest_mixes` (по анонимному ключу, ограниченно политиками RLS).
-  - `supabase/functions/ai`: прокси к ассистенту. Сейчас работает на бесплатном Gemini (перебор моделей `gemini-3.5-flash` → `flash-latest` → `flash-lite` при перегрузе/лимите, клиент сам повторяет запрос с паузой); код поддерживает и Claude API (`ANTHROPIC_API_KEY`), переключение через секрет `AI_PROVIDER`. Лимит — 150 запросов в сутки на пользователя.
+  - `supabase/functions/ai`: прокси к ассистенту. Сейчас работает на бесплатном Gemini (перебор моделей `gemini-3.5-flash` → `flash-latest` → `flash-lite` при перегрузе/лимите, клиент сам повторяет запрос с паузой); код поддерживает и Claude API (`ANTHROPIC_API_KEY`), переключение через секрет `AI_PROVIDER`. Лимит — 75 запросов в сутки на пользователя.
 - **Слой данных в приложении**: `app/shim.js`. Приложение написано под интерфейс коллекций (`collection`, `doc`, `onSnapshot`), `shim.js` реализует его поверх REST Supabase: опрос каждые 6 секунд и обновление после каждой записи.
 
 ## Роли
