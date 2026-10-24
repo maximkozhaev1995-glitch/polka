@@ -9,7 +9,7 @@ const cors = {
   "Content-Type": "application/json",
 };
 const out = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: cors });
-const DAILY_LIMIT = 150; // запросов на человека в сутки
+const DAILY_LIMIT = 75; // запросов на человека в сутки
 const MODELS = ["claude-haiku-5-5", "claude-sonnet-5-5"];
 
 function tgId(req: Request): number | null {
@@ -115,12 +115,13 @@ async function askLocal(db: any, system: string, messages: any[], tools: any[]) 
     if (tools.length) body.tools = tools.map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.input_schema } }));
     const r = await fetch(data.url.replace(/\/+$/, "") + "/v1/chat/completions", {
       method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + key }, body: JSON.stringify(body),
-      signal: AbortSignal.timeout(45000),
+      signal: AbortSignal.timeout(75000), // большой промпт на домашней видеокарте читается до минуты
     });
     if (!r.ok) throw new Error("local " + r.status);
     const msg = (await r.json())?.choices?.[0]?.message || {};
     const content: any[] = [];
-    if (msg.content) content.push({ type: "text", text: String(msg.content) });
+    const txt = String(msg.content || "").replace(/<think>[\s\S]*?<\/think>\s*/g, "").trim();
+    if (txt) content.push({ type: "text", text: txt });
     for (const c of msg.tool_calls || []) {
       let input = {}; try { input = typeof c.function.arguments === "string" ? JSON.parse(c.function.arguments) : c.function.arguments || {}; } catch { /* пустые аргументы */ }
       content.push({ type: "tool_use", id: c.id || "l" + crypto.randomUUID().slice(0, 8), name: c.function.name, input });

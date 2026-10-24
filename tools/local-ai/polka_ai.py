@@ -8,7 +8,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OLLAMA = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434")
-MODEL = os.environ.get("POLKA_AI_MODEL", "qwen2.5:7b")
+# Под RTX 3060 Ti (8 ГБ) + 64 ГБ ОЗУ: MoE-модель, активны ~3 млрд параметров из 30 — часть слоёв в видеопамяти,
+# остальное в оперативке, скорость остаётся рабочей. Своя сборка «polka» — та же модель с длинным контекстом.
+BASE = os.environ.get("POLKA_AI_BASE", "qwen3:30b-a3b")
+MODEL = os.environ.get("POLKA_AI_MODEL", "polka")
+MODELFILE = f"FROM {BASE}\nPARAMETER num_ctx 16384\nPARAMETER temperature 0.7\nPARAMETER top_p 0.8\nPARAMETER top_k 20\n"
 PORT = 8787
 FUNC = "https://wwcgvwfmlkegaqkksujo.supabase.co/functions/v1/ai"
 ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3Y2d2d2ZtbGtlZ2Fxa2tzdWpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTU3MzAsImV4cCI6MjEwODA5MTczMH0.Zrf-0ohug-BE0PPbMgUkSF9TLSOu2gxMnoxEmBtZZcY"
@@ -41,6 +45,16 @@ class Proxy(BaseHTTPRequestHandler):
         if self.path != "/v1/chat/completions":
             return self.send(404, b'{"error":"not_found"}')
         body = self.rfile.read(int(self.headers.get("Content-Length") or 0))
+        try:  # Qwen3 без «размышлений»: отвечает сразу, для стойки так быстрее
+            j = json.loads(body)
+            j["model"] = MODEL
+            for m in j.get("messages", []):
+                if m.get("role") == "system":
+                    m["content"] = str(m.get("content") or "") + "\n/no_think"
+                    break
+            body = json.dumps(j).encode()
+        except ValueError:
+            pass
         t0 = time.time()
         try:
             r = urllib.request.urlopen(urllib.request.Request(OLLAMA + self.path, body, {"Content-Type": "application/json"}), timeout=120)
@@ -98,9 +112,14 @@ def check_ollama():
         tags = json.load(urllib.request.urlopen(OLLAMA + "/api/tags", timeout=5))
     except Exception:
         sys.exit("Ollama не запущена. Откройте Ollama и запустите start.bat ещё раз.")
-    if not any(m.get("name", "").startswith(MODEL) for m in tags.get("models", [])):
-        print(f"Модели {MODEL} нет, скачиваю (один раз, несколько ГБ)…", flush=True)
-        subprocess.run(["ollama", "pull", MODEL])
+    names = [m.get("name", "") for m in tags.get("models", [])]
+    if not any(n.split(":")[0] == MODEL for n in names):
+        if BASE not in names:
+            print(f"Скачиваю модель {BASE} (один раз, около 19 ГБ)…", flush=True)
+            subprocess.run(["ollama", "pull", BASE], check=True)
+        mf = os.path.join(HERE, "Modelfile")
+        open(mf, "w", encoding="utf-8").write(MODELFILE)
+        subprocess.run(["ollama", "create", MODEL, "-f", mf], check=True)
 
 
 if __name__ == "__main__":
