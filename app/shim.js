@@ -163,8 +163,11 @@
       let r;try{r=await callAI({system:first,messages:msgs,tools},opts.signal,()=>{if(opts.onText)opts.onText({text:(text?text+"\n":"")+"ИИ занят, жду очередь…"})})}catch(e){if(e&&e.name==="AbortError")throw {code:"cancelled",text};throw Object.assign({text},e)}
       // Фото, распознанное Яндексом на сервере, дальше идёт текстом (иначе на втором шаге модель его теряет); без Яндекса картинка остаётся
       if(step===0&&r.ocr_texts){let k=0;if(r.ocr)ocr=r.ocr;
-        // opts.photo — приложение само сверяет текст с каталогом; тогда первый ответ модели (по сырому тексту) выбрасываем и спрашиваем заново
-        photo=r.ocr_texts.map(t=>opts.photo?opts.photo(t||""):"[Фото, текст распознан Yandex Vision]\n"+(t||"(текста на фото не нашлось)"));
+        // opts.photo — приложение само сверяет текст с каталогом; тогда первый ответ модели (по сырому тексту) выбрасываем и спрашиваем заново.
+        // Сверка — наш код, может споткнуться на непредвиденном тексте с фото: тогда не роняем весь запрос,
+        // а откатываемся к сырому OCR-тексту для этой картинки (модель разберётся сама, как раньше).
+        photo=r.ocr_texts.map(t=>{try{return opts.photo?opts.photo(t||""):"[Фото, текст распознан Yandex Vision]\n"+(t||"(текста на фото не нашлось)")}
+          catch(e){console.warn("photo match failed:",e);return "[Фото, текст распознан Yandex Vision]\n"+(t||"(текста на фото не нашлось)")}});
         msgs.forEach(m=>{if(Array.isArray(m.content))m.content=m.content.map(b=>b.type==="image"?{type:"text",text:photo[k++]||"(текста на фото не нашлось)"}:b)});
         if(opts.photo)continue}
       msgs.push({role:"assistant",content:r.content});if(r.model)src=r.model;if(r.ocr)ocr=r.ocr;
