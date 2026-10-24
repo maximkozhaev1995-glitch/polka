@@ -138,6 +138,7 @@ async function askLocal(db: any, system: string, messages: any[], tools: any[]) 
 async function yandexOcr(messages: any[]) {
   const key = Deno.env.get("YANDEX_API_KEY"), folder = Deno.env.get("YANDEX_FOLDER_ID");
   if (!key || !folder) return false;
+  const texts: string[] = []; // распознанный текст уходит и клиенту: на следующих шагах он подставляет его вместо картинки
   for (const m of messages) {
     if (!Array.isArray(m.content)) continue;
     m.content = await Promise.all(m.content.map(async (b: any) => {
@@ -150,10 +151,11 @@ async function yandexOcr(messages: any[]) {
       const j = await r.json().catch(() => ({}));
       if (!r.ok) { console.log("yandex ocr", r.status, JSON.stringify(j).slice(0, 200)); const e: any = new Error("image_rejected"); e.status = 422; throw e; }
       const text = String(j?.result?.textAnnotation?.fullText || "").trim();
+      texts.push(text);
       return { type: "text", text: "[Фото, текст распознан Yandex Vision. Этикетки и строки могут быть разорваны, собирай бренд и вкус по смыслу]\n" + (text || "(текста на фото не нашлось)") };
     }));
   }
-  return true;
+  return texts;
 }
 
 Deno.serve(async (req) => {
@@ -189,10 +191,10 @@ Deno.serve(async (req) => {
     const ocr = hasImg ? await yandexOcr(messages) : false;
     if (Deno.env.get("AI_PROVIDER") === "local" && (!hasImg || ocr)) {
       const r = await askLocal(db, String(system || ""), messages, tools || []);
-      if (r) return out({ ...r, ocr: ocr ? "yandex" : undefined });
+      if (r) return out({ ...r, ocr: ocr ? "yandex" : undefined, ocr_texts: ocr || undefined });
       if (!geminiKey && !claudeKey) return out({ error: "busy" }, 503);
     }
-    if (useGemini || (Deno.env.get("AI_PROVIDER") === "local" && geminiKey)) return out({ ...(await askGemini(geminiKey!, String(system || ""), messages, tools || [])), ocr: ocr ? "yandex" : undefined });
+    if (useGemini || (Deno.env.get("AI_PROVIDER") === "local" && geminiKey)) return out({ ...(await askGemini(geminiKey!, String(system || ""), messages, tools || [])), ocr: ocr ? "yandex" : undefined, ocr_texts: ocr || undefined });
     const key = claudeKey!;
     const want = Deno.env.get("AI_MODEL") || "claude-haiku-5-5";
     const model = MODELS.includes(want) ? want : "claude-haiku-5-5";
@@ -205,7 +207,7 @@ Deno.serve(async (req) => {
       messages,
       tools: Array.isArray(tools) && tools.length ? tools : undefined,
     });
-    return out({ content: r.content, stop_reason: r.stop_reason, usage: r.usage, ocr: ocr ? "yandex" : undefined });
+    return out({ content: r.content, stop_reason: r.stop_reason, usage: r.usage, ocr: ocr ? "yandex" : undefined, ocr_texts: ocr || undefined });
   } catch (e) {
     const status = (e as { status?: number }).status;
     if (status === 429) return out({ error: "rate_limited" }, 429);

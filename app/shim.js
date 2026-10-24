@@ -161,7 +161,8 @@
     for(let step=0;step<8;step++){
       if(opts.signal&&opts.signal.aborted)throw {code:"cancelled",text};
       let r;try{r=await callAI({system:first,messages:msgs,tools},opts.signal,()=>{if(opts.onText)opts.onText({text:(text?text+"\n":"")+"ИИ занят, жду очередь…"})})}catch(e){if(e&&e.name==="AbortError")throw {code:"cancelled",text};throw Object.assign({text},e)}
-      if(step===0)msgs.forEach(m=>{if(Array.isArray(m.content))m.content=m.content.map(b=>b.type==="image"?{type:"text",text:"[фото уже разобрано выше]"}:b)});
+      // Фото, распознанное Яндексом на сервере, дальше идёт текстом (иначе на втором шаге модель его теряет); без Яндекса картинка остаётся
+      if(step===0&&r.ocr_texts){let k=0;msgs.forEach(m=>{if(Array.isArray(m.content))m.content=m.content.map(b=>b.type==="image"?{type:"text",text:"[Фото, текст распознан Yandex Vision]\n"+(r.ocr_texts[k++]||"(текста на фото не нашлось)")}:b)})}
       msgs.push({role:"assistant",content:r.content});if(r.model)src=r.model;if(r.ocr)ocr=r.ocr;
       const part=r.content.filter(b=>b.type==="text").map(b=>b.text).join("");
       if(part){text+=(text?"\n":"")+part;if(opts.onText)opts.onText({text})}

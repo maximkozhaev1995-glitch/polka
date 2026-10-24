@@ -17,12 +17,39 @@ PORT = 8787
 FUNC = "https://wwcgvwfmlkegaqkksujo.supabase.co/functions/v1/ai"
 ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3Y2d2d2ZtbGtlZ2Fxa2tzdWpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTU3MzAsImV4cCI6MjEwODA5MTczMH0.Zrf-0ohug-BE0PPbMgUkSF9TLSOu2gxMnoxEmBtZZcY"
 CF = os.path.join(HERE, "cloudflared.exe" if os.name == "nt" else "cloudflared")
+# VPN (Happ/Xray) подменяет DNS и не отдаёт SRV-запись, по которой cloudflared ищет серверы Cloudflare:
+# указываем их адреса сами и идём по TCP (http2), QUIC через VPN не проходит. Переопределить: POLKA_CF_ARGS
+CF_ARGS = os.environ.get("POLKA_CF_ARGS", "--protocol http2 --edge region1.v2.argotunnel.com:7844 --edge region2.v2.argotunnel.com:7844").split()
 CF_URL = "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe"
 
 try:
     KEY = open(os.path.join(HERE, "key.txt"), encoding="utf-8").read().strip()
 except OSError:
     sys.exit("Нет файла key.txt рядом со скриптом. В нём должен быть ключ LOCAL_AI_KEY.")
+
+
+def chat(req):
+    """Запрос в формате OpenAI → родной /api/chat Ollama с think=false (Qwen3 без «размышлений») → ответ в формате OpenAI."""
+    msgs = []
+    for m in req.get("messages", []):
+        m = dict(m)
+        for c in m.get("tool_calls") or []:
+            a = c["function"].get("arguments")
+            c["function"]["arguments"] = json.loads(a) if isinstance(a, str) and a else (a or {})
+        msgs.append(m)
+    body = {"model": MODEL, "messages": msgs, "stream": False, "think": False,
+            "options": {"num_predict": int(req.get("max_tokens") or 2500)}}
+    if req.get("tools"):
+        body["tools"] = req["tools"]
+    r = urllib.request.urlopen(urllib.request.Request(OLLAMA + "/api/chat", json.dumps(body).encode(), {"Content-Type": "application/json"}), timeout=120)
+    msg = json.load(r).get("message", {})
+    calls = [{"id": "c%d_%d" % (int(time.time() * 1000), i), "type": "function",
+              "function": {"name": c["function"]["name"], "arguments": json.dumps(c["function"].get("arguments") or {}, ensure_ascii=False)}}
+             for i, c in enumerate(msg.get("tool_calls") or [])]
+    out = {"role": "assistant", "content": msg.get("content") or ""}
+    if calls:
+        out["tool_calls"] = calls
+    return {"choices": [{"message": out, "finish_reason": "tool_calls" if calls else "stop"}]}
 
 
 class Proxy(BaseHTTPRequestHandler):
@@ -45,20 +72,9 @@ class Proxy(BaseHTTPRequestHandler):
         if self.path != "/v1/chat/completions":
             return self.send(404, b'{"error":"not_found"}')
         body = self.rfile.read(int(self.headers.get("Content-Length") or 0))
-        try:  # Qwen3 без «размышлений»: отвечает сразу, для стойки так быстрее
-            j = json.loads(body)
-            j["model"] = MODEL
-            for m in j.get("messages", []):
-                if m.get("role") == "system":
-                    m["content"] = str(m.get("content") or "") + "\n/no_think"
-                    break
-            body = json.dumps(j).encode()
-        except ValueError:
-            pass
         t0 = time.time()
         try:
-            r = urllib.request.urlopen(urllib.request.Request(OLLAMA + self.path, body, {"Content-Type": "application/json"}), timeout=120)
-            data, code = r.read(), r.status
+            data, code = json.dumps(chat(json.loads(body))).encode(), 200
         except urllib.error.HTTPError as e:
             data, code = e.read(), e.code
         except Exception as e:
@@ -93,9 +109,11 @@ def tunnel():
         print("Скачиваю cloudflared (один раз)…", flush=True)
         urllib.request.urlretrieve(CF_URL, CF)
     while True:
-        p = subprocess.Popen([CF, "tunnel", "--no-autoupdate", "--url", f"http://127.0.0.1:{PORT}"],
+        p = subprocess.Popen([CF, "tunnel", "--no-autoupdate", *CF_ARGS, "--url", f"http://127.0.0.1:{PORT}"],
                              stderr=subprocess.PIPE, stdout=subprocess.DEVNULL, text=True, encoding="utf-8", errors="replace")
+        tail = []
         for line in p.stderr:
+            tail = (tail + [line.rstrip()])[-15:]
             m = re.search(r"https://[a-z0-9-]+\.trycloudflare\.com", line)
             if m and CUR.get("url") != m.group(0):
                 CUR["url"] = m.group(0)
@@ -103,7 +121,7 @@ def tunnel():
                 if register(CUR["url"]):
                     print("Готово. Ассистент Полки отвечает с этого компьютера. Не закрывайте окно.", flush=True)
         CUR.pop("url", None)
-        print("Туннель упал, перезапускаю…", flush=True)
+        print(f"Туннель упал (код {p.wait()}), последние строки cloudflared:", *tail[-6:], "Перезапускаю…", sep="\n  ", flush=True)
         time.sleep(5)
 
 
