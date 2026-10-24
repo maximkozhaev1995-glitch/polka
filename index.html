@@ -675,9 +675,9 @@ function rowV2(x){const n=wh(x),ob=onBar(x),stp=flag(x,"stop"),sl=flag(x,"slow")
 function renderV2(){
   ["#sup","#omanual","#chat","#logbox","#brands","#filters","#tray","#otray"].forEach(q=>{const e=$(q);if(e)e.hidden=true});
   $("#list").hidden=false;$(".search").hidden=false;$(".legend").hidden=true;$(".ttl .stats").hidden=false;document.body.classList.remove("ai-mode","has-tray");
-  const barN=DATA.filter(onBar).length,whP=DATA.reduce((a,x)=>a+wh(x),0),whI=DATA.filter(x=>wh(x)>0).length,stopN=DATA.filter(x=>flag(x,"stop")).length,slowN=DATA.filter(x=>flag(x,"slow")).length;
+  const barRaw=DATA.filter(onBar).length,barN=DATA.filter(x=>onBar(x)&&!flag(x,"stop")).length,whP=DATA.reduce((a,x)=>a+wh(x),0),whI=DATA.filter(x=>wh(x)>0).length,stopN=DATA.filter(x=>flag(x,"stop")).length,slowN=DATA.filter(x=>flag(x,"slow")).length;
   $("#total").textContent=st.tab==="bar"?barN:st.tab==="wh"?whP:st.tab==="stop"?stopN:slowN;
-  $("#totlabel").textContent=st.tab==="bar"?"на стойке":st.tab==="wh"?"шт., "+whI+" вкусов":st.tab==="stop"?"в стопе":"вкусов";
+  $("#totlabel").textContent=st.tab==="bar"?"на стойке"+(barRaw>barN?" · "+(barRaw-barN)+" в стопе":""):st.tab==="wh"?"шт., "+whI+" вкусов":st.tab==="stop"?"в стопе":"вкусов";
   $("#q").placeholder="Найти любой вкус";
   const items=itemsV2(),brands=[...new Set(items.map(x=>x.b))].sort(abc),list=$("#list");let html="";
   if(!stockLoaded&&db)html+='<p class="empty">Склад загружается…</p>';
@@ -701,7 +701,7 @@ document.addEventListener("click",e=>{if(!V2.has(st.tab))return;const lst=e.targ
   const r=e.target.closest("[data-row]");if(r){e.stopPropagation();const id=r.dataset.row;selId=selId===id?"":id;takeQ=1;render()}},true);
 function render(){
   {const a=document.activeElement;if(a&&a.matches&&a.matches("input.oin")){renderLater=true;return}}renderLater=false;
-  const barN=DATA.filter(onBar).length,whItems=DATA.filter(x=>wh(x)>0),whPacks=whItems.reduce((a,x)=>a+wh(x),0);
+  const barN=DATA.filter(x=>onBar(x)&&!flag(x,"stop")).length,whItems=DATA.filter(x=>wh(x)>0),whPacks=whItems.reduce((a,x)=>a+wh(x),0);
   const ordSel=DATA.filter(x=>stockLoaded&&oq(x)>0);
   const stopN=DATA.filter(x=>flag(x,"stop")).length,slowN=DATA.filter(x=>flag(x,"slow")).length,slowP=DATA.filter(x=>flag(x,"slow")).reduce((a,x)=>a+wh(x),0);
   $("#c-bar").textContent=barN;$("#c-wh").textContent=whPacks;$("#c-or").textContent=db?ordSel.length:"";$("#c-stop").textContent=stockLoaded?stopN:"";$("#c-slow").textContent=stockLoaded?slowN:"";
@@ -1452,7 +1452,7 @@ if(true){
   let feedOpen=false;
   const drawHome=()=>{
     HIDE.forEach(q=>{const e=$(q);if(e)e.hidden=true});$("#list").hidden=false;$(".ttl .stats").hidden=true;document.body.classList.remove("ai-mode","has-tray");$("#sect").textContent="Главная";$("#t-str").hidden=!isMgr;$("#t-team").hidden=!isMgr;$("#t-log").hidden=!isMgr;$("#t-inv").hidden=!isMgr;$("#t-sup").hidden=!isMgr;$("#who").textContent=isMgr?"Управляющий":"Мастер";
-    const barN=DATA.filter(onBar).length,low=DATA.filter(x=>onBar(x)&&wh(x)<1).length,ord=DATA.filter(x=>oq(x)>0).length,stp=DATA.filter(x=>flag(x,"stop")).length,slw=DATA.filter(x=>flag(x,"slow")).length,gn=DATA.filter(gone).length;
+    const barN=DATA.filter(x=>onBar(x)&&!flag(x,"stop")).length,low=DATA.filter(x=>onBar(x)&&wh(x)<1).length,ord=DATA.filter(x=>oq(x)>0).length,stp=DATA.filter(x=>flag(x,"stop")).length,slw=DATA.filter(x=>flag(x,"slow")).length,gn=DATA.filter(gone).length;
     const card=(n,l,t,x)=>'<button type="button" class="hcard" data-go="'+t+'"'+(x?' data-x="'+x+'"':"")+'><b>'+n+'</b><span>'+l+'</span></button>';
     const att=(n,l,t)=>n?'<button type="button" class="hrow" data-go="'+t+'"><span>'+l+'</span><b>'+n+'</b><i>›</i></button>':"";
     const feed=[];let last="";moves.slice(0,14).forEach(m=>{const x=byId[m.item];if(!x)return;const d=new Date(m.at),dn=dayName(d);if(dn!==last){feed.push('<h3 class="sub">'+dn+'</h3>');last=dn}
