@@ -106,6 +106,19 @@ function toOpenAI(system: string, messages: any[]) {
   }
   return res;
 }
+// Разбор ответа в формате OpenAI chat.completions (его отдают и ПК, и YandexGPT) в формат Claude-блоков
+function fromOpenAI(j: any, srcPrefix: string, model: string) {
+  if (j?.error) throw new Error(srcPrefix + ": " + String(j.error?.message || j.error).slice(0, 150));
+  const msg = j?.choices?.[0]?.message || {};
+  const content: any[] = [];
+  const txt = String(msg.content || "").replace(/<think>[\s\S]*?<\/think>\s*/g, "").trim();
+  if (txt) content.push({ type: "text", text: txt });
+  for (const c of msg.tool_calls || []) {
+    let input = {}; try { input = typeof c.function.arguments === "string" ? JSON.parse(c.function.arguments) : c.function.arguments || {}; } catch { /* пустые аргументы */ }
+    content.push({ type: "tool_use", id: c.id || srcPrefix[0] + crypto.randomUUID().slice(0, 8), name: c.function.name, input });
+  }
+  return { content, stop_reason: (msg.tool_calls || []).length ? "tool_use" : "end_turn", model: srcPrefix + ":" + model };
+}
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 // Кладём запрос в очередь и ждём ответ: 8 с на то, чтобы компьютер его забрал, 75 с на ответ
 async function viaQueue(db: any, body: unknown) {
@@ -145,19 +158,37 @@ async function askLocal(db: any, system: string, messages: any[], tools: any[]) 
       if (!r.ok) throw new Error("local " + r.status);
       j = await r.json();
     }
-    if (j?.error) throw new Error("local: " + String(j.error).slice(0, 100));
-    const msg = j?.choices?.[0]?.message || {};
-    const content: any[] = [];
-    const txt = String(msg.content || "").replace(/<think>[\s\S]*?<\/think>\s*/g, "").trim();
-    if (txt) content.push({ type: "text", text: txt });
-    for (const c of msg.tool_calls || []) {
-      let input = {}; try { input = typeof c.function.arguments === "string" ? JSON.parse(c.function.arguments) : c.function.arguments || {}; } catch { /* пустые аргументы */ }
-      content.push({ type: "tool_use", id: c.id || "l" + crypto.randomUUID().slice(0, 8), name: c.function.name, input });
-    }
-    return { content, stop_reason: (msg.tool_calls || []).length ? "tool_use" : "end_turn", model: "local:" + body.model };
+    return fromOpenAI(j, "local", String(body.model));
   } catch (e) {
     console.log("local ai down:", String((e as Error).message).slice(0, 120));
     localDownUntil = Date.now() + 60000;
+    return null;
+  }
+}
+
+// ===== YandexGPT (Yandex AI Studio, эндпоинт совместим с OpenAI): текст, платно по токенам, без общего бесплатного лимита =====
+// Использует те же секреты, что и Yandex OCR (YANDEX_API_KEY, YANDEX_FOLDER_ID) — отдельно ничего заводить не нужно.
+let yandexDownUntil = 0;
+async function askYandex(system: string, messages: any[], tools: any[]) {
+  const key = Deno.env.get("YANDEX_API_KEY"), folder = Deno.env.get("YANDEX_FOLDER_ID");
+  if (!key || !folder || Date.now() < yandexDownUntil) return null;
+  try {
+    const model = Deno.env.get("YANDEX_GPT_MODEL") || "yandexgpt/latest";
+    const body: Record<string, unknown> = { model, messages: toOpenAI(system, messages), max_tokens: 2500 };
+    // tool_choice у Yandex поддерживает только auto/none — нам нужен именно auto
+    if (tools.length) { body.tools = tools.map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.input_schema } })); body.tool_choice = "auto"; }
+    const r = await fetch("https://llm.api.cloud.yandex.net/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + key, "OpenAI-Project": folder },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(30000),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error("yandex_gpt_" + r.status + ": " + String(j?.error?.message || j?.error || "").slice(0, 150));
+    return fromOpenAI(j, "yandex", model);
+  } catch (e) {
+    console.log("yandex gpt down:", String((e as Error).message).slice(0, 150));
+    yandexDownUntil = Date.now() + 60000;
     return null;
   }
 }
@@ -262,7 +293,14 @@ Deno.serve(async (req) => {
       if (r) return out({ ...r, ocr: ocr ? "yandex" : undefined, ocr_texts: ocr || undefined });
       if (!geminiKey && !claudeKey) return out({ error: "busy" }, 503);
     }
-    if (useGemini || (Deno.env.get("AI_PROVIDER") === "local" && geminiKey)) return out({ ...(await askGemini(geminiKey!, String(system || ""), messages, tools || [])), ocr: ocr ? "yandex" : undefined, ocr_texts: ocr || undefined });
+    // YandexGPT: платно по токенам (дёшево), без общего бесплатного лимита Gemini — Gemini остаётся запасным, если Yandex недоступен
+    if (Deno.env.get("AI_PROVIDER") === "yandex") {
+      const r = await askYandex(String(system || ""), messages, tools || []);
+      if (r) return out({ ...r, ocr: ocr ? "yandex" : undefined, ocr_texts: ocr || undefined });
+      if (!geminiKey && !claudeKey) return out({ error: "busy" }, 503);
+    }
+    const fallbackProvider = Deno.env.get("AI_PROVIDER") === "local" || Deno.env.get("AI_PROVIDER") === "yandex";
+    if (useGemini || (fallbackProvider && geminiKey)) return out({ ...(await askGemini(geminiKey!, String(system || ""), messages, tools || [])), ocr: ocr ? "yandex" : undefined, ocr_texts: ocr || undefined });
     const key = claudeKey!;
     const want = Deno.env.get("AI_MODEL") || "claude-haiku-5-5";
     const model = MODELS.includes(want) ? want : "claude-haiku-5-5";
