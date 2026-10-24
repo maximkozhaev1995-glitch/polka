@@ -10,8 +10,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 OLLAMA = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434")
 # Под RTX 3060 Ti (8 ГБ) + 64 ГБ ОЗУ: MoE-модель, активны ~3 млрд параметров из 30 — часть слоёв в видеопамяти,
 # остальное в оперативке, скорость остаётся рабочей. Своя сборка «polka» — та же модель с длинным контекстом.
-BASE = os.environ.get("POLKA_AI_BASE", "qwen3:30b-a3b")
-MODEL = os.environ.get("POLKA_AI_MODEL", "polka")
+# Тег qwen3:30b-a3b в Ollama теперь — версия с обязательными «размышлениями»: она не выключается и тратит минуты.
+# Instruct-2507 — та же модель без размышлений, лучше вызывает инструменты.
+BASE = os.environ.get("POLKA_AI_BASE", "qwen3:30b-a3b-instruct-2507-q4_K_M")
+MODEL = os.environ.get("POLKA_AI_MODEL", "polka-instruct")
 MODELFILE = f"FROM {BASE}\nPARAMETER num_ctx 16384\nPARAMETER temperature 0.7\nPARAMETER top_p 0.8\nPARAMETER top_k 20\n"
 FUNC = "https://wwcgvwfmlkegaqkksujo.supabase.co/functions/v1/ai"
 ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3Y2d2d2ZtbGtlZ2Fxa2tzdWpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTU3MzAsImV4cCI6MjEwODA5MTczMH0.Zrf-0ohug-BE0PPbMgUkSF9TLSOu2gxMnoxEmBtZZcY"
@@ -22,7 +24,7 @@ except OSError:
 
 
 def chat(req):
-    """Запрос в формате OpenAI → родной /api/chat Ollama с think=false (Qwen3 без «размышлений») → ответ в формате OpenAI."""
+    """Запрос в формате OpenAI → родной /api/chat Ollama → ответ в формате OpenAI."""
     msgs = []
     for m in req.get("messages", []):
         m = dict(m)
@@ -30,12 +32,7 @@ def chat(req):
             a = c["function"].get("arguments")
             c["function"]["arguments"] = json.loads(a) if isinstance(a, str) and a else (a or {})
         msgs.append(m)
-    # Qwen3 на части версий Ollama игнорирует think=false; /no_think в последнем сообщении пользователя выключает размышления в самой модели
-    for m in reversed(msgs):
-        if m.get("role") == "user" and isinstance(m.get("content"), str):
-            m["content"] += " /no_think"
-            break
-    body = {"model": MODEL, "messages": msgs, "stream": False, "think": False,
+    body = {"model": MODEL, "messages": msgs, "stream": False,
             "options": {"num_predict": int(req.get("max_tokens") or 2500)}}
     if req.get("tools"):
         body["tools"] = req["tools"]
