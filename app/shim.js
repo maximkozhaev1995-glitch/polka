@@ -86,10 +86,14 @@
       list:()=>"task_log?select=id,task_id,on_date,by_name,at&venue_id=eq."+V()+"&order=at.desc&limit=500",
       toDoc:r=>({taskId:String(r.task_id),date:r.on_date,byName:r.by_name,at:r.at}),
       fromDoc:(id,o)=>({venue_id:V(),task_id:+o.taskId,on_date:o.date,by_tg:session.user.tg_id,by_name:o.byName||session.user.name||""})},
+    knowcat:{table:"knowledge_cat",key:"id",
+      list:()=>"knowledge_cat?select=id,name,created_at&venue_id=eq."+V()+"&order=created_at.asc&limit=200",
+      toDoc:r=>({name:r.name,at:r.created_at}),
+      fromDoc:(id,o)=>({venue_id:V(),name:o.name,by_tg:session.user.tg_id})},
     knowledge:{table:"knowledge",key:"id",
-      list:()=>"knowledge?select=id,name,path,created_at&venue_id=eq."+V()+"&order=created_at.desc&limit=200",
-      toDoc:r=>({name:r.name,path:r.path,at:r.created_at}),
-      fromDoc:(id,o)=>({venue_id:V(),name:o.name,path:o.path,by_tg:session.user.tg_id})},
+      list:()=>"knowledge?select=id,cat_id,title,body,name,path,created_at&venue_id=eq."+V()+"&order=created_at.asc&limit=500",
+      toDoc:r=>({catId:r.cat_id?String(r.cat_id):"",title:r.title||"",body:r.body||"",name:r.name||"",path:r.path||"",at:r.created_at}),
+      fromDoc:(id,o)=>{const b={venue_id:V(),cat_id:+o.catId,title:o.title||"",body:o.body||"",name:o.name||null,path:o.path||null,by_tg:session.user.tg_id};if(id)b.id=id;return b}},
   };
   const subs={};
   const snapDocs=async c=>{
