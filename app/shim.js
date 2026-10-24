@@ -158,7 +158,7 @@
     const tools=(opts.tools||[]).map(t=>({name:t.name,description:t.description,input_schema:t.inputSchema}));
     const byName=Object.fromEntries((opts.tools||[]).map(t=>[t.name,t]));
     let text="",src="",ocr="";
-    for(let step=0;step<8;step++){
+    for(let step=0;step<12;step++){
       if(opts.signal&&opts.signal.aborted)throw {code:"cancelled",text};
       let r;try{r=await callAI({system:first,messages:msgs,tools},opts.signal,()=>{if(opts.onText)opts.onText({text:(text?text+"\n":"")+"ИИ занят, жду очередь…"})})}catch(e){if(e&&e.name==="AbortError")throw {code:"cancelled",text};throw Object.assign({text},e)}
       // Фото, распознанное Яндексом на сервере, дальше идёт текстом (иначе на втором шаге модель его теряет); без Яндекса картинка остаётся
@@ -174,6 +174,10 @@
         try{const t=byName[b.name];if(!t)throw new Error("нет такого инструмента");content=JSON.stringify(await t.execute(b.input||{}))}catch(e){err=true;content=String(e&&e.message||e)}
         results.push({type:"tool_result",tool_use_id:b.id,content,is_error:err||undefined})}
       msgs.push({role:"user",content:results})}
+    // Модель закончила вызовами инструментов и ничего не сказала — просим итог словами, уже без инструментов
+    if(!text&&!(opts.signal&&opts.signal.aborted)){const ask={type:"text",text:"Коротко ответь человеку словами: что увидел или нашёл и что сделал (что ждёт «Подтвердить»). Инструменты больше не вызывай."};
+      const last=msgs[msgs.length-1];if(last.role==="user"&&Array.isArray(last.content))last.content.push(ask);else msgs.push({role:"user",content:[ask]});
+      try{const r=await callAI({system:first,messages:msgs,tools:[]},opts.signal,()=>{});if(r.model)src=r.model;text=r.content.filter(b=>b.type==="text").map(b=>b.text).join("")}catch(e){}}
     return {text:text||"Готово.",src:src+(ocr?"+"+ocr:"")}};
   sample.limits=async()=>({images:{mediaTypes:["image/jpeg","image/png","image/webp"]}});
   window.claude={use:async k=>{
