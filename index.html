@@ -571,7 +571,7 @@ const newWh=x=>wh(x)+dd(x);
 const newBar=x=>(draft[x.id]&&draft[x.id].bar!==undefined)?draft[x.id].bar:onBar(x);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const norm=s=>s.toLowerCase().replace(/ё/g,"е");
-var packMap={},packSizes={};
+var packMap={},packSizes={};var checklist=[],knowledge=[];
 const szOf=x=>packSizes[x.b+"|"+(x.l||"")]||packSizes[x.b]||[];
 const multiSz=x=>!!x&&szOf(x).length>1&&!!packMap[x.id];
 const szTag=x=>multiSz(x)?'<span class="ln">'+packMap[x.id]+" г</span>":"";
@@ -1400,7 +1400,7 @@ function renderJournal(){
 $("#list").addEventListener("click",e=>{if(st.tab!=="log")return;const b=e.target.closest("[data-lf]");if(b){logF=b.dataset.lf;render()}});
 /* Миксы: мастера выставляют свои, управляющий отмечает микс недели и сезонные */
 var mixes=[];var MK={week:"Микс недели",season:"Сезонное предложение",master:"Микс мастера"};
-var myPerms=[];var can=p=>isMgr||myPerms.includes(p);var team=[],invites=[],checklist=[],knowledge=[];var PERMS=[["take","Брать со склада на стойку"],["add","Пополнять склад"],["offbar","Убирать со стойки"],["slow","Отмечать неликвид"],["unstop","Возвращать вкус из стопа"]];var mixSeeded=false;var MTAGS=["ягодный","цитрусовый","фруктовый","десертный","свежий","пряный","цветочный","напиточный","кислый","сладкий","крепкий","лёгкий"];var mixTag="";
+var myPerms=[];var can=p=>isMgr||myPerms.includes(p);var team=[],invites=[];var PERMS=[["take","Брать со склада на стойку"],["add","Пополнять склад"],["offbar","Убирать со стойки"],["slow","Отмечать неликвид"],["unstop","Возвращать вкус из стопа"]];var mixSeeded=false;var MTAGS=["ягодный","цитрусовый","фруктовый","десертный","свежий","пряный","цветочный","напиточный","кислый","сладкий","крепкий","лёгкий"];var mixTag="";
 function seedMixes(){if(!NEWUI||mixSeeded)return;mixSeeded=true;if(mixes.length)return;const pick=(...n)=>n.map(t=>DATA.find(x=>(x.b+" "+x.n).toLowerCase().includes(t))).filter(Boolean);
   const mk=(title,kind,note,items,pcts,by,tags)=>{const it=items;if(!it.length)return;db.collection("mixes").add({title,kind,note,by,tags:tags||[],at:new Date().toISOString(),parts:it.map((x,i)=>({id:x.id,pct:pcts[i]}))})};
   mk("Тёплый вечер","week","Мягкий десерт с ягодной кислинкой. Берём, когда хочется уюта.",pick("pan raas","red cherry","kesar"),[50,30,20],"Управляющий",["пряный","ягодный","сладкий"]);
