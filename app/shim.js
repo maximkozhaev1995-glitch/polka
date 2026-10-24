@@ -152,24 +152,28 @@
     opts=opts||{};
     const first=turns[0]&&turns[0].role==="user"?turns[0].content:"";
     let msgs=turns.slice(2).map(t=>({role:t.role,content:t.content}));
+    let ocr="",photo=null;
     if(opts.images&&opts.images.length){
       const blocks=await Promise.all(opts.images.map(imgToBlock));
-      const last=msgs[msgs.length-1];last.content=[...blocks,{type:"text",text:String(last.content)}]}
+      // Распознаём каждое фото отдельным запросом (ocr_only) — иначе на нескольких фото разом функция
+      // Supabase упирается в свой лимит времени (150 с) и падает без ответа («Не получилось»).
+      // Отдельные запросы быстрее по одному и не считаются в дневной лимит (там модель не вызывается).
+      const texts=await Promise.all(blocks.map(async b=>{
+        try{const r=await callAI({system:"",messages:[{role:"user",content:[b]}],tools:[],ocr_only:true},opts.signal,()=>{});
+          if(r.ocr)ocr=r.ocr;return (r.ocr_texts||[])[0]||""}
+        catch(e){return ""}}));
+      // opts.photo — приложение само сверяет текст с каталогом; сверка — наш код, может споткнуться на непредвиденном
+      // тексте с фото: тогда не роняем весь запрос, а откатываемся к сырому OCR-тексту для этой картинки
+      photo=texts.map(t=>{try{return opts.photo?opts.photo(t||""):"[Фото, текст распознан Yandex Vision]\n"+(t||"(текста на фото не нашлось)")}
+        catch(e){console.warn("photo match failed:",e);return "[Фото, текст распознан Yandex Vision]\n"+(t||"(текста на фото не нашлось)")}});
+      const last=msgs[msgs.length-1];
+      last.content=[...photo.map(t=>({type:"text",text:t})),{type:"text",text:String(last.content)}]}
     const tools=(opts.tools||[]).map(t=>({name:t.name,description:t.description,input_schema:t.inputSchema}));
     const byName=Object.fromEntries((opts.tools||[]).map(t=>[t.name,t]));
-    let text="",src="",ocr="",photo=null;
+    let text="",src="";
     for(let step=0;step<12;step++){
       if(opts.signal&&opts.signal.aborted)throw {code:"cancelled",text};
       let r;try{r=await callAI({system:first,messages:msgs,tools},opts.signal,()=>{if(opts.onText)opts.onText({text:(text?text+"\n":"")+"ИИ занят, жду очередь…"})})}catch(e){if(e&&e.name==="AbortError")throw {code:"cancelled",text};throw Object.assign({text},e)}
-      // Фото, распознанное Яндексом на сервере, дальше идёт текстом (иначе на втором шаге модель его теряет); без Яндекса картинка остаётся
-      if(step===0&&r.ocr_texts){let k=0;if(r.ocr)ocr=r.ocr;
-        // opts.photo — приложение само сверяет текст с каталогом; тогда первый ответ модели (по сырому тексту) выбрасываем и спрашиваем заново.
-        // Сверка — наш код, может споткнуться на непредвиденном тексте с фото: тогда не роняем весь запрос,
-        // а откатываемся к сырому OCR-тексту для этой картинки (модель разберётся сама, как раньше).
-        photo=r.ocr_texts.map(t=>{try{return opts.photo?opts.photo(t||""):"[Фото, текст распознан Yandex Vision]\n"+(t||"(текста на фото не нашлось)")}
-          catch(e){console.warn("photo match failed:",e);return "[Фото, текст распознан Yandex Vision]\n"+(t||"(текста на фото не нашлось)")}});
-        msgs.forEach(m=>{if(Array.isArray(m.content))m.content=m.content.map(b=>b.type==="image"?{type:"text",text:photo[k++]||"(текста на фото не нашлось)"}:b)});
-        if(opts.photo)continue}
       msgs.push({role:"assistant",content:r.content});if(r.model)src=r.model;if(r.ocr)ocr=r.ocr;
       const part=r.content.filter(b=>b.type==="text").map(b=>b.text).join("");
       if(part){text+=(text?"\n":"")+part;if(opts.onText)opts.onText({text})}

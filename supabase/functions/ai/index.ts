@@ -280,12 +280,15 @@ Deno.serve(async (req) => {
     if (!tg) return out({ error: "session_expired" }, 401);
 
     const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const { system, messages, tools, ocr_only } = await req.json();
+    const hasImg = messages.some((m: any) => Array.isArray(m.content) && m.content.some((b: any) => b.type === "image"));
+    // Только распознавание, без вызова модели: приложение сверяет текст с каталогом само и присылает фото
+    // отдельными запросами (по одному), чтобы не упираться в лимит времени функции на нескольких фото сразу.
+    // В дневной лимит не считаем — модель (Yandex/Gemini/Claude) тут не вызывается вообще.
+    if (ocr_only) { const r = hasImg ? await yandexOcr(messages) : false; return out({ ocr: r ? "yandex" : undefined, ocr_texts: r || undefined }); }
     const hit = await db.rpc("ai_hit", { p: tg });
     if (hit.error) return out({ error: "server_error" }, 500);
     if (Number(hit.data) > DAILY_LIMIT) return out({ error: "rate_limited", scope: "daily" }, 429);
-
-    const { system, messages, tools } = await req.json();
-    const hasImg = messages.some((m: any) => Array.isArray(m.content) && m.content.some((b: any) => b.type === "image"));
     // Фото: если Yandex подключён — картинки становятся текстом, и дальше их понимает любая модель
     const ocr = hasImg ? await yandexOcr(messages) : false;
     if (Deno.env.get("AI_PROVIDER") === "local" && (!hasImg || ocr)) {
