@@ -157,12 +157,16 @@
       const last=msgs[msgs.length-1];last.content=[...blocks,{type:"text",text:String(last.content)}]}
     const tools=(opts.tools||[]).map(t=>({name:t.name,description:t.description,input_schema:t.inputSchema}));
     const byName=Object.fromEntries((opts.tools||[]).map(t=>[t.name,t]));
-    let text="",src="",ocr="";
+    let text="",src="",ocr="",photo=null;
     for(let step=0;step<12;step++){
       if(opts.signal&&opts.signal.aborted)throw {code:"cancelled",text};
       let r;try{r=await callAI({system:first,messages:msgs,tools},opts.signal,()=>{if(opts.onText)opts.onText({text:(text?text+"\n":"")+"ИИ занят, жду очередь…"})})}catch(e){if(e&&e.name==="AbortError")throw {code:"cancelled",text};throw Object.assign({text},e)}
       // Фото, распознанное Яндексом на сервере, дальше идёт текстом (иначе на втором шаге модель его теряет); без Яндекса картинка остаётся
-      if(step===0&&r.ocr_texts){let k=0;msgs.forEach(m=>{if(Array.isArray(m.content))m.content=m.content.map(b=>b.type==="image"?{type:"text",text:"[Фото, текст распознан Yandex Vision]\n"+(r.ocr_texts[k++]||"(текста на фото не нашлось)")}:b)})}
+      if(step===0&&r.ocr_texts){let k=0;if(r.ocr)ocr=r.ocr;
+        // opts.photo — приложение само сверяет текст с каталогом; тогда первый ответ модели (по сырому тексту) выбрасываем и спрашиваем заново
+        photo=r.ocr_texts.map(t=>opts.photo?opts.photo(t||""):"[Фото, текст распознан Yandex Vision]\n"+(t||"(текста на фото не нашлось)"));
+        msgs.forEach(m=>{if(Array.isArray(m.content))m.content=m.content.map(b=>b.type==="image"?{type:"text",text:photo[k++]||"(текста на фото не нашлось)"}:b)});
+        if(opts.photo)continue}
       msgs.push({role:"assistant",content:r.content});if(r.model)src=r.model;if(r.ocr)ocr=r.ocr;
       const part=r.content.filter(b=>b.type==="text").map(b=>b.text).join("");
       if(part){text+=(text?"\n":"")+part;if(opts.onText)opts.onText({text})}
@@ -178,7 +182,7 @@
     if(!text&&!(opts.signal&&opts.signal.aborted)){const ask={type:"text",text:"Коротко ответь человеку словами: что увидел или нашёл и что сделал (что ждёт «Подтвердить»). Инструменты больше не вызывай."};
       const last=msgs[msgs.length-1];if(last.role==="user"&&Array.isArray(last.content))last.content.push(ask);else msgs.push({role:"user",content:[ask]});
       try{const r=await callAI({system:first,messages:msgs,tools:[]},opts.signal,()=>{});if(r.model)src=r.model;text=r.content.filter(b=>b.type==="text").map(b=>b.text).join("")}catch(e){}}
-    return {text:text||"Готово.",src:src+(ocr?"+"+ocr:"")}};
+    return {text:text||"Готово.",src:src+(ocr?"+"+ocr:""),photo}};
   sample.limits=async()=>({images:{mediaTypes:["image/jpeg","image/png","image/webp"]}});
   window.claude={use:async k=>{
     if(k==="db"){await readyP;return db}
