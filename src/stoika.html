@@ -186,6 +186,7 @@ body.ai-mode .wrap{overscroll-behavior:none}
 .hsh-h{display:flex;align-items:center;gap:8px}.hsh-h b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 body.hsh-on{overflow:hidden}
 .hacts{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;white-space:normal}.hacts ul{flex-basis:100%;margin:0;padding-left:18px}
+.msrc{display:block;margin-top:4px;font-size:11px;color:var(--muted);white-space:nowrap}
 .ai-imgs{align-self:flex-start;border:1px dashed var(--accent);background:var(--accent-soft);color:var(--accent);font:inherit;font-size:13px;border-radius:999px;padding:4px 12px;cursor:pointer}
 [hidden]{display:none!important}
 html,body{overflow-x:hidden;max-width:100%;-webkit-text-size-adjust:100%;touch-action:pan-x pan-y}
@@ -1068,6 +1069,9 @@ function aiSnapshot(){
   const list=Object.keys(by).sort().map(b=>b+": "+by[b].map(x=>x.n+(x.l?" ["+x.l+"]":"")+(x.d&&!/не искал|не нашёл/.test(x.d)?" — "+x.d:"")+(x.t.includes("соло")?" (соло)":"")+(flag(x,"stop")?" (СТОП)":"")).join("; ")).join("\n");
   return "Сегодня "+new Date().toLocaleDateString("ru-RU")+". На стойке "+bar.length+" вкусов, на складе "+whP+" банок, в стопе "+DATA.filter(x=>flag(x,"stop")).length+", в заказе "+DATA.filter(x=>oq(x)>0).length+", в черновике "+Object.keys(draft).length+" позиций.\n\nСТОЙКА СЕЙЧАС:\n"+list;
 }
+// Кто ответил: 🧑‍🔧 ПК (локальная модель) или ☁ Gemini — подпись под ответом
+const aiSrcTxt=s=>/^local/.test(s)?"🧑‍🔧 ПК":/gemini/.test(s)?"☁ Gemini":"";
+function aiSrc(el,s){const t=aiSrcTxt(s||"");if(!t)return;const m=document.createElement("small");m.className="msrc";m.textContent=t;el.append(m)}
 function aiBubble(role,text,cls){const d=document.createElement("div");d.className="msg "+role+(cls?" "+cls:"");d.textContent=text;$("#ai-log").append(d);aiScroll(true);return d}
 function aiScroll(force){const l=$("#ai-log");if(force||l.scrollHeight-l.scrollTop-l.clientHeight<120)l.scrollTop=l.scrollHeight}
 function fitChat(){requestAnimationFrame(()=>{const r=document.documentElement.style;r.setProperty("--chat-top",Math.max(0,$(".bar").getBoundingClientRect().bottom)+"px");const t=$("#tray");r.setProperty("--trayh",(t&&!t.hidden?t.offsetHeight:0)+"px");aiScroll(false)})}
@@ -1083,7 +1087,7 @@ async function aiSend(){
   const turns=[{role:"user",content:AI_RULES+"\n\n"+aiSnapshot()},{role:"assistant",content:"Понял. Стойку вижу, работаю."},...aiTurns.slice(-16)];
   try{
     const r=await sampleFn(turns,{tools:AI_TOOLS,signal:aiCtl.signal,images:imgs.length?imgs:undefined,onText:({text})=>{out.classList.remove("wait");out.textContent=text;aiScroll(false)}});
-    out.classList.remove("wait");out.textContent=r.text;aiTurns.push({role:"assistant",content:r.text});
+    out.classList.remove("wait");out.textContent=r.text;aiSrc(out,r.src);aiTurns.push({role:"assistant",content:r.text});
   }catch(e){out.classList.remove("wait");
     if(e&&e.code==="cancelled"){out.textContent=(e.text||"")+(e.text?"\n":"")+"(остановлено)"}
     else{out.textContent=(e&&e.code!=="refused"&&e.text?e.text+"\n":"")+aiErr(e&&e.code);out.classList.add("err");if(e&&(e.code==="not_granted"||e.code==="sampling_disabled"||e.code==="not_configured"))sampleFn=null}
@@ -1184,7 +1188,7 @@ function hDraw(){const tab=hTab(),c=hConvOf(tab),H=HELP[tab]||HELP.home;
   $("#hsh-t").textContent="✨ Помощник · "+(tab==="home"?"Главная":TABS[tab]||"");
   $("#hsh-log").innerHTML=c.view.map((m,i)=>'<div class="msg '+m.role+(m.cls?" "+m.cls:"")+'">'+esc(m.text)
     +(m.acts&&m.acts.length&&!m.done?'<div class="hacts"><ul>'+m.acts.map(a=>'<li>'+esc(a.txt)+'</li>').join("")+'</ul><button type="button" class="btn sm go" data-hok="'+i+'">Подтвердить</button><button type="button" class="btn sm" data-hno="'+i+'">Отмена</button></div>':"")
-    +(m.done?'<div class="hacts small muted">'+esc(m.done)+'</div>':"")
+    +(m.src?'<small class="msrc">'+aiSrcTxt(m.src)+'</small>':"")+(m.done?'<div class="hacts small muted">'+esc(m.done)+'</div>':"")
     +(m.stock?'<div class="hacts"><button type="button" class="btn sm go" data-hrev="1">Проверить и подтвердить склад</button></div>':"")+'</div>').join("");
   $("#hsh-q").innerHTML=c.turns.length?"":H.q.filter(()=>1).map(t=>'<button type="button" class="chip" data-hq>'+esc(t)+'</button>').join("");
   $("#hsh-ph-l").hidden=!(H.img&&aiCanImg&&sampleFn);
@@ -1201,7 +1205,7 @@ async function hSend(){const box=$("#hsh-in"),t=box.value.trim();if((!t&&!hImgs.
   const acts={list:[],stock:false};
   try{const r=await sampleFn([{role:"user",content:hlpSystem(tab)},{role:"assistant",content:"Понял."},...c.turns.slice(-12)],{tools:hlpTools(tab,acts),signal:hCtl.signal,images:imgs.length?imgs:undefined,
       onText:({text})=>{out.cls="";out.text=text;if(hTab()===tab&&!$("#hsh").hidden)hDraw()}});
-    out.cls="";out.text=r.text;c.turns.push({role:"assistant",content:r.text});out.acts=acts.list;out.stock=acts.stock}
+    out.cls="";out.text=r.text;out.src=r.src;c.turns.push({role:"assistant",content:r.text});out.acts=acts.list;out.stock=acts.stock}
   catch(e){if(e&&e.code==="cancelled"){out.cls="";out.text=(e.text?e.text+"\n":"")+"(остановлено)"}else{out.cls="err";out.text=(e&&e.code!=="refused"&&e.text?e.text+"\n":"")+aiErr(e&&e.code)}
     c.turns.pop();out.acts=acts.list;out.stock=acts.stock}
   hCtl=null;hDraw();render()}
