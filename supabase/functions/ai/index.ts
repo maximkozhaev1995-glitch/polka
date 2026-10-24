@@ -189,10 +189,10 @@ Deno.serve(async (req) => {
     const ocr = hasImg ? await yandexOcr(messages) : false;
     if (Deno.env.get("AI_PROVIDER") === "local" && (!hasImg || ocr)) {
       const r = await askLocal(db, String(system || ""), messages, tools || []);
-      if (r) return out(r);
+      if (r) return out({ ...r, ocr: ocr ? "yandex" : undefined });
       if (!geminiKey && !claudeKey) return out({ error: "busy" }, 503);
     }
-    if (useGemini || (Deno.env.get("AI_PROVIDER") === "local" && geminiKey)) return out(await askGemini(geminiKey!, String(system || ""), messages, tools || []));
+    if (useGemini || (Deno.env.get("AI_PROVIDER") === "local" && geminiKey)) return out({ ...(await askGemini(geminiKey!, String(system || ""), messages, tools || [])), ocr: ocr ? "yandex" : undefined });
     const key = claudeKey!;
     const want = Deno.env.get("AI_MODEL") || "claude-haiku-5-5";
     const model = MODELS.includes(want) ? want : "claude-haiku-5-5";
@@ -205,7 +205,7 @@ Deno.serve(async (req) => {
       messages,
       tools: Array.isArray(tools) && tools.length ? tools : undefined,
     });
-    return out({ content: r.content, stop_reason: r.stop_reason, usage: r.usage });
+    return out({ content: r.content, stop_reason: r.stop_reason, usage: r.usage, ocr: ocr ? "yandex" : undefined });
   } catch (e) {
     const status = (e as { status?: number }).status;
     if (status === 429) return out({ error: "rate_limited" }, 429);
