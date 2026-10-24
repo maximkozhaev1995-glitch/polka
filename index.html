@@ -109,8 +109,9 @@ button.where.ch{border-color:var(--pend);color:var(--pend)}
 .tray-txt{font-size:14px;min-width:0}
 .tray .btn.go{background:var(--accent);border-color:var(--accent);color:#fff;flex:none;height:40px;padding:0 16px}
 body.has-tray{padding-bottom:100px}
-dialog{border:1px solid var(--line);border-radius:14px;background:var(--surface);color:var(--fg);padding:20px;width:min(520px,calc(100vw - 32px));max-height:calc(100dvh - 48px);overflow:auto}
+dialog{border:1px solid var(--line);border-radius:14px;background:var(--surface);color:var(--fg);padding:20px;width:min(520px,calc(100vw - 32px));max-height:calc(100dvh - 48px);overflow:auto;position:fixed;inset:0;margin:auto;z-index:201}
 dialog::backdrop{background:rgba(0,0,0,.45)}
+.dlg-scrim{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200}
 dialog h2{font-family:var(--display);font-size:18px;text-transform:uppercase;margin:0 0 12px}
 dialog h3{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:16px 0 6px}
 dialog ul{list-style:none;margin:0;padding:0}
@@ -375,6 +376,7 @@ body.inv-mode .chip[aria-pressed="true"]{background:var(--fg);border-color:var(-
 <div class="tray" id="otray" hidden><div class="in"><span class="tray-txt" id="otray-txt"></span><button class="btn go" type="button" id="otray-go">Список заказа</button></div></div>
 <div class="tray" id="tray" hidden><div class="in"><span class="tray-txt" id="tray-txt"></span><button class="btn go" type="button" id="tray-go">Списание / пополнение</button></div></div>
 <div class="toast" id="toast" hidden role="status"></div>
+<div class="dlg-scrim" id="dlg-scrim" hidden></div>
 <dialog id="dlg" aria-label="Подтверждение"><div id="dlg-body"></div></dialog>
 <script>// © 2026 Максим Кожаев. Все права защищены. Копирование, распространение и использование без письменного согласия автора запрещены.
 window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3Y2d2d2ZtbGtlZ2Fxa2tzdWpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTU3MzAsImV4cCI6MjEwODA5MTczMH0.Zrf-0ohug-BE0PPbMgUkSF9TLSOu2gxMnoxEmBtZZcY"};</script>
@@ -929,8 +931,11 @@ function openReview(){
   $("#dlg-body").querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{const id=b.dataset.rm;
     if(b.dataset.bar){delete draft[id].bar}else{draft[id].d=0}saveDraft();render();openReview()});
 }
-function showDlg(h){$("#dlg-body").innerHTML=h;const d=$("#dlg");if(!d.open){try{d.showModal()}catch(e){d.setAttribute("open","")}}}
-function closeDlg(){const d=$("#dlg");try{d.close()}catch(e){d.removeAttribute("open")}}
+function showDlg(h){$("#dlg-body").innerHTML=h;const d=$("#dlg");if(d.open)try{d.close()}catch(e){d.removeAttribute("open")}
+  try{d.showModal()}catch(e){d.setAttribute("open","")}
+  $("#dlg-scrim").hidden=false}
+function closeDlg(){const d=$("#dlg");try{d.close()}catch(e){d.removeAttribute("open")}$("#dlg-scrim").hidden=true}
+$("#dlg-scrim").onclick=closeDlg;
 async function commit(){
   if(!db||busy)return;busy=true;$("#dlg-ok").disabled=true;$("#dlg-ok").textContent="Сохраняю…";
   const ids=Object.keys(draft),at=new Date().toISOString(),done=[],leftOf={};let fail=0;
