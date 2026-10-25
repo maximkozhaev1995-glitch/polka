@@ -2,29 +2,7 @@
 // Полка: слой между приложением и базой. Приложение написано под window.claude.use("db"), здесь тот же интерфейс поверх Supabase.
 (function(){
   const CFG=window.POLKA_CONFIG, tg=window.Telegram&&window.Telegram.WebApp;
-  if(tg){try{tg.ready();tg.expand();
-    // Полный экран (Bot API 8.0+): прячет шапку Telegram. На её месте, в зоне
-    // плавающих кнопок Telegram (закрыть/настройки), появляется безопасная
-    // зона contentSafeAreaInset — учитываем её вместе с обычным safe-area-inset
-    // через CSS-переменную --safe-top (см. :root в src/stoika.html).
-    const fsOk=tg.requestFullscreen&&(!tg.isVersionAtLeast||tg.isVersionAtLeast("8.0"));
-    if(fsOk)try{tg.requestFullscreen()}catch(e){}
-    // disableVerticalSwipes() пробовали (25.10) — не убрал сворачивание свайпом,
-    // зато сломал обычный скролл и заставил Telegram рисовать явную кнопку
-    // «✕ Закрыть» вместо шеврона. Убрали. Плавающая полоса Telegram сверху
-    // (закрыть/свернуть/«…») — это UI самого Telegram, средствами Mini App
-    // её не убрать; важно только не давать своей шапке прятаться под ней.
-    //
-    // contentSafeAreaInset — это ДОПОЛНИТЕЛЬНЫЙ отступ под эту полосу, поверх
-    // обычного отступа под чёлку/статус-бар устройства (env(safe-area-inset-top)
-    // / tg.safeAreaInset) — их нужно СКЛАДЫВАТЬ, а не брать максимум.
-    const mobile=tg.platform==="ios"||tg.platform==="android";
-    const syncSafeTop=()=>{try{const c=tg.contentSafeAreaInset||{},
-        content=c.top||(mobile&&tg.isFullscreen?64:0);
-      document.documentElement.style.setProperty("--safe-top","calc(env(safe-area-inset-top,0px) + "+content+"px)")}catch(e){}};
-    syncSafeTop();
-    if(tg.onEvent){tg.onEvent("contentSafeAreaChanged",syncSafeTop);tg.onEvent("safeAreaChanged",syncSafeTop);tg.onEvent("fullscreenChanged",syncSafeTop);tg.onEvent("viewportChanged",syncSafeTop)}
-  }catch(e){}}
+  if(tg){try{tg.ready();tg.expand()}catch(e){}}
   const $=s=>document.querySelector(s);
   let session=null, resolveReady, readyP=new Promise(r=>resolveReady=r);
   const wall=document.createElement("div");wall.id="login";
