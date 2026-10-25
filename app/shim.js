@@ -164,8 +164,8 @@
         catch(e){return ""}}));
       // opts.photo — приложение само сверяет текст с каталогом; сверка — наш код, может споткнуться на непредвиденном
       // тексте с фото: тогда не роняем весь запрос, а откатываемся к сырому OCR-тексту для этой картинки
-      photo=texts.map(t=>{try{return opts.photo?opts.photo(t||""):"[Фото, текст распознан Yandex Vision]\n"+(t||"(текста на фото не нашлось)")}
-        catch(e){console.warn("photo match failed:",e);return "[Фото, текст распознан Yandex Vision]\n"+(t||"(текста на фото не нашлось)")}});
+      photo=texts.map(t=>{try{return opts.photo?opts.photo(t||""):"[Фото, текст прочитан с фото]\n"+(t||"(текста на фото не нашлось)")}
+        catch(e){console.warn("photo match failed:",e);return "[Фото, текст прочитан с фото]\n"+(t||"(текста на фото не нашлось)")}});
       const last=msgs[msgs.length-1];
       last.content=[...photo.map(t=>({type:"text",text:t})),{type:"text",text:String(last.content)}]}
     const tools=(opts.tools||[]).map(t=>({name:t.name,description:t.description,input_schema:t.inputSchema}));
