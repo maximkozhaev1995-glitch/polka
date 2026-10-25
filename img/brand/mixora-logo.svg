@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" stroke-linecap="round">
+<defs>
+<linearGradient id="a" x1="0" y1="62" x2="0" y2="26" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#f06d93" stop-opacity="0"/><stop offset=".4" stop-color="#f06d93"/><stop offset="1" stop-color="#ece3d0"/></linearGradient>
+<linearGradient id="b" x1="0" y1="62" x2="0" y2="26" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#f2c14e" stop-opacity="0"/><stop offset=".4" stop-color="#f2c14e"/><stop offset="1" stop-color="#ece3d0"/></linearGradient>
+<linearGradient id="c" x1="0" y1="62" x2="0" y2="26" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#4fd1a8" stop-opacity="0"/><stop offset=".4" stop-color="#4fd1a8"/><stop offset="1" stop-color="#ece3d0"/></linearGradient>
+</defs>
+<path d="M14 62C12 52 22 50 22 42C22 35 28 31 33 29" stroke="url(#a)" stroke-width="3.4"/>
+<path d="M50 62C54 52 40 50 42 42C43 36 38 31 33 29" stroke="url(#c)" stroke-width="3.4"/>
+<path d="M30 62C26 54 38 48 33 40C30 35 31 31 33 29" stroke="url(#b)" stroke-width="3.4"/>
+<path d="M33 29C40 25 41 18 34 15C28 12.5 26 8 29 5C30.5 3 33 2.6 34.5 3.4" stroke="#ece3d0" stroke-width="3.4"/>
+<path d="M39.5 21C45 19 47 14 45 10C44 8 42.5 7.5 41.5 8" stroke="#ece3d0" stroke-opacity=".4" stroke-width="2.2"/>
+</svg>
