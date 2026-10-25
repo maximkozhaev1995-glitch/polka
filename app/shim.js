@@ -175,7 +175,9 @@
       if(opts.signal&&opts.signal.aborted)throw {code:"cancelled",text};
       let r;try{r=await callAI({system:first,messages:msgs,tools},opts.signal,()=>{if(opts.onText)opts.onText({text:(text?text+"\n":"")+"ИИ занят, жду очередь…"})})}catch(e){if(e&&e.name==="AbortError")throw {code:"cancelled",text};throw Object.assign({text},e)}
       msgs.push({role:"assistant",content:r.content});if(r.model)src=r.model;if(r.ocr)ocr=r.ocr;
-      const part=r.content.filter(b=>b.type==="text").map(b=>b.text).join("");
+      // Служебные id каталога («(id aa09da7d31d5)», «id …, на складе 2») человеку не нужны — модели (особенно
+      // YandexGPT) иногда переписывают их из списка с фото в ответ, вычищаем
+      const part=r.content.filter(b=>b.type==="text").map(b=>b.text).join("").replace(/\s*\(id\s*[0-9a-f]{8,}\)/gi,"").replace(/\bid\s*[0-9a-f]{8,}\s*[,;]\s*/gi,"").replace(/[,;]?\s*\bid\s*[0-9a-f]{8,}/gi,"");
       if(part){text+=(text?"\n":"")+part;if(opts.onText)opts.onText({text})}
       if(r.stop_reason==="refusal")throw {code:"refused",text};
       if(r.stop_reason!=="tool_use")break;
