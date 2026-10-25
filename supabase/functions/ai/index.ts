@@ -1,5 +1,6 @@
 // © 2026 Максим Кожаев. Все права защищены. Копирование, распространение и использование без письменного согласия автора запрещены.
-// ИИ-ассистент Полки: прокси к Gemini (или Claude API). Ключ лежит только здесь (секрет ANTHROPIC_API_KEY), в приложение не попадает.
+// ИИ-ассистент Полки: прокси к Gemini (или Claude API, напрямую через ANTHROPIC_API_KEY либо через свой прокси
+// с ANTHROPIC_BASE_URL+ANTHROPIC_AUTH_TOKEN). Ключи лежат только здесь, в приложение не попадают.
 import Anthropic from "npm:@anthropic-ai/sdk";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -272,7 +273,11 @@ Deno.serve(async (req) => {
       localDownUntil = 0;
       return out({ ok: true });
     }
-    const claudeKey = Deno.env.get("ANTHROPIC_API_KEY");
+    // Claude: обычный ключ (ANTHROPIC_API_KEY) или доступ через прокси (ANTHROPIC_BASE_URL + ANTHROPIC_AUTH_TOKEN)
+    const claudeApiKey = Deno.env.get("ANTHROPIC_API_KEY");
+    const claudeAuthToken = Deno.env.get("ANTHROPIC_AUTH_TOKEN");
+    const claudeBaseUrl = Deno.env.get("ANTHROPIC_BASE_URL");
+    const claudeKey = claudeApiKey || claudeAuthToken;
     const geminiKey = Deno.env.get("GEMINI_API_KEY");
     const useGemini = Deno.env.get("AI_PROVIDER") === "gemini" ? !!geminiKey : (!claudeKey && !!geminiKey);
     if (!claudeKey && !geminiKey) return out({ error: "not_configured" }, 503);
@@ -309,11 +314,14 @@ Deno.serve(async (req) => {
     }
     const fallbackProvider = Deno.env.get("AI_PROVIDER") === "local" || Deno.env.get("AI_PROVIDER") === "yandex";
     if (useGemini || (fallbackProvider && geminiKey)) return out({ ...(await askGemini(geminiKey!, String(system || ""), messages, tools || [])), ocr: ocr ? "yandex" : undefined, ocr_texts: ocr || undefined });
-    const key = claudeKey!;
     const want = Deno.env.get("AI_MODEL") || "claude-haiku-5-5";
     const model = MODELS.includes(want) ? want : "claude-haiku-5-5";
 
-    const client = new Anthropic({ apiKey: key });
+    const client = new Anthropic(
+      claudeApiKey
+        ? { apiKey: claudeApiKey }
+        : { authToken: claudeAuthToken!, baseURL: claudeBaseUrl || undefined },
+    );
     const r = await client.messages.create({
       model,
       max_tokens: 2500,
