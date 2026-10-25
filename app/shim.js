@@ -180,7 +180,7 @@
     let text="",src="";
     for(let step=0;step<12;step++){
       if(opts.signal&&opts.signal.aborted)throw {code:"cancelled",text};
-      let r;try{r=await callAI({system:first,messages:msgs,tools},opts.signal,()=>{if(opts.onText)opts.onText({text:(text?text+"\n":"")+"ИИ занят, жду очередь…"})})}catch(e){if(e&&e.name==="AbortError")throw {code:"cancelled",text};throw Object.assign({text},e)}
+      let r;try{r=await callAI({system:first,messages:msgs,tools,route:opts.route},opts.signal,()=>{if(opts.onText)opts.onText({text:(text?text+"\n":"")+"ИИ занят, жду очередь…"})})}catch(e){if(e&&e.name==="AbortError")throw {code:"cancelled",text};throw Object.assign({text},e)}
       msgs.push({role:"assistant",content:r.content});if(r.model)src=r.model;if(r.ocr)ocr=r.ocr;
       // Служебные id каталога («(id aa09da7d31d5)», «id …, на складе 2») человеку не нужны — модели (особенно
       // YandexGPT) иногда переписывают их из списка с фото в ответ, вычищаем
@@ -197,7 +197,7 @@
     // Модель закончила вызовами инструментов и ничего не сказала — просим итог словами, уже без инструментов
     if(!text&&!(opts.signal&&opts.signal.aborted)){const ask={type:"text",text:"Коротко ответь человеку словами: что увидел или нашёл и что сделал (что ждёт «Подтвердить»). Инструменты больше не вызывай."};
       const last=msgs[msgs.length-1];if(last.role==="user"&&Array.isArray(last.content))last.content.push(ask);else msgs.push({role:"user",content:[ask]});
-      try{const r=await callAI({system:first,messages:msgs,tools:[]},opts.signal,()=>{});if(r.model)src=r.model;text=r.content.filter(b=>b.type==="text").map(b=>b.text).join("")}catch(e){}}
+      try{const r=await callAI({system:first,messages:msgs,tools:[],route:opts.route},opts.signal,()=>{});if(r.model)src=r.model;text=r.content.filter(b=>b.type==="text").map(b=>b.text).join("")}catch(e){}}
     return {text:text||"Готово.",src:src+(ocr?"+"+ocr:""),photo}};
   sample.limits=async()=>({images:{mediaTypes:["image/jpeg","image/png","image/webp"]}});
   window.claude={use:async k=>{

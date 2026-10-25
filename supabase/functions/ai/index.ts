@@ -387,7 +387,11 @@ Deno.serve(async (req) => {
     if (!tg) return out({ error: "session_expired" }, 401);
 
     const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    const { system, messages, tools, ocr_only } = await req.json();
+    const { system, messages, tools, ocr_only, route } = await req.json();
+    // AI_PROVIDER=mix: приложение само говорит, кому вопрос (route): действия со складом/заказом и фото — Claude,
+    // миксы и советы — YandexGPT. Без route или при другом AI_PROVIDER — как раньше
+    const envProv = Deno.env.get("AI_PROVIDER") || "";
+    const prov = envProv === "mix" ? (route === "yandex" ? "yandex" : "claude") : envProv;
     const hasImg = messages.some((m: any) => Array.isArray(m.content) && m.content.some((b: any) => b.type === "image"));
     // Только распознавание, без вызова модели: приложение сверяет текст с каталогом само и присылает фото
     // отдельными запросами (по одному), чтобы не упираться в лимит времени функции на нескольких фото сразу.
@@ -405,30 +409,40 @@ Deno.serve(async (req) => {
     // Фото: картинки становятся текстом (Claude или Yandex Vision), и дальше их понимает любая модель
     const read = hasImg ? await readPhotos(claude, messages) : false;
     const ocr = read ? read.texts : false, ocrBy = read ? read.by : undefined;
-    if (Deno.env.get("AI_PROVIDER") === "local" && (!hasImg || ocr)) {
+    if (prov === "local" && (!hasImg || ocr)) {
       const r = await askLocal(db, String(system || ""), messages, tools || []);
       if (r) return out({ ...r, ocr: ocrBy, ocr_texts: ocr || undefined });
       if (!geminiKey && !claudeKey) return out({ error: "busy" }, 503);
     }
     // YandexGPT: платно по токенам (дёшево), без общего бесплатного лимита Gemini — Gemini остаётся запасным, если Yandex недоступен
-    if (Deno.env.get("AI_PROVIDER") === "yandex") {
+    if (prov === "yandex") {
       const r = await askYandex(String(system || ""), messages, tools || []);
       if (r) return out({ ...r, ocr: ocrBy, ocr_texts: ocr || undefined });
       if (!geminiKey && !claudeKey) return out({ error: "busy" }, 503);
     }
     // ПК или YandexGPT не ответили — подстраховывает Claude, если он подключён (он стабильнее), иначе Gemini
-    const fallbackProvider = Deno.env.get("AI_PROVIDER") === "local" || Deno.env.get("AI_PROVIDER") === "yandex";
+    const fallbackProvider = prov === "local" || prov === "yandex";
     if (useGemini || (fallbackProvider && geminiKey && !claude)) return out({ ...(await askGemini(geminiKey!, String(system || ""), messages, tools || [])), ocr: ocrBy, ocr_texts: ocr || undefined });
     const want = Deno.env.get("AI_MODEL") || "claude-haiku-5-5";
     const model = MODELS.includes(want) ? want : "claude-haiku-5-5";
 
-    const r = await claude!.messages.create({
-      model,
-      max_tokens: 2500,
-      system: [{ type: "text", text: String(system || ""), cache_control: { type: "ephemeral" } }],
-      messages,
-      tools: Array.isArray(tools) && tools.length ? tools : undefined,
-    });
+    let r;
+    try {
+      r = await claude!.messages.create({
+        model,
+        max_tokens: 2500,
+        system: [{ type: "text", text: String(system || ""), cache_control: { type: "ephemeral" } }],
+        messages,
+        tools: Array.isArray(tools) && tools.length ? tools : undefined,
+      });
+    } catch (e) {
+      // mix: Claude не ответил (сбой, лимит прокси) — отвечает YandexGPT, чтобы человек не остался без ответа
+      if (envProv !== "mix") throw e;
+      console.error("claude down, yandex fallback:", (e as { status?: number }).status, String((e as Error).message).slice(0, 200));
+      const y = await askYandex(String(system || ""), messages, tools || []);
+      if (!y) throw e;
+      return out({ ...y, ocr: ocrBy, ocr_texts: ocr || undefined });
+    }
     return out({ content: r.content, stop_reason: r.stop_reason, usage: r.usage, model: r.model || model, ocr: ocrBy, ocr_texts: ocr || undefined });
   } catch (e) {
     const status = (e as { status?: number }).status;
