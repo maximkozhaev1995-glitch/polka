@@ -1390,7 +1390,9 @@ const cnTxt=v=>" "+norm(String(v||"")).replace(/[^a-zа-я0-9]+/g," ").trim()+" 
 // (напр. рукописное «шипучка вишнёвая» вместо каталожного «Вишнёвая шипучка»)
 const nameIn=(T,n)=>{const w=n.trim().split(" ").filter(Boolean);return w.length>1?w.every(x=>T.includes(" "+x+" ")):T.includes(n)};
 // Разбор одного кусочка текста (весь текст, либо одна этикетка — см. matchText)
-function matchChunk(text){const T=cnTxt(text);
+// Расстояние Левенштейна — для «почти совпало» внутри бренда с этикетки («pear bate» = Pear Date)
+const lev=(a,b)=>{let p=[...Array(b.length+1).keys()];for(let i=1;i<=a.length;i++){const c=[i];for(let j=1;j<=b.length;j++)c[j]=Math.min(p[j]+1,c[j-1]+1,p[j-1]+(a[i-1]===b[j-1]?0:1));p=c}return p[b.length]};
+function matchChunk(text,label){const T=cnTxt(text);
    const brands=new Set(DATA.map(x=>cnTxt(x.b).trim()));
    // Название, совпадающее с брендом (Black Burn «Overdose» и бренд Overdose), засчитываем только рядом со своим брендом
    let hit=DATA.filter(x=>{const n=cnTxt(x.n);return n.length>4&&nameIn(T,n.trim())&&(!brands.has(n.trim())||T.includes(cnTxt(x.b+" "+x.n))||nameIn(T,cnTxt(x.b+" "+x.n).trim()))});
@@ -1404,6 +1406,16 @@ function matchChunk(text){const T=cnTxt(text);
    // «Cream» внутри «Cream Soda» — отбрасываем короткое название, если оно целиком (по словам) входит в другое
    // найденное в этом же кусочке более длинное название: это та же банка, оставляем длинное и более точное
    hit=hit.filter(x=>{const n=cnTxt(x.n).trim();return !hit.some(y=>y.id!==x.id&&cnTxt(y.n).trim().length>n.length&&nameIn(cnTxt(y.n),n))});
+   // На одной этикетке прочитан бренд из каталога — вкус ищем только у этого бренда. Иначе «PALITRA Pear bate»
+   // находился как Darkside Pear, а «PALITRA Sour Rasp Berry» — как Tangiers Sour. Точного совпадения у бренда нет —
+   // сравниваем без пробелов и с допуском на одну-две буквы; не нашлось и так — в «не нашлось», чужой бренд не берём
+   if(label){const lb=[...brands].filter(b=>b.length>2&&T.includes(" "+b+" "));
+     if(lb.length){const own=hit.filter(x=>lb.includes(cnTxt(x.b).trim()));
+       if(own.length)hit=own;
+       else{let rest=T;lb.forEach(b=>{rest=rest.replace(" "+b+" "," ")});const r=rest.replace(/ /g,"");
+         const cand=DATA.filter(x=>lb.includes(cnTxt(x.b).trim())).map(x=>{const n=cnTxt(x.n).replace(/ /g,"");return[x,n.length>3?lev(r,n):99,n.length]})
+           .filter(a=>a[1]<=Math.max(1,Math.floor(a[2]/6))).sort((a,b)=>a[1]-b[1]);
+         hit=cand.length&&(cand.length<2||cand[0][1]<cand[1][1])?[cand[0][0]]:[]}}}
    return{hit,byN,T,brands}}
 function matchText(text){const raw=String(text||"");
    // С фото банок сервер отдаёт текст по этикеткам («Этикетка N: …» — см. readPhotos на сервере). Разбираем каждую
@@ -1414,14 +1426,15 @@ function matchText(text){const raw=String(text||"");
    // Один вкус на нескольких этикетках — это несколько банок (сервер уже склеил куски одной этикетки
    // по координатам), считаем их в jars, а не теряем вторую банку
    const seen=new Map(),found=[];
-   chunks.forEach(chunk=>{const{hit,byN,T}=matchChunk(chunk);
+   const gotLabel=new Set();
+   chunks.forEach(chunk=>{const{hit,byN,T}=matchChunk(chunk,labels.length>0);if(hit.length)gotLabel.add(chunk.trim());
      hit.forEach(x=>{if(seen.has(x.id)){if(labels.length)seen.get(x.id).jars++;return}
        const it={...aiItem(x),jars:1,ambiguous:(byN[cnTxt(x.n)]||[]).length>1&&!T.includes(cnTxt(x.b))||undefined};
        seen.set(x.id,it);found.push(it)})});
    const brands=new Set(DATA.map(x=>cnTxt(x.b).trim()));
    const names=found.map(x=>cnTxt(x.name));
    const lines=(labels.length?labels:raw.split(/\n+/)).map(l=>l.trim());
-   const miss=lines.filter(l=>{const c=cnTxt(l);return c.trim().length>2&&!brands.has(c.trim())&&!names.some(n=>nameIn(c,n.trim())||c.includes(n)||n.includes(c))});
+   const miss=lines.filter(l=>{if(gotLabel.has(l))return false;const c=cnTxt(l);return c.trim().length>2&&!brands.has(c.trim())&&!names.some(n=>nameIn(c,n.trim())||c.includes(n)||n.includes(c))});
    return{found:found.slice(0,80),not_found_lines:miss.slice(0,40)}}
 // Фото, прочитанное на сервере (Sonnet или Яндекс): приложение само сверяет текст с каталогом и отдаёт модели готовый список —
 // маленькая модель на ПК иначе пропускает банки и придумывает вкусы
