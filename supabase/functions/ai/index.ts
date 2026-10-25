@@ -294,6 +294,48 @@ async function yandexOcr(messages: any[]) {
   return texts;
 }
 
+// ===== Фото через Claude (Sonnet): читает этикетки сам, в том числе рукописные и с бликами — заметно точнее
+// Yandex Vision на наших фото (тест 25.10: 55 банок из 55 против ошибок вида «шипучна вичневая», «СНАВАССО»).
+// Отдаёт тот же формат «Этикетка N: …», что и yandexOcr, — сверка с каталогом на клиенте не меняется.
+// Фото читается один раз отдельным запросом и дальше в переписку идёт только текст, а не картинка на каждом шаге.
+const PHOTO_PROMPT = `Перепиши текст с фото. Ничего не додумывай: если часть надписи не читается, поставь «?» вместо неё.
+Если на фото банки с табаком для кальяна (этикетки с брендом и вкусом, печатные или от руки) — по одной строке на каждую банку в формате «Этикетка N: БРЕНД ВКУС», ровно как написано на этикетке (N — номер по порядку: слева направо, сверху вниз). Банку, срезанную краем кадра так, что надпись не видна, пропусти. Две одинаковые этикетки на разных банках — две строки.
+Если на фото накладная, чек или другой документ — перепиши весь текст построчно, как есть, без строк «Этикетка».
+Без пояснений, только текст.`;
+async function claudeReadPhotos(client: Anthropic, messages: any[]) {
+  const model = Deno.env.get("PHOTO_MODEL") || "claude-sonnet-5-5";
+  const texts: string[] = [];
+  for (const m of messages) {
+    if (!Array.isArray(m.content)) continue;
+    m.content = await Promise.all(m.content.map(async (b: any) => {
+      if (b.type !== "image") return b;
+      const r = await client.messages.create({
+        model, max_tokens: 2000,
+        messages: [{ role: "user", content: [b, { type: "text", text: PHOTO_PROMPT }] }],
+      }, { timeout: 90000, maxRetries: 0 });
+      if (r.stop_reason === "refusal") { const e: any = new Error("image_rejected"); e.status = 422; throw e; }
+      const text = r.content.filter((x: any) => x.type === "text").map((x: any) => x.text).join("").trim();
+      texts.push(text);
+      return { type: "text", text: "[Фото, текст прочитан с фото. Каждая строка «Этикетка N: …» — отдельная банка; бренд и вкус с разных этикеток не смешивай]\n" + (text || "(текста на фото не нашлось)") };
+    }));
+  }
+  return texts;
+}
+// Чем читать фото: Claude, если он подключён (PHOTO_READER=yandex — принудительно Yandex Vision).
+// Claude не ответил — подстраховывает Yandex Vision, как раньше.
+async function readPhotos(client: Anthropic | null, messages: any[]): Promise<{ texts: string[]; by: string } | false> {
+  if (client && Deno.env.get("PHOTO_READER") !== "yandex") {
+    const backup = JSON.parse(JSON.stringify(messages.map((m: any) => m.content)));
+    try { return { texts: await claudeReadPhotos(client, messages), by: "sonnet" }; }
+    catch (e) {
+      console.log("claude photo failed:", (e as { status?: number }).status, String((e as Error).message).slice(0, 200));
+      messages.forEach((m: any, i: number) => { m.content = backup[i]; });
+    }
+  }
+  const t = await yandexOcr(messages);
+  return t ? { texts: t, by: "yandex" } : false;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
@@ -341,7 +383,8 @@ Deno.serve(async (req) => {
     // Только распознавание, без вызова модели: приложение сверяет текст с каталогом само и присылает фото
     // отдельными запросами (по одному), чтобы не упираться в лимит времени функции на нескольких фото сразу.
     // В дневной лимит не считаем — модель (Yandex/Gemini/Claude) тут не вызывается вообще.
-    if (ocr_only) { const r = hasImg ? await yandexOcr(messages) : false; return out({ ocr: r ? "yandex" : undefined, ocr_texts: r || undefined }); }
+    const claude = claudeKey ? new Anthropic(claudeApiKey ? { apiKey: claudeApiKey } : { authToken: claudeAuthToken!, baseURL: claudeBaseUrl || undefined }) : null;
+    if (ocr_only) { const r = hasImg ? await readPhotos(claude, messages) : false; return out({ ocr: r ? r.by : undefined, ocr_texts: r ? r.texts : undefined }); }
     // Считаем только вопрос человека, не каждый шаг цикла инструментов: продолжение диалога внутри одного
     // вопроса всегда несёт результат инструмента (tool_result) — такие шаги не тратят дневной лимит
     const isToolStep = messages.some((m: any) => Array.isArray(m.content) && m.content.some((b: any) => b.type === "tool_result"));
@@ -350,37 +393,33 @@ Deno.serve(async (req) => {
       if (hit.error) return out({ error: "server_error" }, 500);
       if (Number(hit.data) > DAILY_LIMIT) return out({ error: "rate_limited", scope: "daily" }, 429);
     }
-    // Фото: если Yandex подключён — картинки становятся текстом, и дальше их понимает любая модель
-    const ocr = hasImg ? await yandexOcr(messages) : false;
+    // Фото: картинки становятся текстом (Claude или Yandex Vision), и дальше их понимает любая модель
+    const read = hasImg ? await readPhotos(claude, messages) : false;
+    const ocr = read ? read.texts : false, ocrBy = read ? read.by : undefined;
     if (Deno.env.get("AI_PROVIDER") === "local" && (!hasImg || ocr)) {
       const r = await askLocal(db, String(system || ""), messages, tools || []);
-      if (r) return out({ ...r, ocr: ocr ? "yandex" : undefined, ocr_texts: ocr || undefined });
+      if (r) return out({ ...r, ocr: ocrBy, ocr_texts: ocr || undefined });
       if (!geminiKey && !claudeKey) return out({ error: "busy" }, 503);
     }
     // YandexGPT: платно по токенам (дёшево), без общего бесплатного лимита Gemini — Gemini остаётся запасным, если Yandex недоступен
     if (Deno.env.get("AI_PROVIDER") === "yandex") {
       const r = await askYandex(String(system || ""), messages, tools || []);
-      if (r) return out({ ...r, ocr: ocr ? "yandex" : undefined, ocr_texts: ocr || undefined });
+      if (r) return out({ ...r, ocr: ocrBy, ocr_texts: ocr || undefined });
       if (!geminiKey && !claudeKey) return out({ error: "busy" }, 503);
     }
     const fallbackProvider = Deno.env.get("AI_PROVIDER") === "local" || Deno.env.get("AI_PROVIDER") === "yandex";
-    if (useGemini || (fallbackProvider && geminiKey)) return out({ ...(await askGemini(geminiKey!, String(system || ""), messages, tools || [])), ocr: ocr ? "yandex" : undefined, ocr_texts: ocr || undefined });
+    if (useGemini || (fallbackProvider && geminiKey)) return out({ ...(await askGemini(geminiKey!, String(system || ""), messages, tools || [])), ocr: ocrBy, ocr_texts: ocr || undefined });
     const want = Deno.env.get("AI_MODEL") || "claude-haiku-5-5";
     const model = MODELS.includes(want) ? want : "claude-haiku-5-5";
 
-    const client = new Anthropic(
-      claudeApiKey
-        ? { apiKey: claudeApiKey }
-        : { authToken: claudeAuthToken!, baseURL: claudeBaseUrl || undefined },
-    );
-    const r = await client.messages.create({
+    const r = await claude!.messages.create({
       model,
       max_tokens: 2500,
       system: [{ type: "text", text: String(system || ""), cache_control: { type: "ephemeral" } }],
       messages,
       tools: Array.isArray(tools) && tools.length ? tools : undefined,
     });
-    return out({ content: r.content, stop_reason: r.stop_reason, usage: r.usage, model: r.model || model, ocr: ocr ? "yandex" : undefined, ocr_texts: ocr || undefined });
+    return out({ content: r.content, stop_reason: r.stop_reason, usage: r.usage, model: r.model || model, ocr: ocrBy, ocr_texts: ocr || undefined });
   } catch (e) {
     const status = (e as { status?: number }).status;
     console.error("ai error:", status, String((e as Error).message).slice(0, 300));

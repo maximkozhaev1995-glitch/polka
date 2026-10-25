@@ -683,8 +683,8 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
         catch(e){return ""}}));
       // opts.photo — приложение само сверяет текст с каталогом; сверка — наш код, может споткнуться на непредвиденном
       // тексте с фото: тогда не роняем весь запрос, а откатываемся к сырому OCR-тексту для этой картинки
-      photo=texts.map(t=>{try{return opts.photo?opts.photo(t||""):"[Фото, текст распознан Yandex Vision]\n"+(t||"(текста на фото не нашлось)")}
-        catch(e){console.warn("photo match failed:",e);return "[Фото, текст распознан Yandex Vision]\n"+(t||"(текста на фото не нашлось)")}});
+      photo=texts.map(t=>{try{return opts.photo?opts.photo(t||""):"[Фото, текст прочитан с фото]\n"+(t||"(текста на фото не нашлось)")}
+        catch(e){console.warn("photo match failed:",e);return "[Фото, текст прочитан с фото]\n"+(t||"(текста на фото не нашлось)")}});
       const last=msgs[msgs.length-1];
       last.content=[...photo.map(t=>({type:"text",text:t})),{type:"text",text:String(last.content)}]}
     const tools=(opts.tools||[]).map(t=>({name:t.name,description:t.description,input_schema:t.inputSchema}));
@@ -1338,7 +1338,7 @@ q.addEventListener("input",()=>{st.q=q.value.trim();$("#clear").hidden=!q.value;
 $("#clear").onclick=()=>{q.value="";st.q="";$("#clear").hidden=true;q.focus();render()};
 render();
 // ИИ-ассистент склада: Claude видит склад через функции страницы, остатки меняет только черновиком (подтверждение — обычным окном)
-let sampleFn=null,aiTurns=[],aiCtl=null,aiImgs=[],aiCanImg=false;
+let sampleFn=null,aiTurns=[],aiView=[],aiCtl=null,aiImgs=[],aiCanImg=false;
 // Правило Максима: агент сам ставит в заказ только вкусы с фото банок и из стоп-листа, и не из неликвида; остальное — только советует
 let aiOrdPhoto=false,aiOrdSeen=new Set();  // aiOrdSeen — вкусы, уже поставленные в заказ в этом ответе: вкус и с фото, и из стопа идёт одной строкой
 const ordGate=(x,photo)=>flag(x,"slow")?"вкус в неликвиде — в заказ не ставь, можно только порекомендовать управляющему":!photo&&!flag(x,"stop")?"вкуса нет ни на фото, ни в стоп-листе — в заказ не ставь, только порекомендуй дозаказать":"";
@@ -1391,7 +1391,7 @@ function matchChunk(text){const T=cnTxt(text);
    hit=hit.filter(x=>{const n=cnTxt(x.n).trim();return !hit.some(y=>y.id!==x.id&&cnTxt(y.n).trim().length>n.length&&nameIn(cnTxt(y.n),n))});
    return{hit,byN,T,brands}}
 function matchText(text){const raw=String(text||"");
-   // Яндекс на фото банок отдаёт текст по этикеткам («Этикетка N: …» — см. yandexOcr на сервере). Разбираем каждую
+   // С фото банок сервер отдаёт текст по этикеткам («Этикетка N: …» — см. readPhotos на сервере). Разбираем каждую
    // отдельно: иначе бренд с одной банки и название с соседней, встретившиеся просто где-то в общем тексте,
    // склеиваются в несуществующий вкус (так получился ложный «Black Burn Overdose»)
    const labels=[...raw.matchAll(/^Этикетка\s*\d+\s*:\s*(.*)$/gim)].map(m=>m[1]);
@@ -1408,10 +1408,10 @@ function matchText(text){const raw=String(text||"");
    const lines=(labels.length?labels:raw.split(/\n+/)).map(l=>l.trim());
    const miss=lines.filter(l=>{const c=cnTxt(l);return c.trim().length>2&&!brands.has(c.trim())&&!names.some(n=>nameIn(c,n.trim())||c.includes(n)||n.includes(c))});
    return{found:found.slice(0,80),not_found_lines:miss.slice(0,40)}}
-// Фото, распознанное Яндексом: приложение само сверяет текст с каталогом и отдаёт модели готовый список —
+// Фото, прочитанное на сервере (Sonnet или Яндекс): приложение само сверяет текст с каталогом и отдаёт модели готовый список —
 // маленькая модель на ПК иначе пропускает банки и придумывает вкусы
 function photoNote(text){const m=matchText(text);
-  return "[Фото: текст распознан Yandex Vision и уже сверен с каталогом приложением. Опирайся на этот список, вкусов сверх него не придумывай.]\n"
+  return "[Фото: текст прочитан с фото и уже сверен с каталогом приложением. Опирайся на этот список, вкусов сверх него не придумывай.]\n"
    +"НАЙДЕНО В КАТАЛОГЕ ("+m.found.length+"):\n"+(m.found.map(x=>"— "+x.brand+" "+x.name+(x.jars>1?" ×"+x.jars+" (на "+x.jars+" разных этикетках — скорее всего столько банок)":"")+" (id "+x.id+", на складе "+x.wh+(x.onBar?", на стойке":"")+(x.ambiguous?", бренд на фото не прочитан — уточни":"")+")").join("\n")||"— ничего")
    +(m.not_found_lines.length?"\nНЕ НАШЛОСЬ В КАТАЛОГЕ (строки с фото, могут быть рукописные или с ошибкой распознавания — добери через find_items или переспроси):\n"+m.not_found_lines.map(l=>"— "+l).join("\n"):"")}
 const AI_TOOLS=[
@@ -1451,8 +1451,8 @@ function aiSnapshot(){
   const list=Object.keys(by).sort().map(b=>b+": "+by[b].map(x=>x.n+(x.l?" ["+x.l+"]":"")+(x.d&&!/не искал|не нашёл/.test(x.d)?" — "+x.d:"")+(x.t.includes("соло")?" (соло)":"")+(flag(x,"stop")?" (СТОП)":"")).join("; ")).join("\n");
   return "Сегодня "+new Date().toLocaleDateString("ru-RU")+". На стойке "+bar.length+" вкусов, на складе "+whP+" банок, в стопе "+DATA.filter(x=>flag(x,"stop")).length+", в заказе "+DATA.filter(x=>oq(x)>0).length+", в черновике "+Object.keys(draft).length+" позиций.\n\nСТОЙКА СЕЙЧАС:\n"+list;
 }
-// Кто ответил: 🧑‍🔧 ПК (локальная модель) или ☁ Gemini, и 📷 Яндекс, если он разбирал фото — подпись под ответом
-const aiSrcTxt=s=>[/^local/.test(s)?"🧑‍🔧 ПК":/gemini/.test(s)?"☁ Gemini":/claude/.test(s)?"✦ Claude":"",/yandex/.test(s)?"📷 Яндекс":""].filter(Boolean).join(" · ");
+// Кто ответил: 🧑‍🔧 ПК (локальная модель), ☁ Gemini или ✦ Claude, и кто читал фото (📷 Sonnet или 📷 Яндекс) — подпись под ответом
+const aiSrcTxt=s=>[/^local/.test(s)?"🧑‍🔧 ПК":/gemini/.test(s)?"☁ Gemini":/claude/.test(s)?"✦ Claude":"",/yandex/.test(s)?"📷 Яндекс":/sonnet/.test(s)?"📷 Sonnet":""].filter(Boolean).join(" · ");
 function aiSrc(el,s){const t=aiSrcTxt(s||"");if(!t)return;const m=document.createElement("small");m.className="msrc";m.textContent=t;el.append(m)}
 function aiBubble(role,text,cls){const d=document.createElement("div");d.className="msg "+role+(cls?" "+cls:"");d.textContent=text;$("#ai-log").append(d);aiScroll(true);return d}
 function aiScroll(force){const l=$("#ai-log");if(force||l.scrollHeight-l.scrollTop-l.clientHeight<120)l.scrollTop=l.scrollHeight}
@@ -1470,13 +1470,22 @@ async function aiSend(){
   try{
     const r=await sampleFn(turns,{tools:AI_TOOLS,signal:aiCtl.signal,images:imgs.length?imgs:undefined,photo:photoNote,onText:({text})=>{out.classList.remove("wait");out.textContent=text;aiScroll(false)}});
     out.classList.remove("wait");out.textContent=r.text;aiSrc(out,r.src);if(r.photo)aiTurns[aiTurns.length-1].content=(t||"Разбери фото.")+"\n"+r.photo.join("\n\n");aiTurns.push({role:"assistant",content:r.text});
+    aiView.push({role:"user",text:(t||"Фото")+(imgs.length?"  [фото: "+imgs.length+"]":"")},{role:"assistant",text:r.text,src:r.src||""});
   }catch(e){out.classList.remove("wait");
     if(e&&e.code==="cancelled"){out.textContent=(e.text||"")+(e.text?"\n":"")+"(остановлено)"}
     else{out.textContent=(e&&e.code!=="refused"&&e.text?e.text+"\n":"")+aiErr(e&&e.code);out.classList.add("err");if(e&&(e.code==="not_granted"||e.code==="sampling_disabled"||e.code==="not_configured"))sampleFn=null}
     aiTurns.pop();
   }
-  aiCtl=null;aiUi();render();
+  aiCtl=null;aiUi();render();aiKeep();
 }
+// Короткая память чата: последние 3 вопроса с ответами переживают перезапуск приложения (на этом устройстве,
+// сутки). Модели уходит та же история, что и без перезапуска, — лишних запросов нет, только эти строки в контексте.
+const KEEP_TURNS=6,KEEP_MS=864e5;
+const keepCut=turns=>{let k=turns.slice(-KEEP_TURNS);while(k.length&&k[0].role!=="user")k=k.slice(1);return k};
+// aiView идёт парами с aiTurns (вопрос — ответ), это то, что видно на экране
+function aiKeep(){try{const turns=keepCut(aiTurns);localStorage.setItem("polka-ai-chat",JSON.stringify({at:Date.now(),turns,view:aiView.slice(-turns.length)}))}catch(e){}}
+function aiRestore(){try{const c=JSON.parse(localStorage.getItem("polka-ai-chat")||"null");if(!c||Date.now()-c.at>KEEP_MS||!Array.isArray(c.turns))return;
+  aiTurns=c.turns;aiView=c.view||[];aiView.forEach(m=>{const d=aiBubble(m.role,m.text);if(m.src)aiSrc(d,m.src)})}catch(e){aiTurns=[]}}
 function aiUi(){const busyAi=!!aiCtl;$("#ai-send").hidden=busyAi;$("#ai-stop").hidden=!busyAi;$("#ai-send").disabled=!sampleFn;$("#ai-in").disabled=!sampleFn;
   $("#ai-photo-l").hidden=!aiCanImg||!sampleFn;$("#ai-off").hidden=!!sampleFn}
 function renderAiImgs(){$("#ai-imgs").textContent=aiImgs.length?"Фото к сообщению: "+aiImgs.length+" (✕ убрать)":"";$("#ai-imgs").hidden=!aiImgs.length}
@@ -1485,10 +1494,10 @@ $("#ai-stop").onclick=()=>aiCtl&&aiCtl.abort();
 $("#ai-in").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();aiSend()}});
 $("#ai-photo").addEventListener("change",e=>{aiImgs=[...e.target.files].slice(0,5);e.target.value="";renderAiImgs()});
 $("#ai-imgs").onclick=()=>{aiImgs=[];renderAiImgs()};
-$("#ai-new").onclick=()=>{if(aiCtl)aiCtl.abort();aiTurns=[];$("#ai-log").innerHTML="";aiBubble("assistant",AI_HELLO)};
+$("#ai-new").onclick=()=>{if(aiCtl)aiCtl.abort();aiTurns=[];aiView=[];$("#ai-log").innerHTML="";aiBubble("assistant",AI_HELLO);try{localStorage.removeItem("polka-ai-chat")}catch(e){}};
 document.querySelectorAll(".ai-q").forEach(b=>b.onclick=()=>{$("#ai-in").value=b.textContent;aiSend()});
 const AI_HELLO="Я помогу со складом. Напиши, что перенёс за стойку или что пришло, пришли фото банок, спроси, что заказать, или попроси микс из того, что на стойке. Остатки меняю только черновиком: в склад они попадут после «Подтвердить».";
-aiBubble("assistant",AI_HELLO);
+aiBubble("assistant",AI_HELLO);aiRestore();
 (async()=>{try{sampleFn=await window.claude?.use?.("sample")}catch(e){sampleFn=null}
   if(sampleFn){try{const l=await sampleFn.limits();aiCanImg=!!l.images;if(l.images)$("#ai-photo").accept=l.images.mediaTypes.join(",")}catch(e){}}
   aiUi();hlpUi()})();
@@ -1568,7 +1577,14 @@ function hlpTools(tab,acts){const T=[hlpT("find_items")];if((HELP[tab]||{}).img)
   return T}
 const hConv={};let hCtl=null,hImgs=[];
 const hTab=()=>st.tab==="ai"?"bar":(st.tab||"home");
-function hConvOf(tab){return hConv[tab]=hConv[tab]||{turns:[],view:[{role:"assistant",text:hlpHello(tab)}]}}
+function hConvOf(tab){if(!hConv[tab]){const k=hKept()[tab],ok=k&&Date.now()-k.at<KEEP_MS&&Array.isArray(k.turns);
+  const kv=ok?k.view||[]:[];hConv[tab]={turns:ok?k.turns:[],kv,view:[{role:"assistant",text:hlpHello(tab)},...kv]}}return hConv[tab]}
+// Помощники разделов помнят последние 3 вопроса так же, как главный чат (см. aiKeep): kv — пары вопрос/ответ
+// к c.turns. Кнопки «Подтвердить» не сохраняем — после перезапуска они уже неактуальны
+function hKept(){try{return JSON.parse(localStorage.getItem("polka-hlp-chat")||"{}")||{}}catch(e){return {}}}
+function hKeep(tab){try{const all=hKept(),c=hConv[tab],turns=keepCut(c.turns);
+  if(turns.length)all[tab]={at:Date.now(),turns,view:c.kv.slice(-turns.length)};else delete all[tab];
+  localStorage.setItem("polka-hlp-chat",JSON.stringify(all))}catch(e){}}
 function hlpHello(tab){const ttl=tab==="home"?"Главная":TABS[tab]||"раздел";return "Я помощник раздела «"+ttl+"». Спроси, как здесь что работает, или попроси сделать дело. Ничего не меняю без твоего «Подтвердить»."}
 function hDraw(){const tab=hTab(),c=hConvOf(tab),H=HELP[tab]||HELP.home;
   $("#hsh-t").textContent="✨ Помощник · "+(tab==="home"?"Главная":TABS[tab]||"");
@@ -1591,10 +1607,11 @@ async function hSend(){const box=$("#hsh-in"),t=box.value.trim();if((!t&&!hImgs.
   const acts={list:[],stock:false,photo:imgs.length>0};
   try{const r=await sampleFn([{role:"user",content:hlpSystem(tab)},{role:"assistant",content:"Понял."},...c.turns.slice(-12)],{tools:hlpTools(tab,acts),signal:hCtl.signal,images:imgs.length?imgs:undefined,photo:photoNote,
       onText:({text})=>{out.cls="";out.text=text;if(hTab()===tab&&!$("#hsh").hidden)hDraw()}});
-    out.cls="";out.text=r.text;out.src=r.src;if(r.photo)c.turns[c.turns.length-1].content=(t||"Разбери фото.")+"\n"+r.photo.join("\n\n");c.turns.push({role:"assistant",content:r.text});out.acts=acts.list;out.stock=acts.stock}
+    out.cls="";out.text=r.text;out.src=r.src;if(r.photo)c.turns[c.turns.length-1].content=(t||"Разбери фото.")+"\n"+r.photo.join("\n\n");c.turns.push({role:"assistant",content:r.text});out.acts=acts.list;out.stock=acts.stock;
+    c.kv.push({role:"user",text:(t||"Фото")+(imgs.length?"  [фото: "+imgs.length+"]":"")},{role:"assistant",text:r.text,src:r.src||""})}
   catch(e){if(e&&e.code==="cancelled"){out.cls="";out.text=(e.text?e.text+"\n":"")+"(остановлено)"}else{out.cls="err";out.text=(e&&e.code!=="refused"&&e.text?e.text+"\n":"")+aiErr(e&&e.code)}
     c.turns.pop();out.acts=acts.list;out.stock=acts.stock}
-  hCtl=null;hDraw();render()}
+  hCtl=null;hKeep(tab);hDraw();render()}
 async function hApply(m){m.done="Сохраняю…";hDraw();let ok=0,bad=0;
   for(const a of m.acts){const x=byId[a.id];
     try{if(a.t==="order"){hlpT("set_order").execute({id:a.id,qty:a.qty,_ok:true});ok++}
@@ -1605,7 +1622,7 @@ async function hApply(m){m.done="Сохраняю…";hDraw();let ok=0,bad=0;
 $("#hlp-btn").onclick=hOpen;$("#hsh-x").onclick=hClose;$("#hsh-scrim").onclick=hClose;
 $("#hsh-send").onclick=hSend;$("#hsh-stop").onclick=()=>hCtl&&hCtl.abort();
 $("#hsh-in").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();hSend()}});
-$("#hsh-new").onclick=()=>{if(hCtl)hCtl.abort();delete hConv[hTab()];hDraw()};
+$("#hsh-new").onclick=()=>{if(hCtl)hCtl.abort();const tab=hTab();hConv[tab]={turns:[],kv:[],view:[{role:"assistant",text:hlpHello(tab)}]};hKeep(tab);hDraw()};
 $("#hsh-ph").addEventListener("change",e=>{hImgs=[...e.target.files].slice(0,5);e.target.value="";hDraw()});
 $("#hsh-imgs").onclick=()=>{hImgs=[];hDraw()};
 $("#hsh").addEventListener("click",e=>{const c=hConvOf(hTab());
