@@ -174,7 +174,10 @@ async function askYandex(system: string, messages: any[], tools: any[]) {
   const key = Deno.env.get("YANDEX_API_KEY"), folder = Deno.env.get("YANDEX_FOLDER_ID");
   if (!key || !folder || Date.now() < yandexDownUntil) return null;
   try {
-    const model = Deno.env.get("YANDEX_GPT_MODEL") || "yandexgpt/latest";
+    // Эндпоинт ждёт полный адрес модели gpt://<каталог>/<модель>: с коротким «yandexgpt/latest» он отвечал
+    // 400 «Failed to parse model URI», и всё это время за YandexGPT тихо отвечал запасной Gemini
+    const short = Deno.env.get("YANDEX_GPT_MODEL") || "yandexgpt/latest";
+    const model = short.startsWith("gpt://") ? short : "gpt://" + folder + "/" + short;
     const body: Record<string, unknown> = { model, messages: toOpenAI(system, messages), max_tokens: 2500 };
     // tool_choice у Yandex поддерживает только auto/none — нам нужен именно auto
     if (tools.length) { body.tools = tools.map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.input_schema } })); body.tool_choice = "auto"; }
@@ -186,7 +189,7 @@ async function askYandex(system: string, messages: any[], tools: any[]) {
     });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error("yandex_gpt_" + r.status + ": " + String(j?.error?.message || j?.error || "").slice(0, 150));
-    return fromOpenAI(j, "yandex", model);
+    return fromOpenAI(j, "yandex", short);
   } catch (e) {
     console.log("yandex gpt down:", String((e as Error).message).slice(0, 150));
     yandexDownUntil = Date.now() + 60000;
@@ -407,8 +410,9 @@ Deno.serve(async (req) => {
       if (r) return out({ ...r, ocr: ocrBy, ocr_texts: ocr || undefined });
       if (!geminiKey && !claudeKey) return out({ error: "busy" }, 503);
     }
+    // ПК или YandexGPT не ответили — подстраховывает Claude, если он подключён (он стабильнее), иначе Gemini
     const fallbackProvider = Deno.env.get("AI_PROVIDER") === "local" || Deno.env.get("AI_PROVIDER") === "yandex";
-    if (useGemini || (fallbackProvider && geminiKey)) return out({ ...(await askGemini(geminiKey!, String(system || ""), messages, tools || [])), ocr: ocrBy, ocr_texts: ocr || undefined });
+    if (useGemini || (fallbackProvider && geminiKey && !claude)) return out({ ...(await askGemini(geminiKey!, String(system || ""), messages, tools || [])), ocr: ocrBy, ocr_texts: ocr || undefined });
     const want = Deno.env.get("AI_MODEL") || "claude-haiku-5-5";
     const model = MODELS.includes(want) ? want : "claude-haiku-5-5";
 

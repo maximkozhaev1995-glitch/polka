@@ -1247,8 +1247,9 @@ function aiSnapshot(){
   const list=Object.keys(by).sort().map(b=>b+": "+by[b].map(x=>x.n+(x.l?" ["+x.l+"]":"")+(x.d&&!/не искал|не нашёл/.test(x.d)?" — "+x.d:"")+(x.t.includes("соло")?" (соло)":"")+(flag(x,"stop")?" (СТОП)":"")).join("; ")).join("\n");
   return "Сегодня "+new Date().toLocaleDateString("ru-RU")+". На стойке "+bar.length+" вкусов, на складе "+whP+" банок, в стопе "+DATA.filter(x=>flag(x,"stop")).length+", в заказе "+DATA.filter(x=>oq(x)>0).length+", в черновике "+Object.keys(draft).length+" позиций.\n\nСТОЙКА СЕЙЧАС:\n"+list;
 }
-// Кто ответил: 🧑‍🔧 ПК (локальная модель), ☁ Gemini или ✦ Claude, и кто читал фото (📷 Sonnet или 📷 Яндекс) — подпись под ответом
-const aiSrcTxt=s=>[/^local/.test(s)?"🧑‍🔧 ПК":/gemini/.test(s)?"☁ Gemini":/claude/.test(s)?"✦ Claude":"",/yandex/.test(s)?"📷 Яндекс":/sonnet/.test(s)?"📷 Sonnet":""].filter(Boolean).join(" · ");
+// Кто ответил: 🧑‍🔧 ПК (локальная модель), Я YandexGPT, ☁ Gemini или ✦ Claude, и кто читал фото (📷 Sonnet или 📷 Яндекс) — подпись под ответом
+// src — «модель+кто читал фото» (см. sample в app/shim.js)
+const aiSrcTxt=s=>{const[m,o]=String(s).split("+");return[/^local/.test(m)?"🧑‍🔧 ПК":/^yandex/.test(m)?"Я YandexGPT":/gemini/.test(m)?"☁ Gemini":/claude/.test(m)?"✦ Claude":"",o==="yandex"?"📷 Яндекс":o==="sonnet"?"📷 Sonnet":""].filter(Boolean).join(" · ")};
 function aiSrc(el,s){const t=aiSrcTxt(s||"");if(!t)return;const m=document.createElement("small");m.className="msrc";m.textContent=t;el.append(m)}
 function aiBubble(role,text,cls){const d=document.createElement("div");d.className="msg "+role+(cls?" "+cls:"");d.textContent=text;$("#ai-log").append(d);aiScroll(true);return d}
 function aiScroll(force){const l=$("#ai-log");if(force||l.scrollHeight-l.scrollTop-l.clientHeight<120)l.scrollTop=l.scrollHeight}
