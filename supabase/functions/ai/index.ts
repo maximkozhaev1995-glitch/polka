@@ -329,7 +329,13 @@ async function claudeReadPhotos(client: Anthropic, messages: any[]) {
 async function readPhotos(client: Anthropic | null, messages: any[]): Promise<{ texts: string[]; by: string } | false> {
   if (client && Deno.env.get("PHOTO_READER") !== "yandex") {
     const backup = JSON.parse(JSON.stringify(messages.map((m: any) => m.content)));
-    try { return { texts: await claudeReadPhotos(client, messages), by: "sonnet" }; }
+    const t0 = Date.now();
+    try {
+      const texts = await claudeReadPhotos(client, messages);
+      // След в логах функции: сколько фото, сколько строк-этикеток и за сколько — чтобы разбирать жалобы «фото не прочиталось»
+      console.log("photo sonnet:", texts.map((t) => (t.match(/^Этикетка/gm) || []).length + " эт./" + t.length + " симв.").join(", "), (Date.now() - t0) + "ms");
+      return { texts, by: "sonnet" };
+    }
     catch (e) {
       console.log("claude photo failed:", (e as { status?: number }).status, String((e as Error).message).slice(0, 200));
       messages.forEach((m: any, i: number) => { m.content = backup[i]; });
