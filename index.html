@@ -1496,15 +1496,14 @@ async function addNewFlavor(b,n){if(DATA.some(x=>norm(x.b)===norm(b)&&norm(x.n)=
   await db.doc("items/"+id).set({b,l:"",n,d:"",s:"name",t:[],bar:false});await db.doc("stock/"+id).set({wh:0});
   await db.collection("moves").add({item:id,qty:0,left:0,prev:{wh:0,bar:null},at:new Date().toISOString(),kind:"in",reason:"Новый вкус — внёс ассистент"})}
 // Просили собрать заказ, а модель только написала «добавил в заказ» и set_order не вызвала (так бывает у YandexGPT) —
-// приложение само находит вкусы в абзацах про заказ и предлагает поставить их одной кнопкой (по 1 шт., без неликвида)
+// приложение само находит вкусы в абзацах про заказ и сразу ставит их (по 1 шт., без неликвида и без уже стоящих
+// в заказе), с кнопкой «Отменить». Так YandexGPT отвечает быстро, а действие делает приложение
 function orderFixBox(el,text){const part=String(text||"").split(/\n\s*\n/).filter(p=>/заказ/i.test(p)).join("\n");if(!part)return;
   const list=matchText(part).found.map(x=>byId[x.id]).filter(x=>x&&!flag(x,"slow")&&!oq(x));if(!list.length)return;
+  list.forEach(x=>{orderQ[x.id]=1});saveOrder();
   const box=document.createElement("div");box.className="hacts";
-  box.innerHTML='<b>В раздел «Заказ» ассистент ничего не поставил.</b> Поставить по 1 шт.?<ul>'+list.map(x=>'<li>'+esc(x.b+" "+x.n)+'</li>').join("")+'</ul>'
-   +'<button type="button" class="btn sm go">Поставить в заказ</button><button type="button" class="btn sm">Отмена</button>';
-  el.append(box);const [ok,no]=box.querySelectorAll("button");
-  ok.onclick=()=>{list.forEach(x=>{orderQ[x.id]=1});saveOrder();render();box.innerHTML='<small class="muted">Поставлено в заказ: '+list.length+' ✓</small>'};
-  no.onclick=()=>{box.innerHTML='<small class="muted">Не поставлено.</small>'}}
+  box.innerHTML='<b>Поставлено в заказ по 1 шт.:</b><ul>'+list.map(x=>'<li>'+esc(x.b+" "+x.n)+'</li>').join("")+'</ul><button type="button" class="btn sm">Отменить</button>';
+  el.append(box);box.querySelector("button").onclick=()=>{list.forEach(x=>{if(orderQ[x.id]===1)delete orderQ[x.id]});saveOrder();render();box.innerHTML='<small class="muted">Убрано из заказа.</small>'}}
 // Под ответом главного ассистента: какие вкусы с фото новые и кнопки «Подтвердить»/«Отмена» (только управляющему)
 function newFlavorBox(el,list){const box=document.createElement("div");box.className="hacts";
   box.innerHTML='<b>Новые вкусы, которых нет в каталоге:</b><ul>'+list.map(y=>'<li>'+esc(y.b+" "+y.n)+'</li>').join("")+'</ul>'
