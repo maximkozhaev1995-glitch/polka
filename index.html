@@ -1524,6 +1524,19 @@ function stockFixBox(el,text,jars,toBar){const st=AI_TOOLS.find(f=>f.name==="sta
   if(!done.length)return;const box=document.createElement("div");box.className="hacts";
   box.innerHTML='<b>Положено в черновик «Списание / пополнение»:</b><ul>'+done.map(d=>'<li>'+esc(d[0].b+" "+d[0].n+" "+d[1])+'</li>').join("")+'</ul><small class="muted">Проверь и нажми внизу «Списание / пополнение» → «Подтвердить».</small>';
   el.append(box)}
+// «Перенеси со склада на стойку» с фото: перенос собирает приложение, а не модель — YandexGPT путал знак (ставил
+// пополнение +3 вместо −3) и называл не все вкусы. Черновик этого ответа заменяется переносом всех вкусов с фото:
+// по числу банок на фото, но не больше остатка на складе; вкусы без остатка — отдельной строкой
+function photoMoveBox(el,jars,d0){const st=AI_TOOLS.find(f=>f.name==="stage_stock"),done=[],none=[];
+  try{draft=JSON.parse(d0)||{}}catch(e){draft={}}
+  Object.keys(jars).forEach(id=>{const x=byId[id];if(!x)return;const left=wh(x)+((draft[id]||{}).d||0),n=Math.min(jars[id],left);
+    if(n<1){none.push(x);return}try{st.execute({id,delta:-n,toBar:true});done.push([x,n])}catch(e){none.push(x)}});
+  saveDraft();render();
+  const box=document.createElement("div");box.className="hacts";
+  box.innerHTML='<b>Перенос со склада на стойку, в черновике:</b><ul>'+(done.map(d=>'<li>'+esc(d[0].b+" "+d[0].n+(d[0].l?" · "+d[0].l:"")+" ×"+d[1])+'</li>').join("")||"<li>ничего — на складе нет этих вкусов</li>")+'</ul>'
+   +(none.length?'<small class="muted">Нет на складе, не перенесены: '+esc(none.map(x=>x.b+" "+x.n).join(", "))+'.</small><br>':'')
+   +'<small class="muted">Проверь и нажми внизу «Списание / пополнение» → «Подтвердить».</small>';
+  el.append(box)}
 // Под ответом главного ассистента: какие вкусы с фото новые и кнопки «Подтвердить»/«Отмена» (только управляющему)
 function newFlavorBox(el,list){const box=document.createElement("div");box.className="hacts";
   box.innerHTML='<b>Новые вкусы, которых нет в каталоге:</b><ul>'+list.map(y=>'<li>'+esc(y.b+" "+y.n)+'</li>').join("")+'</ul>'
@@ -1590,7 +1603,7 @@ async function aiSend(){
     const d0=JSON.stringify(draft);
     const r=await sampleFn(turns,{tools:AI_TOOLS,signal:aiCtl.signal,images:imgs.length?imgs:undefined,photo:photoNote,onText:({text})=>{out.classList.remove("wait");out.textContent=text;aiScroll(false)}});
     const head=acc?photoHead(acc):"";if(head)r.text=head+"\n\n"+r.text;
-    out.classList.remove("wait");out.textContent=r.text;aiSrc(out,r.src);if(acc&&acc.newf.length)newFlavorBox(out,acc.newf);if(aiOrdAsk&&!aiOrdSeen.size)orderFixBox(out,r.text);if(stockAsked(t)&&JSON.stringify(draft)===d0)stockFixBox(out,r.text,acc&&acc.jars,/перен|перекин|на\s+стойк|за\s+стойк/i.test(t));if(r.photo)aiTurns[aiTurns.length-1].content=(t||"Разбери фото.")+"\n"+r.photo.join("\n\n");aiTurns.push({role:"assistant",content:r.text});
+    out.classList.remove("wait");out.textContent=r.text;aiSrc(out,r.src);if(acc&&acc.newf.length)newFlavorBox(out,acc.newf);if(aiOrdAsk&&!aiOrdSeen.size)orderFixBox(out,r.text);if(acc&&Object.keys(acc.jars).length&&/перен|перекин|на\s+стойк|за\s+стойк/i.test(t))photoMoveBox(out,acc.jars,d0);else if(stockAsked(t)&&JSON.stringify(draft)===d0)stockFixBox(out,r.text,acc&&acc.jars,/перен|перекин|на\s+стойк|за\s+стойк/i.test(t));if(r.photo)aiTurns[aiTurns.length-1].content=(t||"Разбери фото.")+"\n"+r.photo.join("\n\n");aiTurns.push({role:"assistant",content:r.text});
     aiView.push({role:"user",text:(t||"Фото")+(imgs.length?"  [фото: "+imgs.length+"]":"")},{role:"assistant",text:r.text,src:r.src||""});
   }catch(e){out.classList.remove("wait");
     if(e&&e.code==="cancelled"){out.textContent=(e.text||"")+(e.text?"\n":"")+"(остановлено)"}
