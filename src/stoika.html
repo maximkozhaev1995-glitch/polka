@@ -173,11 +173,13 @@ body.ai-mode .wrap{overscroll-behavior:none}
 .ai-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .ai-log{display:flex;flex-direction:column;gap:8px;flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding-bottom:4px}
 .ai-log>.msg:first-child{margin-top:8px}
-.msg{max-width:88%;padding:10px 12px;border-radius:14px;white-space:pre-wrap;font-size:15px;line-height:1.45;overflow-wrap:anywhere}
+.msg{max-width:88%;padding:10px 12px;border-radius:14px;white-space:pre-wrap;font-size:15px;line-height:1.45;overflow-wrap:anywhere;user-select:text;-webkit-user-select:text;-webkit-touch-callout:default}
 .msg.user{align-self:flex-end;background:var(--accent);color:#fff;border-bottom-right-radius:4px}
 .msg.assistant{align-self:flex-start;background:var(--surface);border:1px solid var(--line);border-bottom-left-radius:4px}
 .msg.wait{color:var(--muted);font-style:italic}
 .msg.err{border-color:var(--pend)}
+.mcopy{display:block;margin-top:6px;border:0;background:none;padding:0;font-size:12px;color:var(--muted);cursor:pointer}
+.mcopy:active{color:var(--accent)}
 .ai-quick{display:flex;gap:6px;flex-wrap:wrap;flex:none}
 .ai-quick::-webkit-scrollbar{display:none}
 .ai-quick .chip{flex:none}
@@ -1252,6 +1254,7 @@ function aiSnapshot(){
 const aiSrcTxt=s=>{const[m,o]=String(s).split("+");return[/^local/.test(m)?"🧑‍🔧 ПК":/^yandex/.test(m)?"Я YandexGPT":/gemini/.test(m)?"☁ Gemini":/claude/.test(m)?"✦ Claude":"",o==="yandex"?"📷 Яндекс":o==="sonnet"?"📷 Sonnet":""].filter(Boolean).join(" · ")};
 function aiSrc(el,s){const t=aiSrcTxt(s||"");if(!t)return;const m=document.createElement("small");m.className="msrc";m.textContent=t;el.append(m)}
 function aiBubble(role,text,cls){const d=document.createElement("div");d.className="msg "+role+(cls?" "+cls:"");d.textContent=text;$("#ai-log").append(d);aiScroll(true);return d}
+function aiAddCopy(el,text){if(el.querySelector(".mcopy"))return;const b=document.createElement("button");b.type="button";b.className="mcopy";b.textContent="⧉ Копировать";b.onclick=()=>hCopy(text,b);el.append(b)}
 function aiScroll(force){const l=$("#ai-log");if(force||l.scrollHeight-l.scrollTop-l.clientHeight<120)l.scrollTop=l.scrollHeight}
 function fitChat(){requestAnimationFrame(()=>{const r=document.documentElement.style;r.setProperty("--chat-top",Math.max(0,$(".bar").getBoundingClientRect().bottom)+"px");const t=$("#tray");r.setProperty("--trayh",(t&&!t.hidden?t.offsetHeight:0)+"px");aiScroll(false)})}
 window.addEventListener("resize",()=>{if(st.tab==="ai")fitChat()});
@@ -1266,7 +1269,7 @@ async function aiSend(){
   const turns=[{role:"user",content:AI_RULES+"\n\n"+aiSnapshot()},{role:"assistant",content:"Понял. Стойку вижу, работаю."},...aiTurns.slice(-16)];
   try{
     const r=await sampleFn(turns,{tools:AI_TOOLS,signal:aiCtl.signal,images:imgs.length?imgs:undefined,photo:photoNote,onText:({text})=>{out.classList.remove("wait");out.textContent=text;aiScroll(false)}});
-    out.classList.remove("wait");out.textContent=r.text;aiSrc(out,r.src);if(r.photo)aiTurns[aiTurns.length-1].content=(t||"Разбери фото.")+"\n"+r.photo.join("\n\n");aiTurns.push({role:"assistant",content:r.text});
+    out.classList.remove("wait");out.textContent=r.text;aiSrc(out,r.src);aiAddCopy(out,r.text);if(r.photo)aiTurns[aiTurns.length-1].content=(t||"Разбери фото.")+"\n"+r.photo.join("\n\n");aiTurns.push({role:"assistant",content:r.text});
     aiView.push({role:"user",text:(t||"Фото")+(imgs.length?"  [фото: "+imgs.length+"]":"")},{role:"assistant",text:r.text,src:r.src||""});
   }catch(e){out.classList.remove("wait");
     if(e&&e.code==="cancelled"){out.textContent=(e.text||"")+(e.text?"\n":"")+"(остановлено)"}
@@ -1282,7 +1285,7 @@ const keepCut=turns=>{let k=turns.slice(-KEEP_TURNS);while(k.length&&k[0].role!=
 // aiView идёт парами с aiTurns (вопрос — ответ), это то, что видно на экране
 function aiKeep(){try{const turns=keepCut(aiTurns);localStorage.setItem("polka-ai-chat",JSON.stringify({at:Date.now(),turns,view:aiView.slice(-turns.length)}))}catch(e){}}
 function aiRestore(){try{const c=JSON.parse(localStorage.getItem("polka-ai-chat")||"null");if(!c||Date.now()-c.at>KEEP_MS||!Array.isArray(c.turns))return;
-  aiTurns=c.turns;aiView=c.view||[];aiView.forEach(m=>{const d=aiBubble(m.role,m.text);if(m.src)aiSrc(d,m.src)})}catch(e){aiTurns=[]}}
+  aiTurns=c.turns;aiView=c.view||[];aiView.forEach(m=>{const d=aiBubble(m.role,m.text);if(m.src)aiSrc(d,m.src);if(m.role==="assistant")aiAddCopy(d,m.text)})}catch(e){aiTurns=[]}}
 function aiUi(){const busyAi=!!aiCtl;$("#ai-send").hidden=busyAi;$("#ai-stop").hidden=!busyAi;$("#ai-send").disabled=!sampleFn;$("#ai-in").disabled=!sampleFn;
   $("#ai-photo-l").hidden=!aiCanImg||!sampleFn;$("#ai-off").hidden=!!sampleFn}
 function renderAiImgs(){$("#ai-imgs").textContent=aiImgs.length?"Фото к сообщению: "+aiImgs.length+" (✕ убрать)":"";$("#ai-imgs").hidden=!aiImgs.length}
@@ -1386,6 +1389,7 @@ function hlpHello(tab){const ttl=tab==="home"?"Главная":TABS[tab]||"ра�
 function hDraw(){const tab=hTab(),c=hConvOf(tab),H=HELP[tab]||HELP.home;
   $("#hsh-t").textContent="✨ Помощник · "+(tab==="home"?"Главная":TABS[tab]||"");
   $("#hsh-log").innerHTML=c.view.map((m,i)=>'<div class="msg '+m.role+(m.cls?" "+m.cls:"")+'">'+esc(m.text)
+    +(m.role==="assistant"&&m.text&&m.cls!=="wait"?'<button type="button" class="mcopy" data-hcopy="'+i+'">⧉ Копировать</button>':"")
     +(m.acts&&m.acts.length&&!m.done?'<div class="hacts"><ul>'+m.acts.map(a=>'<li>'+esc(a.txt)+'</li>').join("")+'</ul><button type="button" class="btn sm go" data-hok="'+i+'">Подтвердить</button><button type="button" class="btn sm" data-hno="'+i+'">Отмена</button></div>':"")
     +(m.src?'<small class="msrc">'+aiSrcTxt(m.src)+'</small>':"")+(m.done?'<div class="hacts small muted">'+esc(m.done)+'</div>':"")
     +(m.stock?'<div class="hacts"><button type="button" class="btn sm go" data-hrev="1">Проверить и подтвердить склад</button></div>':"")+'</div>').join("");
@@ -1396,6 +1400,10 @@ function hDraw(){const tab=hTab(),c=hConvOf(tab),H=HELP[tab]||HELP.home;
   const l=$("#hsh-log");l.scrollTop=l.scrollHeight}
 function hOpen(){$("#hsh").hidden=false;$("#hsh-scrim").hidden=false;document.body.classList.add("hsh-on");hDraw()}
 function hClose(){$("#hsh").hidden=true;$("#hsh-scrim").hidden=true;document.body.classList.remove("hsh-on")}
+function hCopy(txt,btn){const done=ok=>{if(!btn)return;const old=btn.textContent;btn.textContent=ok?"✓ Скопировано":"Не вышло";setTimeout(()=>{btn.textContent=old},1200)};
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(()=>done(true)).catch(()=>done(hCopyFallback(txt)))}
+  else done(hCopyFallback(txt))}
+function hCopyFallback(txt){try{const ta=document.createElement("textarea");ta.value=txt;ta.style.position="fixed";ta.style.opacity="0";document.body.appendChild(ta);ta.focus();ta.select();const ok=document.execCommand("copy");document.body.removeChild(ta);return ok}catch(e){return false}}
 async function hSend(){const box=$("#hsh-in"),t=box.value.trim();if((!t&&!hImgs.length)||hCtl||!sampleFn)return;
   const tab=hTab(),c=hConvOf(tab),imgs=hImgs;hImgs=[];box.value="";
   c.view.push({role:"user",text:(t||"Фото")+(imgs.length?"  [фото: "+imgs.length+"]":"")});
@@ -1423,6 +1431,7 @@ $("#hsh-new").onclick=()=>{if(hCtl)hCtl.abort();const tab=hTab();hConv[tab]={tur
 $("#hsh-ph").addEventListener("change",e=>{hImgs=[...e.target.files].slice(0,5);e.target.value="";hDraw()});
 $("#hsh-imgs").onclick=()=>{hImgs=[];hDraw()};
 $("#hsh").addEventListener("click",e=>{const c=hConvOf(hTab());
+  const cp=e.target.closest("[data-hcopy]");if(cp){hCopy(c.view[+cp.dataset.hcopy].text,cp);return}
   const q=e.target.closest("[data-hq]");if(q){$("#hsh-in").value=q.textContent;hSend();return}
   const ok=e.target.closest("[data-hok]");if(ok){hApply(c.view[+ok.dataset.hok]);return}
   const no=e.target.closest("[data-hno]");if(no){c.view[+no.dataset.hno].done="Отменено";hDraw();return}
