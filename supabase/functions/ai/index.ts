@@ -207,6 +207,56 @@ async function callYandexOcr(key: string, folder: string, mimeType: string, data
   if (!r.ok) { const e: any = new Error("yandex_" + model + "_" + r.status); e.status = r.status; e.body = j; throw e; }
   return j;
 }
+// Рамка блока или строки Яндекса: вершины приходят строками, иногда без x или y (значит 0)
+function ocrBox(o: any) {
+  const v = (o?.boundingBox?.vertices || []) as any[];
+  if (!v.length) return null;
+  const xs = v.map((p) => Number(p.x) || 0), ys = v.map((p) => Number(p.y) || 0);
+  return { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) };
+}
+// Склеивает блоки, лежащие на одной этикетке: друг под другом (по горизонтали перекрываются хотя бы наполовину
+// более узкого) и почти вплотную (зазор не больше полутора строк). Две соседние банки в ряд так не склеятся —
+// они стоят рядом, а не друг под другом; ряды банок разделены крышками и стенками, это обычно больше полутора строк.
+// Этикетки возвращаются по порядку на фото: рядами сверху вниз, в ряду слева направо.
+function labelGroups(blocks: any[]): string[] {
+  const items = blocks.map((blk) => ({
+    text: (blk.lines || []).map((l: any) => l.text).join(" ").trim(),
+    box: ocrBox(blk),
+  })).filter((b) => b.text);
+  if (items.some((b) => !b.box)) return items.map((b) => b.text); // без координат склеивать не по чему
+  const lineH = (blocks.flatMap((blk) => (blk.lines || []).map((l: any) => ocrBox(l)))
+    .filter(Boolean).map((b: any) => b.y1 - b.y0).sort((a: number, b: number) => a - b));
+  const unit = lineH.length ? lineH[lineH.length >> 1] : 0;
+  const groups = items.map((b) => ({ texts: [b.text], ...b.box! }));
+  const close = (a: any, b: any) => {
+    const overlap = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0);
+    const narrow = Math.min(a.x1 - a.x0, b.x1 - b.x0);
+    const gap = Math.max(a.y0, b.y0) - Math.min(a.y1, b.y1);
+    return narrow > 0 && overlap >= narrow / 2 && gap <= unit * 1.5;
+  };
+  for (let merged = true; merged;) {
+    merged = false;
+    for (let i = 0; i < groups.length && !merged; i++) {
+      for (let k = i + 1; k < groups.length; k++) {
+        const a = groups[i], b = groups[k];
+        if (!close(a, b)) continue;
+        const top = a.y0 <= b.y0 ? a : b, bottom = top === a ? b : a; // текст сверху вниз, как на этикетке
+        groups[i] = { texts: [...top.texts, ...bottom.texts], x0: Math.min(a.x0, b.x0), x1: Math.max(a.x1, b.x1), y0: Math.min(a.y0, b.y0), y1: Math.max(a.y1, b.y1) };
+        groups.splice(k, 1); merged = true; break;
+      }
+    }
+  }
+  // Ряд — этикетки, у которых середина по высоте попадает в первую этикетку ряда (или наоборот:
+  // склеенная этикетка выше одиночной, и середина одиночной попадает в неё)
+  groups.sort((a, b) => a.y0 - b.y0);
+  const mid = (g: any) => (g.y0 + g.y1) / 2, inside = (y: number, g: any) => y >= g.y0 && y <= g.y1;
+  const rows: any[][] = [];
+  for (const g of groups) {
+    const row = rows.find((r) => inside(mid(g), r[0]) || inside(mid(r[0]), g));
+    if (row) row.push(g); else rows.push([g]);
+  }
+  return rows.flatMap((r) => r.sort((a, b) => a.x0 - b.x0)).map((g) => g.texts.join(" "));
+}
 async function yandexOcr(messages: any[]) {
   const key = Deno.env.get("YANDEX_API_KEY"), folder = Deno.env.get("YANDEX_FOLDER_ID");
   if (!key || !folder) return false;
@@ -228,11 +278,12 @@ async function yandexOcr(messages: any[]) {
           const e: any = new Error("image_rejected"); e.status = 422; throw e;
         }
       }
-      // Яндекс группирует распознанный текст по блокам — на фото банок обычно один блок на этикетку.
-      // Отдаём их отдельно пронумерованными: иначе бренд с одной банки и вкус с соседней, прочитанные подряд,
+      // Яндекс группирует распознанный текст по блокам, но одну этикетку нередко режет на два-три блока
+      // («TRAFIMOFFS» и «Nobilis» отдельно). Склеиваем блоки одной банки по координатам (labelGroups) и отдаём
+      // этикетки отдельно пронумерованными: иначе бренд с одной банки и вкус с соседней, прочитанные подряд,
       // модель (и наш собственный разбор на клиенте) может принять за одну позицию.
       const blocks = (j?.result?.textAnnotation?.blocks || []) as any[];
-      const labels = blocks.map((blk) => (blk.lines || []).map((l: any) => l.text).join(" ").trim()).filter(Boolean);
+      const labels = labelGroups(blocks);
       const text = labels.length
         ? labels.map((t, i) => "Этикетка " + (i + 1) + ": " + t).join("\n")
         : String(j?.result?.textAnnotation?.fullText || "").trim();
