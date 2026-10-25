@@ -1382,7 +1382,9 @@ const AI_RULES=`Ты — второй мастер за стойкой каль�
 СКЛАД
 — «Перенёс за стойку», «списал» = минус одна штука на каждую. «Пришло», «на склад» = плюс. «Поставил на стойку» без слова «со склада» — только toBar.
 — Неоднозначно или не найдено — ничего не меняй, переспроси одним вопросом. Новые вкусы в каталог добавляет Claude в основном чате.
-— Фото штук: прочитай бренд и вкус на каждой этикетке, посчитай штуки, найди через find_items, коротко перечисли, что увидел, и подготовь пополнение. Неразборчивое не угадывай.`;
+— Фото банок: по умолчанию это просто проверка стойки или полки — перечисли, что увидел, и ничего не меняй на складе. Пополнение через stage_stock готовь только если человек сам пишет, что это поступление («пришло», «привезли», «на склад», «оприходуй»). Неразборчивое не угадывай.
+— Строки с «?» — этикетка обрезана краем фото или не дочитана. Не выдавай их за найденный вкус и не предлагай по ним действий; можно одной строкой сказать, что банка у края кадра не дочитана.
+— Списки пиши без дефисов в начале строки: обычными строками или с «•».`;
 function aiItem(x){const r={id:x.id,brand:x.b,name:x.n,wh:wh(x),onBar:onBar(x)};
   if(x.l)r.line=x.l;if(x.d)r.desc=x.d;if(x.t.length)r.tags=x.t;if(flag(x,"stop"))r.stop=true;if(flag(x,"slow"))r.slow=true;if(oq(x))r.order=oq(x);
   if(draft[x.id]){r.pending=draft[x.id].d||0;if(draft[x.id].bar!==undefined)r.pendingBar=draft[x.id].bar}return r}
@@ -1392,8 +1394,24 @@ const cnTxt=v=>" "+norm(String(v||"")).replace(/[^a-zа-я0-9]+/g," ").trim()+" 
 const nameIn=(T,n)=>{const w=n.trim().split(" ").filter(Boolean);return w.length>1?w.every(x=>T.includes(" "+x+" ")):T.includes(n)};
 // Разбор одного кусочка текста (весь текст, либо одна этикетка — см. matchText)
 // Расстояние Левенштейна — для «почти совпало» внутри бренда с этикетки («pear bate» = Pear Date)
+// Латиница из кириллицы — рукописное «блади оранж» сравниваем с каталожным Bloody Orange
+const TR={а:"a",б:"b",в:"v",г:"g",д:"d",е:"e",ж:"zh",з:"z",и:"i",й:"y",к:"k",л:"l",м:"m",н:"n",о:"o",п:"p",р:"r",с:"s",т:"t",у:"u",ф:"f",х:"h",ц:"ts",ч:"ch",ш:"sh",щ:"sch",ъ:"",ы:"y",ь:"",э:"e",ю:"yu",я:"ya"};
+const lat=s=>s.replace(/[а-я]/g,c=>TR[c]);
+// «Скелет» звучания: латиница, похожие буквы склеены, гласные выкинуты (кроме первой буквы) —
+// «bladioranzh» и «bloodyorange» дают одно и то же «bldrng»
+const skel=s=>{s=lat(s).replace(/ /g,"").replace(/ph/g,"f").replace(/zh|j/g,"g").replace(/ck|c|q/g,"k").replace(/w/g,"v").replace(/x/g,"ks").replace(/(.)\1+/g,"$1").replace(/e$/,"");
+  return s.charAt(0)+s.slice(1).replace(/[aeiouy]/g,"")};
+// Бренд с ошибкой на этикетке («TRAFIMOFFS», обрезанное «TRAFIMO», «дарксайд») — заменяем словом бренда из каталога,
+// чтобы дальше вкус искался у своего бренда. Только по длинным (6+ букв) отличительным словам бренда
+const BRAND_HEADS=()=>[...new Set(DATA.map(x=>x.b))].map(b=>{const c=cnTxt(b).trim(),h=c.split(" ").sort((a,b)=>b.length-a.length)[0];return{c,h,l:lat(h)}}).filter(x=>x.h.length>=6);
+function fixBrands(T){const heads=BRAND_HEADS(),words=T.trim().split(" "),fixed=[];
+  if(heads.some(x=>T.includes(" "+x.c+" ")))return{T,fixed};
+  const out=words.map(w=>{if(w.length<6)return w;const l=lat(w);
+    const m=heads.find(x=>w!==x.h&&(lev(l,x.l)<=Math.floor(x.l.length/4)||(l.length<x.l.length&&lev(l,x.l.slice(0,l.length))<=1)));
+    if(m){fixed.push(w);return m.c}return w});
+  return{T:" "+out.join(" ")+" ",fixed}}
 const lev=(a,b)=>{let p=[...Array(b.length+1).keys()];for(let i=1;i<=a.length;i++){const c=[i];for(let j=1;j<=b.length;j++)c[j]=Math.min(p[j]+1,c[j-1]+1,p[j-1]+(a[i-1]===b[j-1]?0:1));p=c}return p[b.length]};
-function matchChunk(text,label){const T=cnTxt(text);
+function matchChunk(text,label){let T=cnTxt(text),fixed=[];if(label)({T,fixed}=fixBrands(T));
    const brands=new Set(DATA.map(x=>cnTxt(x.b).trim()));
    // Название, совпадающее с брендом (Black Burn «Overdose» и бренд Overdose), засчитываем только рядом со своим брендом
    let hit=DATA.filter(x=>{const n=cnTxt(x.n);return n.length>4&&nameIn(T,n.trim())&&(!brands.has(n.trim())||T.includes(cnTxt(x.b+" "+x.n))||nameIn(T,cnTxt(x.b+" "+x.n).trim()))});
@@ -1414,10 +1432,17 @@ function matchChunk(text,label){const T=cnTxt(text);
      if(lb.length){const own=hit.filter(x=>lb.includes(cnTxt(x.b).trim()));
        if(own.length)hit=own;
        else{let rest=T;lb.forEach(b=>{rest=rest.replace(" "+b+" "," ")});const r=rest.replace(/ /g,"");
-         const cand=DATA.filter(x=>lb.includes(cnTxt(x.b).trim())).map(x=>{const n=cnTxt(x.n).replace(/ /g,"");return[x,n.length>3?lev(r,n):99,n.length]})
+         const own=DATA.filter(x=>lb.includes(cnTxt(x.b).trim()));
+         const pick=c=>c.length&&(c.length<2||c[0][1]<c[1][1])?[c[0][0]]:[];
+         const cand=own.map(x=>{const n=cnTxt(x.n).replace(/ /g,"");return[x,n.length>3?lev(lat(r),lat(n)):99,n.length]})
            .filter(a=>a[1]<=Math.max(1,Math.floor(a[2]/6))).sort((a,b)=>a[1]-b[1]);
-         hit=cand.length&&(cand.length<2||cand[0][1]<cand[1][1])?[cand[0][0]]:[]}}}
-   return{hit,byN,T,brands}}
+         hit=pick(cand);
+         // Рукописное кириллицей («блади оранж», «манго ласси») — сравниваем по звучанию
+         if(!hit.length&&r.length>=4){const sr=skel(r);
+           hit=pick(own.map(x=>{const n=skel(cnTxt(x.n));return[x,n.length>=4?lev(sr,n):99]}).filter(a=>a[1]<=(sr.length>=6?1:0)).sort((a,b)=>a[1]-b[1]))}
+         // Этикетка обрезана («BONCHE COFF?», «GINGER A?») — начало названия совпало ровно с одним вкусом бренда
+         if(!hit.length&&/\?/.test(text)&&r.length>=3){const pre=own.filter(x=>lat(cnTxt(x.n).replace(/ /g,"")).startsWith(lat(r)));if(pre.length===1)hit=pre}}}}
+   return{hit,byN,T,brands,fixed}}
 function matchText(text){const raw=String(text||"");
    // С фото банок сервер отдаёт текст по этикеткам («Этикетка N: …» — см. readPhotos на сервере). Разбираем каждую
    // отдельно: иначе бренд с одной банки и название с соседней, встретившиеся просто где-то в общем тексте,
@@ -1430,10 +1455,11 @@ function matchText(text){const raw=String(text||"");
    const gotLabel=new Set(),tally={},newf=[];
    // Бренд на этикетке так, как он записан в каталоге (для подсчёта банок и новых вкусов)
    const brandOf=T=>{const b=[...new Set(DATA.map(x=>x.b))].filter(b=>cnTxt(b).trim().length>2&&T.includes(cnTxt(b))).sort((a,b)=>b.length-a.length);return b[0]||""};
-   chunks.forEach(chunk=>{const{hit,byN,T}=matchChunk(chunk,labels.length>0);if(hit.length)gotLabel.add(chunk.trim());
+   chunks.forEach(chunk=>{const{hit,byN,T,fixed}=matchChunk(chunk,labels.length>0);if(hit.length)gotLabel.add(chunk.trim());
      if(labels.length){const b=hit.length?hit[0].b:brandOf(T);tally[b||"Без бренда"]=(tally[b||"Без бренда"]||0)+1;
        // Бренд прочитан, а вкуса у него в каталоге нет — кандидат в новые вкусы (что осталось от этикетки без бренда)
-       if(!hit.length&&b){const words=cnTxt(b).trim().split(" ");let n=chunk.replace(/[«»"?]/g," ");
+       // Этикетка с «?» обрезана краем кадра — из её огрызка («Coff») новый вкус не предлагаем
+       if(!hit.length&&b&&!/\?/.test(chunk)){const words=[...cnTxt(b).trim().split(" "),...(fixed||[])];let n=chunk.replace(/[«»"?]/g," ");
          words.forEach(w=>{n=n.replace(new RegExp("(^|[^\\p{L}\\p{N}])"+w.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"(?=$|[^\\p{L}\\p{N}])","iu")," ")});
          n=n.replace(/\s+/g," ").trim();if(n.length>=3)n=n.split(" ").map(w=>w&&w===w.toUpperCase()&&/[a-z]/i.test(w)?w[0]+w.slice(1).toLowerCase():w).join(" ");
          n=n.charAt(0).toUpperCase()+n.slice(1);
