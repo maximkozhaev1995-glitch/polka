@@ -30,14 +30,7 @@
   --accent-glow:0 0 0 1px rgba(255,122,26,.55),0 6px 22px rgba(255,122,26,.28);
   --glow:radial-gradient(120% 60% at 0% 0%,rgba(255,110,20,.22),transparent 60%),radial-gradient(90% 50% at 100% 100%,rgba(255,90,10,.12),transparent 65%),linear-gradient(180deg,#120c08,#0a0705)}
 *{box-sizing:border-box}
-/* В Telegram (особенно в полноэкранном режиме) оттягивание страницы вниз
-   у самого верха списка иногда перехватывается как системный жест
-   сворачивания/закрытия — запрет лишнего "резинового" оттягивания страницы
-   убирает этот конфликт без disableVerticalSwipes() (который ломает обычный
-   скролл и показывает лишнюю кнопку «Закрыть», см. app/shim.js). */
-html{overscroll-behavior-y:none}
 body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.45;
-  overscroll-behavior-y:none;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 48px}
 body::before{content:"";position:fixed;inset:0 0 auto;height:var(--safe-top);z-index:10;background:var(--bg)}
 .wrap{max-width:860px;margin:0 auto}
@@ -536,19 +529,17 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
     // через CSS-переменную --safe-top (см. :root в src/stoika.html).
     const fsOk=tg.requestFullscreen&&(!tg.isVersionAtLeast||tg.isVersionAtLeast("8.0"));
     if(fsOk)try{tg.requestFullscreen()}catch(e){}
-    // disableVerticalSwipes() пробовали (25.10) — не убрал сворачивание свайпом,
-    // зато сломал обычный скролл и заставил Telegram рисовать явную кнопку
-    // «✕ Закрыть» вместо шеврона. Убрали. Плавающая полоса Telegram сверху
-    // (закрыть/свернуть/«…») — это UI самого Telegram, средствами Mini App
-    // её не убрать; важно только не давать своей шапке прятаться под ней.
-    //
-    // contentSafeAreaInset — это ДОПОЛНИТЕЛЬНЫЙ отступ под эту полосу, поверх
-    // обычного отступа под чёлку/статус-бар устройства (env(safe-area-inset-top)
-    // / tg.safeAreaInset) — их нужно СКЛАДЫВАТЬ, а не брать максимум.
+    // Без этого свайп вверх по списку (прокрутка) иногда распознаётся Telegram
+    // как свайп для сворачивания/закрытия приложения — конфликт жестов.
+    // Заодно убирает верхний «шеврон» (жест закрытия), остаётся только «…».
+    if(tg.disableVerticalSwipes)try{tg.disableVerticalSwipes()}catch(e){}
+    // На телефоне (не в десктопном Telegram) в полноэкранном режиме сверху
+    // всегда остаётся плавающая полоса Telegram (бейдж + «…») даже когда
+    // contentSafeAreaInset ещё не пришёл от клиента — подстраховка минимумом.
     const mobile=tg.platform==="ios"||tg.platform==="android";
-    const syncSafeTop=()=>{try{const c=tg.contentSafeAreaInset||{},
-        content=c.top||(mobile&&tg.isFullscreen?64:0);
-      document.documentElement.style.setProperty("--safe-top","calc(env(safe-area-inset-top,0px) + "+content+"px)")}catch(e){}};
+    const syncSafeTop=()=>{try{const c=tg.contentSafeAreaInset||{},s=tg.safeAreaInset||{},
+        floor=(mobile&&tg.isFullscreen)?56:0;
+      document.documentElement.style.setProperty("--safe-top","max(env(safe-area-inset-top,0px),"+Math.max(c.top||0,s.top||0,floor)+"px)")}catch(e){}};
     syncSafeTop();
     if(tg.onEvent){tg.onEvent("contentSafeAreaChanged",syncSafeTop);tg.onEvent("safeAreaChanged",syncSafeTop);tg.onEvent("fullscreenChanged",syncSafeTop);tg.onEvent("viewportChanged",syncSafeTop)}
   }catch(e){}}

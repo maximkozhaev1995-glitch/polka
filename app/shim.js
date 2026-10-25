@@ -9,19 +9,17 @@
     // через CSS-переменную --safe-top (см. :root в src/stoika.html).
     const fsOk=tg.requestFullscreen&&(!tg.isVersionAtLeast||tg.isVersionAtLeast("8.0"));
     if(fsOk)try{tg.requestFullscreen()}catch(e){}
-    // disableVerticalSwipes() пробовали (25.10) — не убрал сворачивание свайпом,
-    // зато сломал обычный скролл и заставил Telegram рисовать явную кнопку
-    // «✕ Закрыть» вместо шеврона. Убрали. Плавающая полоса Telegram сверху
-    // (закрыть/свернуть/«…») — это UI самого Telegram, средствами Mini App
-    // её не убрать; важно только не давать своей шапке прятаться под ней.
-    //
-    // contentSafeAreaInset — это ДОПОЛНИТЕЛЬНЫЙ отступ под эту полосу, поверх
-    // обычного отступа под чёлку/статус-бар устройства (env(safe-area-inset-top)
-    // / tg.safeAreaInset) — их нужно СКЛАДЫВАТЬ, а не брать максимум.
+    // Без этого свайп вверх по списку (прокрутка) иногда распознаётся Telegram
+    // как свайп для сворачивания/закрытия приложения — конфликт жестов.
+    // Заодно убирает верхний «шеврон» (жест закрытия), остаётся только «…».
+    if(tg.disableVerticalSwipes)try{tg.disableVerticalSwipes()}catch(e){}
+    // На телефоне (не в десктопном Telegram) в полноэкранном режиме сверху
+    // всегда остаётся плавающая полоса Telegram (бейдж + «…») даже когда
+    // contentSafeAreaInset ещё не пришёл от клиента — подстраховка минимумом.
     const mobile=tg.platform==="ios"||tg.platform==="android";
-    const syncSafeTop=()=>{try{const c=tg.contentSafeAreaInset||{},
-        content=c.top||(mobile&&tg.isFullscreen?64:0);
-      document.documentElement.style.setProperty("--safe-top","calc(env(safe-area-inset-top,0px) + "+content+"px)")}catch(e){}};
+    const syncSafeTop=()=>{try{const c=tg.contentSafeAreaInset||{},s=tg.safeAreaInset||{},
+        floor=(mobile&&tg.isFullscreen)?56:0;
+      document.documentElement.style.setProperty("--safe-top","max(env(safe-area-inset-top,0px),"+Math.max(c.top||0,s.top||0,floor)+"px)")}catch(e){}};
     syncSafeTop();
     if(tg.onEvent){tg.onEvent("contentSafeAreaChanged",syncSafeTop);tg.onEvent("safeAreaChanged",syncSafeTop);tg.onEvent("fullscreenChanged",syncSafeTop);tg.onEvent("viewportChanged",syncSafeTop)}
   }catch(e){}}

@@ -29,14 +29,7 @@
   --accent-glow:0 0 0 1px rgba(255,122,26,.55),0 6px 22px rgba(255,122,26,.28);
   --glow:radial-gradient(120% 60% at 0% 0%,rgba(255,110,20,.22),transparent 60%),radial-gradient(90% 50% at 100% 100%,rgba(255,90,10,.12),transparent 65%),linear-gradient(180deg,#120c08,#0a0705)}
 *{box-sizing:border-box}
-/* В Telegram (особенно в полноэкранном режиме) оттягивание страницы вниз
-   у самого верха списка иногда перехватывается как системный жест
-   сворачивания/закрытия — запрет лишнего "резинового" оттягивания страницы
-   убирает этот конфликт без disableVerticalSwipes() (который ломает обычный
-   скролл и показывает лишнюю кнопку «Закрыть», см. app/shim.js). */
-html{overscroll-behavior-y:none}
 body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.45;
-  overscroll-behavior-y:none;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 48px}
 body::before{content:"";position:fixed;inset:0 0 auto;height:var(--safe-top);z-index:10;background:var(--bg)}
 .wrap{max-width:860px;margin:0 auto}
