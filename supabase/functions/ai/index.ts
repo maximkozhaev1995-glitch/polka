@@ -332,6 +332,7 @@ Deno.serve(async (req) => {
     return out({ content: r.content, stop_reason: r.stop_reason, usage: r.usage, ocr: ocr ? "yandex" : undefined, ocr_texts: ocr || undefined });
   } catch (e) {
     const status = (e as { status?: number }).status;
+    console.error("ai error:", status, String((e as Error).message).slice(0, 300));
     if (status === 429) return out({ error: "rate_limited" }, 429);
     if (status === 503) return out({ error: "busy" }, 503);
     if (status === 401) return out({ error: "not_configured" }, 503);
