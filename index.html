@@ -705,7 +705,7 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
     let text="",src="";
     for(let step=0;step<12;step++){
       if(opts.signal&&opts.signal.aborted)throw {code:"cancelled",text};
-      let r;try{r=await callAI({system:first,messages:msgs,tools},opts.signal,()=>{if(opts.onText)opts.onText({text:(text?text+"\n":"")+"ИИ занят, жду очередь…"})})}catch(e){if(e&&e.name==="AbortError")throw {code:"cancelled",text};throw Object.assign({text},e)}
+      let r;try{r=await callAI({system:first,messages:msgs,tools,route:opts.route},opts.signal,()=>{if(opts.onText)opts.onText({text:(text?text+"\n":"")+"ИИ занят, жду очередь…"})})}catch(e){if(e&&e.name==="AbortError")throw {code:"cancelled",text};throw Object.assign({text},e)}
       msgs.push({role:"assistant",content:r.content});if(r.model)src=r.model;if(r.ocr)ocr=r.ocr;
       // Служебные id каталога («(id aa09da7d31d5)», «id …, на складе 2») человеку не нужны — модели (особенно
       // YandexGPT) иногда переписывают их из списка с фото в ответ, вычищаем
@@ -722,7 +722,7 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
     // Модель закончила вызовами инструментов и ничего не сказала — просим итог словами, уже без инструментов
     if(!text&&!(opts.signal&&opts.signal.aborted)){const ask={type:"text",text:"Коротко ответь человеку словами: что увидел или нашёл и что сделал (что ждёт «Подтвердить»). Инструменты больше не вызывай."};
       const last=msgs[msgs.length-1];if(last.role==="user"&&Array.isArray(last.content))last.content.push(ask);else msgs.push({role:"user",content:[ask]});
-      try{const r=await callAI({system:first,messages:msgs,tools:[]},opts.signal,()=>{});if(r.model)src=r.model;text=r.content.filter(b=>b.type==="text").map(b=>b.text).join("")}catch(e){}}
+      try{const r=await callAI({system:first,messages:msgs,tools:[],route:opts.route},opts.signal,()=>{});if(r.model)src=r.model;text=r.content.filter(b=>b.type==="text").map(b=>b.text).join("")}catch(e){}}
     return {text:text||"Готово.",src:src+(ocr?"+"+ocr:""),photo}};
   sample.limits=async()=>({images:{mediaTypes:["image/jpeg","image/png","image/webp"]}});
   window.claude={use:async k=>{
@@ -1359,6 +1359,9 @@ let sampleFn=null,aiTurns=[],aiView=[],aiCtl=null,aiImgs=[],aiCanImg=false;
 let aiOrdPhoto=false,aiOrdAsk=false,aiOrdSeen=new Set();
 // Человек сам просит собрать заказ («составь заказ чего нет на складе», «поставь в заказ», «закажи») — тогда
 // в заказ можно ставить и то, чего нет на фото и в стоп-листе (неликвид — всё равно нет)
+// Кто отвечает при AI_PROVIDER=mix на сервере: действия со складом, заказом, стопом и фото — Claude (он надёжно
+// вызывает инструменты; YandexGPT писал «добавил в заказ», ничего не добавив), миксы и советы — YandexGPT (дешевле)
+const aiRoute=(t,imgs)=>imgs||/заказ|закаж|склад|спис|пришл|привез|оприход|поступ|стоп|неликвид|стойк|убер|убра|постав|добав|внес|внёс|перен|инвент|остат|накладн|сколько|отмени|верни/i.test(String(t||""))?"claude":"yandex";
 const ordAsked=t=>/закаж|в\s+заказ|заказ\S*\s+(на|чего|что|из|по)\b|(состав|собер|собир|сдела|оформ|сформир|добав|постав|внес)\S*\s+(\S+\s+){0,2}заказ/i.test(String(t||""));  // aiOrdSeen — вкусы, уже поставленные в заказ в этом ответе: вкус и с фото, и из стопа идёт одной строкой
 const ordGate=(x,photo,ask)=>flag(x,"slow")?"вкус в неликвиде — в заказ не ставь, можно только порекомендовать управляющему":!photo&&!ask&&!flag(x,"stop")?"вкуса нет ни на фото, ни в стоп-листе — в заказ не ставь, только порекомендуй дозаказать":"";
 const AI_RULES=`Ты — второй мастер за стойкой кальянной, правая рука кальянного мастера Максима (10 лет опыта). Говоришь как опытный коллега: по-русски, коротко, уверенно, по делу, без канцелярита, без id из каталога (это служебные номера для функций, человеку их не показывай) и без markdown (списки — строками с «— », проценты пиши цифрами).
@@ -1568,7 +1571,7 @@ async function aiSend(){
   const out=aiBubble("assistant","Думаю…","wait");aiCtl=new AbortController();aiUi();
   const turns=[{role:"user",content:AI_RULES+"\n\n"+aiSnapshot()},{role:"assistant",content:"Понял. Стойку вижу, работаю."},...aiTurns.slice(-16)];
   try{
-    const r=await sampleFn(turns,{tools:AI_TOOLS,signal:aiCtl.signal,images:imgs.length?imgs:undefined,photo:photoNote,onText:({text})=>{out.classList.remove("wait");out.textContent=text;aiScroll(false)}});
+    const r=await sampleFn(turns,{tools:AI_TOOLS,route:aiRoute(t,imgs.length>0),signal:aiCtl.signal,images:imgs.length?imgs:undefined,photo:photoNote,onText:({text})=>{out.classList.remove("wait");out.textContent=text;aiScroll(false)}});
     const head=acc?photoHead(acc):"";if(head)r.text=head+"\n\n"+r.text;
     out.classList.remove("wait");out.textContent=r.text;aiSrc(out,r.src);if(acc&&acc.newf.length)newFlavorBox(out,acc.newf);if(aiOrdAsk&&!aiOrdSeen.size)orderFixBox(out,r.text);if(r.photo)aiTurns[aiTurns.length-1].content=(t||"Разбери фото.")+"\n"+r.photo.join("\n\n");aiTurns.push({role:"assistant",content:r.text});
     aiView.push({role:"user",text:(t||"Фото")+(imgs.length?"  [фото: "+imgs.length+"]":"")},{role:"assistant",text:r.text,src:r.src||""});
@@ -1706,7 +1709,7 @@ async function hSend(){const box=$("#hsh-in"),t=box.value.trim();if((!t&&!hImgs.
   c.turns.push({role:"user",content:(t||"Разбери фото.")+(imgs.length?"\n(К сообщению приложено фото: "+imgs.length+")":"")});
   const out={role:"assistant",text:"Думаю…",cls:"wait"};c.view.push(out);hCtl=new AbortController();hDraw();
   const acts={list:[],stock:false,photo:imgs.length>0,ask:ordAsked(t)};photoAcc=imgs.length?photoAccNew():null;const acc=photoAcc;
-  try{const r=await sampleFn([{role:"user",content:hlpSystem(tab)},{role:"assistant",content:"Понял."},...c.turns.slice(-12)],{tools:hlpTools(tab,acts),signal:hCtl.signal,images:imgs.length?imgs:undefined,photo:photoNote,
+  try{const r=await sampleFn([{role:"user",content:hlpSystem(tab)},{role:"assistant",content:"Понял."},...c.turns.slice(-12)],{tools:hlpTools(tab,acts),route:aiRoute(t,imgs.length>0),signal:hCtl.signal,images:imgs.length?imgs:undefined,photo:photoNote,
       onText:({text})=>{out.cls="";out.text=text;if(hTab()===tab&&!$("#hsh").hidden)hDraw()}});
     const head=acc?photoHead(acc):"";if(head)r.text=head+"\n\n"+r.text;
     if(acc&&isMgr)acc.newf.forEach(y=>acts.list.push({t:"newf",b:y.b,n:y.n,txt:"Добавить в каталог: "+y.b+" "+y.n}));
