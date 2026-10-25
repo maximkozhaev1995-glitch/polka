@@ -1800,7 +1800,7 @@ function renderTeam(){
   $("#list").innerHTML=h}
 $("#list").addEventListener("click",e=>{if(st.tab!=="team"||!db)return;
   if(e.target.closest("#tm-inv")){const A="abcdefghjkmnpqrstuvwxyz23456789";const a=new Uint32Array(8);crypto.getRandomValues(a);const code=[...a].map(n=>A[n%A.length]).join("");
-    db.doc("invites/"+code).set({role:"master"}).then(()=>{const txt="Открой в Telegram бота @PolkaHookahbot, нажми кнопку «Полка» и введи код: "+code;
+    db.doc("invites/"+code).set({role:"manager"}).then(()=>{const txt="Открой в Telegram бота @PolkaHookahbot, нажми кнопку «Полка» и введи код: "+code;
       showDlg('<h2>Код для мастера</h2><p class="muted small">Отправь мастеру. Код работает один раз.</p><p style="font:800 26px/1.1 var(--display);letter-spacing:.06em;text-align:center;margin:12px 0">'+code+'</p><textarea readonly rows="3" id="iv-t" style="width:100%">'+esc(txt)+'</textarea><div class="dlg-btns"><button class="btn go" type="button" id="iv-c">Скопировать</button><button class="btn" type="button" id="dlg-back">Закрыть</button></div>');
       $("#dlg-back").onclick=closeDlg;$("#iv-c").onclick=async()=>{try{await navigator.clipboard.writeText(txt);$("#iv-c").textContent="Скопировано"}catch(x){$("#iv-t").select()}}}).catch(x=>setStatus("Код не создался: "+(x&&x.message||"нет доступа"),true));return}
   const dv=e.target.closest("[data-ivdel]");if(dv){db.doc("invites/"+dv.dataset.ivdel).delete();return}
