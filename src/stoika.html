@@ -1272,11 +1272,11 @@ function matchText(text){const raw=String(text||"");
 // Итог по фото за один вопрос: банки по брендам и новые вкусы. Приложение само ставит его в начало ответа и
 // предлагает добавить новые вкусы — модели не нужно (и не стоит) их пересчитывать
 let photoAcc=null;
-const photoAccNew=()=>({tally:{},newf:[]});
+const photoAccNew=()=>({tally:{},newf:[],jars:{}});
 function photoHead(a){const e=Object.entries(a.tally).sort((x,y)=>y[1]-x[1]);if(!e.length)return "";
   return "Общее количество банок: "+e.reduce((s,x)=>s+x[1],0)+"\n"+e.map((x,i)=>"#"+(i+1)+" "+x[0]+" = "+x[1]).join("\n")}
 function photoNote(text){const m=matchText(text);
-  if(photoAcc){Object.entries(m.jars_by_brand).forEach(([b,c])=>{photoAcc.tally[b]=(photoAcc.tally[b]||0)+c});
+  if(photoAcc){m.found.forEach(x=>{photoAcc.jars[x.id]=(photoAcc.jars[x.id]||0)+(x.jars||1)});Object.entries(m.jars_by_brand).forEach(([b,c])=>{photoAcc.tally[b]=(photoAcc.tally[b]||0)+c});
     m.new_flavors.forEach(y=>{if(!photoAcc.newf.some(z=>z.b===y.b&&norm(z.n)===norm(y.n)))photoAcc.newf.push(y)})}
   return "[Фото: текст прочитан с фото и уже сверен с каталогом приложением. Общее количество банок по брендам и предложение добавить новые вкусы приложение покажет само — в ответе их не пересчитывай и не повторяй. Опирайся на этот список, вкусов сверх него не придумывай.]\n"
    +"НАЙДЕНО В КАТАЛОГЕ ("+m.found.length+"):\n"+(m.found.map(x=>"— "+x.brand+" "+x.name+(x.jars>1?" ×"+x.jars+" (на "+x.jars+" разных этикетках — скорее всего столько банок)":"")+" (id "+x.id+", на складе "+x.wh+(x.onBar?", на стойке":"")+(x.ambiguous?", бренд на фото не прочитан — уточни":"")+")").join("\n")||"— ничего")
@@ -1299,12 +1299,15 @@ function orderFixBox(el,text){const part=String(text||"").split(/\n\s*\n/).filte
 // То же для склада: просили перенести/списать/оприходовать, модель написала «переношу», а stage_stock не вызвала —
 // приложение само кладёт вкусы из этих абзацев в черновик (он записывается только после «Подтвердить», так что безопасно)
 const stockAsked=t=>/перен|перекин|спис|на\s+стойк|за\s+стойк|пришл|привез|оприход|пополн|на\s+склад/i.test(String(t||""));
-function stockFixBox(el,text){const st=AI_TOOLS.find(f=>f.name==="stage_stock"),done=[];
+function stockFixBox(el,text,jars,toBar){const st=AI_TOOLS.find(f=>f.name==="stage_stock"),done=[];
   String(text||"").split(/\n\s*\n/).forEach(p=>{if(/заказ/i.test(p))return;
     const k=/перен|на\s+стойк|за\s+стойк/i.test(p)?"bar":/спис/i.test(p)?"off":/пополн|пришл|привез|оприход|на\s+склад/i.test(p)?"in":"";if(!k)return;
     p.split(/\n/).forEach(l=>{const f=matchText(l).found;if(f.length!==1)return;const x=byId[f[0].id];if(!x||done.some(d=>d[0]===x))return;
-      const n=Math.max(1,Number((l.match(/(\d+)\s*шт/)||[])[1])||1);
+      const n=Math.max(1,Number((l.match(/(\d+)\s*шт/)||l.match(/[×x]\s*(\d+)/i)||[])[1])||1);
       try{st.execute(k==="bar"?{id:x.id,delta:-n,toBar:true}:{id:x.id,delta:k==="off"?-n:n});done.push([x,k==="in"?"+"+n:"−"+n])}catch(e){}})});
+  // Просили перенести со склада на стойку то, что на фото, а модель вкусы не перечислила — переносим все вкусы с фото:
+  // столько банок, сколько на фото, но не больше, чем есть на складе
+  if(!done.length&&toBar&&jars)Object.keys(jars).forEach(id=>{const x=byId[id],n=x?Math.min(jars[id],wh(x)):0;if(!n)return;try{st.execute({id,delta:-n,toBar:true});done.push([x,"−"+n])}catch(e){}});
   if(!done.length)return;const box=document.createElement("div");box.className="hacts";
   box.innerHTML='<b>Положено в черновик «Списание / пополнение»:</b><ul>'+done.map(d=>'<li>'+esc(d[0].b+" "+d[0].n+" "+d[1])+'</li>').join("")+'</ul><small class="muted">Проверь и нажми внизу «Списание / пополнение» → «Подтвердить».</small>';
   el.append(box)}
@@ -1374,7 +1377,7 @@ async function aiSend(){
     const d0=JSON.stringify(draft);
     const r=await sampleFn(turns,{tools:AI_TOOLS,signal:aiCtl.signal,images:imgs.length?imgs:undefined,photo:photoNote,onText:({text})=>{out.classList.remove("wait");out.textContent=text;aiScroll(false)}});
     const head=acc?photoHead(acc):"";if(head)r.text=head+"\n\n"+r.text;
-    out.classList.remove("wait");out.textContent=r.text;aiSrc(out,r.src);if(acc&&acc.newf.length)newFlavorBox(out,acc.newf);if(aiOrdAsk&&!aiOrdSeen.size)orderFixBox(out,r.text);if(stockAsked(t)&&JSON.stringify(draft)===d0)stockFixBox(out,r.text);if(r.photo)aiTurns[aiTurns.length-1].content=(t||"Разбери фото.")+"\n"+r.photo.join("\n\n");aiTurns.push({role:"assistant",content:r.text});
+    out.classList.remove("wait");out.textContent=r.text;aiSrc(out,r.src);if(acc&&acc.newf.length)newFlavorBox(out,acc.newf);if(aiOrdAsk&&!aiOrdSeen.size)orderFixBox(out,r.text);if(stockAsked(t)&&JSON.stringify(draft)===d0)stockFixBox(out,r.text,acc&&acc.jars,/перен|перекин|на\s+стойк|за\s+стойк/i.test(t));if(r.photo)aiTurns[aiTurns.length-1].content=(t||"Разбери фото.")+"\n"+r.photo.join("\n\n");aiTurns.push({role:"assistant",content:r.text});
     aiView.push({role:"user",text:(t||"Фото")+(imgs.length?"  [фото: "+imgs.length+"]":"")},{role:"assistant",text:r.text,src:r.src||""});
   }catch(e){out.classList.remove("wait");
     if(e&&e.code==="cancelled"){out.textContent=(e.text||"")+(e.text?"\n":"")+"(остановлено)"}
