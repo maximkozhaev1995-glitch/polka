@@ -173,7 +173,7 @@ body.ai-mode .wrap{overscroll-behavior:none}
 .ai-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .ai-log{display:flex;flex-direction:column;gap:8px;flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding-bottom:4px}
 .ai-log>.msg:first-child{margin-top:8px}
-.msg{max-width:88%;padding:10px 12px;border-radius:14px;white-space:pre-wrap;font-size:15px;line-height:1.45;overflow-wrap:anywhere}
+.msg{max-width:88%;padding:10px 12px;border-radius:14px;white-space:pre-wrap;font-size:15px;line-height:1.45;overflow-wrap:anywhere;user-select:text;-webkit-user-select:text;-webkit-touch-callout:default}
 .msg.user{align-self:flex-end;background:var(--accent);color:#fff;border-bottom-right-radius:4px}
 .msg.assistant{align-self:flex-start;background:var(--surface);border:1px solid var(--line);border-bottom-left-radius:4px}
 .msg.wait{color:var(--muted);font-style:italic}
