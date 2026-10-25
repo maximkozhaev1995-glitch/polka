@@ -527,11 +527,21 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
     // плавающих кнопок Telegram (закрыть/настройки), появляется безопасная
     // зона contentSafeAreaInset — учитываем её вместе с обычным safe-area-inset
     // через CSS-переменную --safe-top (см. :root в src/stoika.html).
-    if(tg.requestFullscreen&&(!tg.isVersionAtLeast||tg.isVersionAtLeast("8.0")))try{tg.requestFullscreen()}catch(e){}
-    const syncSafeTop=()=>{try{const c=tg.contentSafeAreaInset||{},s=tg.safeAreaInset||{};
-      document.documentElement.style.setProperty("--safe-top","max(env(safe-area-inset-top,0px),"+Math.max(c.top||0,s.top||0)+"px)")}catch(e){}};
+    const fsOk=tg.requestFullscreen&&(!tg.isVersionAtLeast||tg.isVersionAtLeast("8.0"));
+    if(fsOk)try{tg.requestFullscreen()}catch(e){}
+    // Без этого свайп вверх по списку (прокрутка) иногда распознаётся Telegram
+    // как свайп для сворачивания/закрытия приложения — конфликт жестов.
+    // Заодно убирает верхний «шеврон» (жест закрытия), остаётся только «…».
+    if(tg.disableVerticalSwipes)try{tg.disableVerticalSwipes()}catch(e){}
+    // На телефоне (не в десктопном Telegram) в полноэкранном режиме сверху
+    // всегда остаётся плавающая полоса Telegram (бейдж + «…») даже когда
+    // contentSafeAreaInset ещё не пришёл от клиента — подстраховка минимумом.
+    const mobile=tg.platform==="ios"||tg.platform==="android";
+    const syncSafeTop=()=>{try{const c=tg.contentSafeAreaInset||{},s=tg.safeAreaInset||{},
+        floor=(mobile&&tg.isFullscreen)?56:0;
+      document.documentElement.style.setProperty("--safe-top","max(env(safe-area-inset-top,0px),"+Math.max(c.top||0,s.top||0,floor)+"px)")}catch(e){}};
     syncSafeTop();
-    if(tg.onEvent){tg.onEvent("contentSafeAreaChanged",syncSafeTop);tg.onEvent("safeAreaChanged",syncSafeTop);tg.onEvent("fullscreenChanged",syncSafeTop)}
+    if(tg.onEvent){tg.onEvent("contentSafeAreaChanged",syncSafeTop);tg.onEvent("safeAreaChanged",syncSafeTop);tg.onEvent("fullscreenChanged",syncSafeTop);tg.onEvent("viewportChanged",syncSafeTop)}
   }catch(e){}}
   const $=s=>document.querySelector(s);
   let session=null, resolveReady, readyP=new Promise(r=>resolveReady=r);
