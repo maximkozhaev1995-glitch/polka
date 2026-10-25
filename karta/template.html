@@ -708,7 +708,7 @@ const norm=s=>s.toLowerCase().replace(/ё/g,"е");
 const cyr=t=>/^[а-яё]/i.test(t)?1:0;
 const abc=(a,b)=>(cyr(a)-cyr(b))||a.localeCompare(b,"ru",{sensitivity:"base",numeric:true});
 const st={tab:"tob",q:"",brand:"",mood:"",str:0};let sfOpen=false;
-let open={},mine=[],marks={},rateOpen="";
+let open={},mine=[],marks={};
 try{const s=JSON.parse(localStorage.getItem("karta")||"{}");st.tab=["mix","me"].includes(s.tab)?s.tab:"tob";open=s.open||{}}catch(e){}
 try{mine=JSON.parse(localStorage.getItem("karta-mixes")||"[]")||[]}catch(e){mine=[]}
 try{marks=JSON.parse(localStorage.getItem("karta-marks")||"{}")||{}}catch(e){marks={}}
@@ -770,9 +770,7 @@ function itemRow(x,hlOn,showB){const m=mk(x.id),f=hlOn?hl:esc,tg=x.t.filter(t=>t
     +(tg.length?'<span class="tags">'+tg.map(t=>'<span class="tag">'+esc(t)+'</span>').join("")+'</span>':"")
     +(x.d?'<div class="ds">'+f(x.d)+'</div>':"")
     +(x.st?'<div class="ist">'+sd5(x.st)+'</div>':"")
-    +(rateOpen===x.id?'<div class="stars" role="group" aria-label="Оценка">'+[1,2,3,4,5].map(n=>'<button type="button" class="st'+(m.r>=n?" on":"")+'" data-rate="'+n+'" data-id="'+x.id+'" aria-label="'+n+' из 5">★</button>').join("")+(m.r?'<button type="button" class="st clr" data-rate="0" data-id="'+x.id+'">сбросить</button>':"")+'</div>':"")
-    +'</div><div class="itr"><button type="button" class="ic'+(m.w?" on":"")+'" data-want="'+x.id+'" aria-pressed="'+!!m.w+'" aria-label="Хочу попробовать" title="Хочу попробовать">'+(m.w?"♥":"♡")+'</button>'
-    +'<button type="button" class="ic'+(m.r?" on":"")+'" data-rt="'+x.id+'" aria-label="Оценить" title="Оценить">'+(m.r?'★<small>'+m.r+'</small>':'☆')+'</button></div></div>'}
+    +'</div><div class="itr"><button type="button" class="ic'+(m.w?" on":"")+'" data-want="'+x.id+'" aria-pressed="'+!!m.w+'" aria-label="Хочу попробовать" title="Хочу попробовать">'+(m.w?"♥":"♡")+'</button></div></div>'}
 
 // Анимация появления только при переходе (не при каждом ♡ или обновлении наличия)
 function navAnim(){document.body.classList.add("nav-anim");clearTimeout(navAnim.t);navAnim.t=setTimeout(()=>document.body.classList.remove("nav-anim"),900)}
@@ -780,7 +778,7 @@ document.addEventListener("click",e=>{if(e.target.closest&&e.target.closest(".do
 let brandY=0;
 function render(){
   document.body.classList.toggle("inbrand",!!st.brand&&st.tab==="tob");
-  const meN=DATA.filter(x=>marks[x.id]).length;
+  const meN=DATA.filter(x=>mk(x.id).w).length;
   $("#c-mix").textContent=MIXES.filter(mixOK).length?String(MIXES.filter(mixOK).length):"";$("#c-me").textContent=meN+mine.length?String(meN+mine.length):"";
   [["tob","t-tob"],["mix","t-mix"],["me","t-me"]].forEach(([t,i])=>$("#"+i).setAttribute("aria-current",st.tab===t?"page":"false"));
   $("#v-menu").hidden=st.tab!=="tob";$("#mixes").hidden=st.tab!=="mix";$("#me").hidden=st.tab!=="me";
@@ -817,10 +815,10 @@ function renderSfil(){const el=$("#sfil");
   const r=$("#sf-r");if(r){r.oninput=()=>{$("#sf-n").textContent=r.value;$("#sf-w").textContent="/10 · "+WORD10(+r.value);r.classList.remove("off")};r.onchange=()=>{st.str=+r.value;render()};$("#sf-any").onclick=()=>{st.str=0;render()}}}
 // Экран «Показать мастеру» и история показов
 let shown=[];try{shown=JSON.parse(localStorage.getItem("karta-shown")||"[]")}catch(e){}
-function showMaster(o){const el=$("#master");el.innerHTML='<div class="ms-in"><div class="ms-k">Мастеру · '+new Date().toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})+'</div><h2>'+esc(o.name)+'</h2>'
+function showMaster(o){const el=$("#master");el.innerHTML='<div class="ms-in"><div class="ms-logo">'+($(".top .lgm")||{outerHTML:""}).outerHTML+($(".top h1 .wm")||{outerHTML:""}).outerHTML+'</div><div class="ms-k">Мастеру · '+new Date().toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})+'</div><h2>'+esc(o.name)+'</h2>'
   +(o.str?'<div class="ms-s">Крепость <b>'+o.str+'</b>/10 '+dots(o.str)+'</div>':'')
   +'<ol>'+o.parts.map(p=>'<li><span>'+esc(p[0])+(p[2]?' <small>'+esc(p[2])+'</small>':'')+'</span><b>'+(p[1]?p[1]+'%':'')+'</b></li>').join("")+'</ol>'
-  +(o.price?'<div class="ms-p">'+rub(o.price)+(o.perf?' · с парфюмом':'')+'</div>':'')+'<button type="button" class="btn" id="ms-x">Закрыть</button></div>';
+  +(SHOW_PRICE&&o.price?'<div class="ms-p">'+rub(o.price)+(o.perf?' · с парфюмом':'')+'</div>':'')+'<div class="ms-sp"></div><button type="button" class="btn" id="ms-x">Закрыть</button></div>';
   try{el.showModal()}catch(e){el.setAttribute("open","")}$("#ms-x").onclick=()=>{try{el.close()}catch(e){el.removeAttribute("open")}};
   shown=[o].concat(shown.filter(s=>s.name!==o.name)).slice(0,5);try{localStorage.setItem("karta-shown",JSON.stringify(shown))}catch(e){}}
 function smData(k){if(k==="g"&&genMix)return{name:genMix.name,parts:genMix.parts.map(p=>[p[0].b+" «"+p[0].n+"»",p[1],p[2]]),str:genMix.str,price:genMix.price,perf:genMix.perf};
@@ -853,10 +851,16 @@ function partCat(name){const n=norm(name.replace(/[«»"]/g,""));const x=DATA.fi
 // Микс мастера показываем только если все его вкусы сейчас на стойке
 const partOn=n=>{const m=(n||"").match(/^(.*?)\s*«(.*)»$/);if(!m)return false;const b=norm(m[1]),f=norm(m[2]);return DATA.some(x=>norm(x.b)===b&&norm(x.n)===f)};
 const mixOK=m=>m.parts.every(p=>partOn(p.name));
+const favOf=m=>mine.findIndex(x=>x.src==="album"&&x.name===m.name);
+const favBtn=m=>{const on=favOf(m)>=0;return '<button type="button" class="btn fav'+(on?" on":"")+'" data-fav="'+MIXES.indexOf(m)+'" aria-pressed="'+on+'">'+(on?"♥ В избранном":"♡ В избранное")+'</button>'};
+$("#mixes").addEventListener("click",e=>{const b=e.target.closest("[data-fav]");if(!b)return;const m=MIXES[+b.dataset.fav];if(!m)return;const i=favOf(m);
+  if(i>=0)mine.splice(i,1);else mine.unshift({name:m.name,parts:m.parts.map(p=>({name:p.name,pct:p.pct})),note:m.profile||"",date:new Date().toLocaleDateString("ru-RU"),src:"album"});
+  if(!saveMine()){toast2("Браузер не дал сохранить. Возможно, включён приватный режим.");return}
+  render();if(i<0)toast2("Сохранено в Избранное → Миксы мастеров")});
 function renderMixes(){
   let h='<div class="mixes"><button type="button" class="slide dark genbtn" id="gen-open"><span class="eyebrow">Генератор</span><span class="big">Собери микс</span><span class="small">Из того, что сейчас на стойке</span><span class="cta">Собрать →</span></button>';
   h+='<h2 class="sect-h">Миксы мастера</h2><p class="note" style="margin:0">'+(MIXES.some(mixOK)?"Собраны из табаков, которые сейчас на стойке.":"Сейчас всё нужное для миксов мастера не на стойке. Загляни позже или собери свой в генераторе.")+'</p>';
-  MIXES.filter(mixOK).forEach(m=>{h+='<article class="mix"><div class="who">Микс мастера</div><h3>'+esc(m.name)+'</h3>'+priceTag(PRICE,false)+'<button type="button" class="btn smb" data-sm="m:'+MIXES.indexOf(m)+'">Показать мастеру</button>'+ctags(m.parts)+bowl(m.parts)+'<p>'+esc(m.profile)+'</p>'+(m.forWho?'<p class="for">'+esc(m.forWho)+'</p>':"")+'</article>'});
+  MIXES.filter(mixOK).forEach(m=>{h+='<article class="mix"><div class="who">Микс мастера</div><h3>'+esc(m.name)+'</h3>'+priceTag(PRICE,false)+'<div class="macts"><button type="button" class="btn smb" data-sm="m:'+MIXES.indexOf(m)+'">Показать мастеру</button>'+favBtn(m)+'</div>'+bowl(m.parts)+'<p>'+esc(m.profile)+'</p>'+(m.forWho?'<p class="for">'+esc(m.forWho)+'</p>':"")+'</article>'});
   h+='</div>';
   $("#mixes").innerHTML=h;
   $("#gen-open").onclick=openGen;
@@ -910,7 +914,7 @@ function showForm(sel,fromMaster){
     if(!parts.length){$("#mf-err").textContent="Добавь хотя бы один табак.";return}
     mine.unshift({name:$("#mf-name").value.trim(),parts,note:$("#mf-note").value.trim(),date:new Date().toLocaleDateString("ru-RU"),by:fromMaster?"мастер":""});
     if(!saveMine()){$("#mf-err").textContent="Браузер не дал сохранить. Возможно, включён приватный режим.";mine.shift();return}
-    if(fromMaster){const dd=$("#qrd");try{dd.close()}catch(x){dd.removeAttribute("open")}st.tab="me";st.meTab="mx";render();toast2("Микс записан мастером и лежит у тебя в избранном")}else render()});
+    if(fromMaster){const dd=$("#qrd");try{dd.close()}catch(x){dd.removeAttribute("open")}st.tab="me";st.meTab="ms";render();toast2("Микс записан мастером и лежит у тебя в избранном")}else render()});
 }
 function toast2(t){let el=$("#toast2");if(!el){el=document.createElement("div");el.id="toast2";el.className="toast2";document.body.append(el)}el.textContent=t;el.hidden=false;clearTimeout(el._t);el._t=setTimeout(()=>{el.hidden=true},4000)}
 // QR: гость показывает код мастеру, мастер вносит микс — он попадает в избранное гостя.
@@ -926,7 +930,7 @@ async function pollGuestMix(){const C=window.POLKA_CONFIG;if(!C||gmBusy)return;g
       mine.unshift({name:row.name||"Микс от мастера",parts:row.parts||[],note:row.note||"",date:new Date().toLocaleDateString("ru-RU"),by:"мастер"});
       try{await fetch(C.url+"/rest/v1/rpc/claim_guest_mix",{method:"POST",headers:{apikey:C.anon,Authorization:"Bearer "+C.anon,"Content-Type":"application/json"},body:JSON.stringify({p_id:row.id})})}catch(e){}
     }
-    saveMine();toast2(rows.length>1?"Мастер записал "+rows.length+" микса, они у тебя в избранном":"Мастер записал микс, он у тебя в избранном");
+    saveMine();st.meTab="ms";toast2(rows.length>1?"Мастер записал "+rows.length+" микса, они у тебя в избранном":"Мастер записал микс, он у тебя в избранном");
     const dd=$("#qrd");if(dd&&dd.open){try{dd.close()}catch(e){dd.removeAttribute("open")}}
     if(st.tab==="me")render()
   }catch(e){}finally{gmBusy=false}}
@@ -940,22 +944,25 @@ async function openQR(){const url="https://t.me/PolkaHookahbot/PolkaSklad?starta
 document.addEventListener("click",e=>{if(e.target.closest("#qrbtn")){openQR();return}const dd=$("#qrd");if(dd&&(e.target===dd||e.target.closest("[data-qx]"))){try{dd.close()}catch(x){dd.removeAttribute("open")}clearInterval(gmTimer)}});
 function ctags(parts){const ks=[...new Set(parts.map(p=>partCat(p.name)))].filter(Boolean);return ks.length?'<div class="ctags">'+ks.map(k=>'<span class="ctag" style="--k:var(--c-'+k+')">'+esc(catName[k]||k)+'</span>').join("")+'</div>':""}
 const QRCARD='<button type="button" class="qcard" id="qrbtn"><span class="qc-ic"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v3M14 20h3M20 20h1"/></svg></span><span class="wc-t"><b>Пусть запишет мастер</b><small>Покажи QR — мастер внесёт микс сам, и он появится у тебя в избранном</small></span><span class="qc-go">›</span></button>';
+// Миксы мастеров: записанные мастером по QR и сохранённые из раздела «Миксы»
+const fromMaster=m=>m.by==="мастер"||m.src==="album";
+function mixCard(m,i){return '<article class="mix mymix"><div class="who">'+(m.src==="album"?"Микс мастера":m.by==="мастер"?"Записал мастер":"Мой микс")+(m.date?" · "+esc(m.date):"")+'</div><h3>'+esc(m.name||"Без названия")+'</h3><button type="button" class="btn smb" data-sm="u:'+i+'">Показать мастеру</button>'+bowl(m.parts)+(m.note?'<p>'+esc(m.note)+'</p>':"")
+    +'<div class="acts"><button class="btn sm" type="button" data-del="'+i+'">Удалить</button></div></article>'}
+function MASTERHTML(){const L=mine.map((m,i)=>[m,i]).filter(([m])=>fromMaster(m));
+  return '<div class="mixes">'+(L.length?L.map(([m,i])=>mixCard(m,i)).join(""):'<p class="note" style="margin:0">Здесь появятся миксы, которые мастер запишет тебе по QR, и миксы из раздела «Миксы», сохранённые кнопкой ♡.</p>')+'</div>'}
 function MINEHTML(){let h='<div class="mixes"><button type="button" class="wcard" id="addmix"><span class="wc-ic"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></span><span class="wc-t"><b>Записать свой микс</b><small>Мастер забил вкусный — сохрани состав и в следующий раз просто покажи его</small></span><span class="wc-go">+</span></button><div id="mfbox"></div>';
-  if(mine.length)h+='<h2 class="sect-h">Мои миксы</h2>';
-  mine.forEach((m,i)=>{h+='<article class="mix mymix"><div class="who">Мой микс'+(m.date?" · "+esc(m.date):"")+'</div><h3>'+esc(m.name||"Без названия")+'</h3>'+(m.price?priceTag(m.price,m.perf,m.cig):"")+'<button type="button" class="btn smb" data-sm="u:'+i+'">Показать мастеру</button>'+ctags(m.parts)+bowl(m.parts)+(m.note?'<p>'+esc(m.note)+'</p>':"")
-    +'<div class="acts"><button class="btn sm" type="button" data-del="'+i+'">Удалить</button></div></article>'});
+  mine.forEach((m,i)=>{if(!fromMaster(m))h+=mixCard(m,i)});
   return h+'</div>'}
 function renderMe(){
-  const w=DATA.filter(x=>mk(x.id).w),r=DATA.filter(x=>mk(x.id).r).sort((a,b)=>mk(b.id).r-mk(a.id).r);
-  let h='<div class="mixes"><p class="note">Закладки и оценки хранятся только на этом телефоне.</p><h2 class="sect-h">Хочу попробовать</h2>';
-  h+=w.length?'<div class="its">'+w.map(x=>itemRow(x,false,true)).join("")+'</div>':'<p class="note" style="margin:0">Нажми ♡ у вкуса в меню, и он появится здесь.</p>';
-  h+='<h2 class="sect-h">Мои оценки</h2>'+(r.length?'<div class="its">'+r.map(x=>itemRow(x,false,true)).join("")+'</div>':'<p class="note" style="margin:0">Нажми ★ у вкуса, который уже пробовал.</p>');
-  const sh=shown.length?'<div class="mixes"><h2 class="sect-h">Показывал мастеру</h2>'+shown.map((o,i)=>'<div class="shrow"><div><b>'+esc(o.name)+'</b><small>'+esc(o.parts.map(p=>p[0]).join(" · "))+'</small></div><button type="button" class="btn smb" data-sm="h:'+i+'">Повторить</button></div>').join("")+'</div>':"";
-  // Две вкладки: вкусы (закладки и оценки) и миксы (свои, от мастера, показанные)
-  const mt=st.meTab==="mx"?"mx":"fl",nf=DATA.filter(x=>marks[x.id]).length;
-  const seg='<div class="mseg" role="tablist"><button type="button" role="tab" data-mt="fl" aria-selected="'+(mt==="fl")+'">Мои вкусы'+(nf?' <small>'+nf+'</small>':"")+'</button><button type="button" role="tab" data-mt="mx" aria-selected="'+(mt==="mx")+'">Мои миксы'+(mine.length?' <small>'+mine.length+'</small>':"")+'</button></div>';
+  const w=DATA.filter(x=>mk(x.id).w);
+  const fl='<div class="mixes"><p class="note">Избранное хранится только на этом телефоне.</p><h2 class="sect-h">Хочу попробовать</h2>'
+    +(w.length?'<div class="its">'+w.map(x=>itemRow(x,false,true)).join("")+'</div>':'<p class="note" style="margin:0">Нажми ♡ у вкуса в меню, и он появится здесь.</p>')+'</div>';
+  // Три вкладки: миксы мастеров, свои миксы, вкусы с ♡
+  const mt=["mx","fl"].includes(st.meTab)?st.meTab:"ms",nm=mine.filter(fromMaster).length,nu=mine.length-nm;
+  const tab=(k,l,n)=>'<button type="button" role="tab" data-mt="'+k+'" aria-selected="'+(mt===k)+'">'+l+(n?' <small>'+n+'</small>':"")+'</button>';
+  const seg='<div class="mseg" role="tablist">'+tab("ms","Миксы мастеров",nm)+tab("mx","Мои миксы",nu)+tab("fl","Вкусы",w.length)+'</div>';
   // QR «Пусть запишет мастер» — над вкладками, виден всегда
-  $("#me").innerHTML='<div class="meqr">'+QRCARD+'</div>'+seg+(mt==="mx"?MINEHTML()+sh:h+'</div>');
+  $("#me").innerHTML='<div class="meqr">'+QRCARD+'</div>'+seg+(mt==="ms"?MASTERHTML():mt==="mx"?MINEHTML():fl);
   $("#me").querySelectorAll("[data-mt]").forEach(b=>b.onclick=()=>{st.meTab=b.dataset.mt;render()});
   const am=$("#addmix");if(am)am.onclick=showForm;
   document.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{
@@ -988,11 +995,13 @@ const SWEETSPICE=/корица|кардамон|имбир|(?<![а-яё])пан(
 let genSel=[],genCold=false,genMix=null;
 // Цены: обычный кальян и кальян с парфюмом Deus; шанс парфюма в генераторе
 const PRICE=2500,PRICE_PERF=3200,PERF_CHANCE=0.2;
+// Цены гостям пока не показываем; вернуть — SHOW_PRICE=true
+const SHOW_PRICE=false;
 const isPerf=x=>x.b==="Deus"&&x.t.includes("соло");
 const NOGEN=x=>x.b==="Deus"&&(x.n==="Red"||x.n==="Catmint");
 const rub=n=>String(n).replace(/\B(?=(\d{3})+(?!\d))/g," ")+" ₽";
 const isCigar=x=>x.b==="Kraken"||x.b==="Bonche";
-const priceTag=(n,perf,cig)=>'<div class="price"><b>'+rub(n)+'</b>'+(perf?'<span>с парфюмом</span>':"")+(cig?'<span class="cig">сигарный лист</span>':"")+'</div>';
+const priceTag=(n,perf,cig)=>!SHOW_PRICE?"":'<div class="price"><b>'+rub(n)+'</b>'+(perf?'<span>с парфюмом</span>':"")+(cig?'<span class="cig">сигарный лист</span>':"")+'</div>';
 const pick1=a=>a.length?a[Math.floor(Math.random()*a.length)]:null;
 const isCold=x=>/холод|лёд|лед|ментол|мят/i.test(x.d+" "+x.n);
 const plain=x=>x.d&&x.c.length&&!x.t.includes("соло")&&!SAVORY.test(x.d+" "+x.n)&&(x.d.match(/,/g)||[]).length<2;
@@ -1105,7 +1114,7 @@ function renderGen(){
     +'<label class="gcold"><span class="gi"><span class="sn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v20M4.9 4.9l14.2 14.2M2 12h20M4.9 19.1L19.1 4.9"/></svg></span>Добавить холодок</span><input type="checkbox" id="g-cold"'+(genCold?" checked":"")+'><span class="sw"></span></label>';
   if(genMix&&genMix.none){h+='<p class="note">Микс на '+genStr+'/10 из того, что сейчас на стойке, не собрать. Сдвинь ползунок на '+(genStr<5?genStr+1:genStr-1)+'.</p>'}
   else if(genMix&&genMix.meme){h+='<article class="mix gen meme"><div class="who">Твой микс</div><h3>Совсем больной?</h3><div class="gstrv">Крепость '+dots(10)+' <b>10</b>/10</div><ul class="bowl"><li><span>Смола вместо табака <small class="role">база</small></span><span class="pct">60%</span></li><li><span>Чистый никотин <small class="role">фон</small></span><span class="pct">30%</span></li><li><span>Слёзы мастера <small class="role">акцент</small></span><span class="pct">10%</span></li></ul><p>После первой затяжки слышишь цвета, после второй видишь звуки, после третьей звонишь бывшей.</p><p class="for">Мастер такое не забьёт даже за двойной тариф. Сдвинь ползунок хотя бы до 8 — или налей себе чаю.</p><div class="dlg-btns"><button class="btn go" type="button" id="g-eight">Ладно, давай 8</button></div></article>'}
-  else if(genMix){h+='<article class="mix gen"><div class="who">Твой микс</div><h3>'+esc(genMix.name)+'</h3>'+priceTag(genMix.price,genMix.perf,genMix.parts.some(p=>isCigar(p[0])))+'<div class="gstrv">Крепость '+dots(genMix.str)+' <b>'+genMix.str+'</b>/10 · '+WORD10(genMix.str)+'</div>'+mixTagsHtml(genMix.parts)+'<button type="button" class="btn smb" data-sm="g">Показать мастеру</button>'+'<div class="mixavas">'+[...new Set(genMix.parts.map(p=>p[0].c[0]))].map(k=>ava(k)).join("")+'</div><ul class="bowl">'+genMix.parts.map(p=>'<li><span>'+esc(p[0].b)+' «'+esc(p[0].n)+'» <small class="role">'+p[2]+(isCigar(p[0])&&!p[2].includes("сигар")?" · сигарный лист":"")+'</small></span><span class="pct">'+p[1]+'%</span><span class="meter"><i style="width:'+p[1]+'%"></i></span></li>').join("")+'</ul><p>'+esc(genMix.prof)+'</p><p class="for">Собрано автоматически по описаниям вкусов. Покажи мастеру — он подстроит доли под чашу.</p></article>'}
+  else if(genMix){h+='<article class="mix gen"><div class="who">Твой микс</div><h3>'+esc(genMix.name)+'</h3>'+priceTag(genMix.price,genMix.perf,genMix.parts.some(p=>isCigar(p[0])))+'<div class="gstrv">Крепость '+dots(genMix.str)+' <b>'+genMix.str+'</b>/10 · '+WORD10(genMix.str)+'</div>'+'<button type="button" class="btn smb" data-sm="g">Показать мастеру</button><ul class="bowl">'+genMix.parts.map(p=>'<li><span>'+esc(p[0].b)+' «'+esc(p[0].n)+'» <small class="role">'+p[2]+(isCigar(p[0])&&!p[2].includes("сигар")?" · сигарный лист":"")+'</small></span><span class="pct">'+p[1]+'%</span><span class="meter"><i style="width:'+p[1]+'%"></i></span></li>').join("")+'</ul><p>'+esc(genMix.prof)+'</p><p class="for">Собрано автоматически по описаниям вкусов. Покажи мастеру — он подстроит доли под чашу.</p></article>'}
   else if(genSel.length)h+='<p class="note">Из этого сочетания на стойке сейчас не собрать — попробуй другое настроение.</p>';
   h+='<div class="dlg-btns"><button class="btn go" type="button" id="g-go"'+(genSel.length?"":" disabled")+'>'+(genMix?"Другой вариант":"Собрать")+'</button>'+(genMix&&!genMix.meme&&!genMix.none?'<button class="btn" type="button" id="g-save">Сохранить в мои миксы</button>':"")+'<button class="btn" type="button" id="g-close">Закрыть</button></div>';
   $("#pick-body").innerHTML=h;
@@ -1131,8 +1140,6 @@ $("#pick").addEventListener("click",e=>{
 });
 function onMark(e,inPick){const t=e.target;
   const w=t.closest("[data-want]");if(w){const id=w.dataset.want;setMark(id,"w",!mk(id).w);inPick?refreshPick():render();return true}
-  const rt=t.closest("[data-rt]");if(rt){rateOpen=rateOpen===rt.dataset.rt?"":rt.dataset.rt;inPick?refreshPick():render();return true}
-  const rr=t.closest("[data-rate]");if(rr){setMark(rr.dataset.id,"r",Number(rr.dataset.rate));rateOpen="";inPick?refreshPick():render();return true}
   return false}
 let lastRes=null;
 function refreshPick(){const ids=[...$("#pick-body").querySelectorAll("[data-want]")].map(b=>b.dataset.want);renderPick(ids.map(id=>DATA.find(x=>x.id===id)))}
@@ -1144,10 +1151,16 @@ $("#t-mix").onclick=()=>go("mix");
 $("#t-me").onclick=()=>go("me");
 const q=$("#q");
 q.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();q.blur()}});
-q.addEventListener("input",()=>{st.q=q.value.trim();$("#clear").hidden=!q.value;render();
-  // при вводе — плавно опускаем экран к найденным вкусам, поиск остаётся сверху
-  if(st.q){const l=$("#list"),b=$(".bar");if(l&&b){const y=l.getBoundingClientRect().top+window.scrollY-b.offsetHeight-8;if(Math.abs(window.scrollY-y)>24)window.scrollTo({top:y,behavior:"smooth"})}}});
-$("#clear").onclick=()=>{q.value="";st.q="";$("#clear").hidden=true;q.focus();render()};
+q.addEventListener("input",()=>{const was=!!st.q;st.q=q.value.trim();$("#clear").hidden=!q.value;
+  // Пока идёт поиск, список держит высоту экрана: страница не укорачивается и не прыгает на каждой букве
+  document.body.classList.toggle("searching",!!st.q);render();
+  // к найденному опускаем один раз — на первой букве, без плавной анимации (iOS с клавиатурой дёргает её)
+  if(st.q&&!was){const l=$("#list"),b=$(".bar");if(l&&b){const y=l.getBoundingClientRect().top+window.scrollY-b.offsetHeight-8;if(window.scrollY<y-24)window.scrollTo(0,y)}}});
+$("#clear").onclick=()=>{q.value="";st.q="";$("#clear").hidden=true;document.body.classList.remove("searching");q.focus();render()};
+// 2. Пока открыта клавиатура, нижнюю панель прячем — иначе iOS поднимает её над клавиатурой
+const isTxt=t=>t&&(t.tagName==="TEXTAREA"||(t.tagName==="INPUT"&&!/^(range|checkbox|radio|button|submit)$/.test(t.type)));
+document.addEventListener("focusin",e=>{if(isTxt(e.target))document.body.classList.add("kb")});
+document.addEventListener("focusout",e=>{if(isTxt(e.target))setTimeout(()=>{if(!isTxt(document.activeElement))document.body.classList.remove("kb")},60)});
 renderHero();render();autoplay();
 
 (function(){const w=document.getElementById("slides");if(!w)return;const hero=w.parentNode;
@@ -1316,6 +1329,25 @@ dialog::backdrop{animation:fin .25s}
 .meqr{margin-top:14px}
 /* overflow-x:hidden у body ломает «липкую» шапку поиска; clip режет так же, но не мешает */
 @supports (overflow:clip){html,body{overflow-x:clip}}.meqr .qcard{margin:0}
+/* Правки 25.10: панель ниже, прячется при клавиатуре; поиск без прыжков; три вкладки избранного */
+nav.dock{bottom:max(8px,calc(env(safe-area-inset-bottom,0px) - 20px));transition:transform .25s cubic-bezier(.2,.8,.2,1),opacity .2s}
+body.kb nav.dock{transform:translateY(140%);opacity:0;pointer-events:none}
+body.searching #list{min-height:100dvh}
+.mseg{grid-template-columns:repeat(3,1fr)}
+.mseg button{font-size:13px;padding:10px 4px;line-height:1.2}
+.macts{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.macts .btn{margin:0}
+.btn.fav.on{background:var(--ember-soft)}
+/* Экран для мастера — то же тёмное стекло, что и карта */
+dialog.master{background:radial-gradient(120% 60% at 0% 0%,rgba(79,140,120,.22),transparent 60%),#0b0f0d;color:#eef1ec;padding:max(20px,env(safe-area-inset-top)) 20px max(16px,env(safe-area-inset-bottom))}
+dialog.master[open]{display:flex;flex-direction:column}
+.master .ms-in{flex:1;display:flex;flex-direction:column;width:100%}
+.ms-logo{display:flex;align-items:center;gap:10px;margin-bottom:22px;color:#eef1ec}.ms-logo .lgm{width:46px;height:28px}.ms-logo .wm{font-size:17px;font-weight:500}
+.master .ms-k{color:#98a39c}
+.master ol{border:1px solid rgba(225,242,233,.12);border-radius:18px;background:rgba(228,244,236,.05);padding:2px 16px;box-shadow:inset 0 1px 0 rgba(255,255,255,.07)}
+.master li{font-size:19px;padding:13px 0;border-bottom:1px solid rgba(225,242,233,.09);align-items:baseline}.master li:last-child{border-bottom:0}
+.master li b{font:700 17px var(--body);color:#ece3d0;flex:none}
+.ms-sp{flex:1;min-height:20px}
+.master .btn{margin-top:0;background:#ece3d0;color:#171815;border:0;font-weight:600}
 </style><script>
 (function(){
 var REAL=true,K="polka_wishes_v1";
