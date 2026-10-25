@@ -1444,7 +1444,12 @@ function matchChunk(text,label){let T=cnTxt(text),fixed=[];if(label)({T,fixed}=f
          if(!hit.length&&r.length>=4){const sr=skel(r);
            hit=pick(own.map(x=>{const n=skel(cnTxt(x.n));return[x,n.length>=4?lev(sr,n):99]}).filter(a=>a[1]<=(sr.length>=6?1:0)).sort((a,b)=>a[1]-b[1]))}
          // Этикетка обрезана («BONCHE COFF?», «GINGER A?») — начало названия совпало ровно с одним вкусом бренда
-         if(!hit.length&&/\?/.test(text)&&r.length>=3){const pre=own.filter(x=>lat(cnTxt(x.n).replace(/ /g,"")).startsWith(lat(r)));if(pre.length===1)hit=pre}}}}
+         // Перед названием может стоять линейка («SEBERO CLASSIC MANG?») — пробуем и без первых слов
+         if(!hit.length&&/\?/.test(text)){const ws=rest.trim().split(" ").filter(Boolean);
+           for(let i=0;i<ws.length&&!hit.length;i++){const q=lat(ws.slice(i).join(""));if(q.length<3)break;
+             let pre=own.filter(x=>lat(cnTxt(x.n).replace(/ /g,"")).startsWith(q));
+             // «MANG?» подходит и к Mango, и к Mango Yogurt — берём тот, где слов столько же, сколько видно на этикетке
+             if(pre.length>1)pre=pre.filter(x=>cnTxt(x.n).trim().split(" ").length===ws.length-i);if(pre.length===1)hit=pre}}}}}
    return{hit,byN,T,brands,fixed}}
 function matchText(text){const raw=String(text||"");
    // С фото банок сервер отдаёт текст по этикеткам («Этикетка N: …» — см. readPhotos на сервере). Разбираем каждую
