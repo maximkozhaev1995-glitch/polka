@@ -329,7 +329,7 @@ Deno.serve(async (req) => {
       messages,
       tools: Array.isArray(tools) && tools.length ? tools : undefined,
     });
-    return out({ content: r.content, stop_reason: r.stop_reason, usage: r.usage, ocr: ocr ? "yandex" : undefined, ocr_texts: ocr || undefined });
+    return out({ content: r.content, stop_reason: r.stop_reason, usage: r.usage, model: r.model || model, ocr: ocr ? "yandex" : undefined, ocr_texts: ocr || undefined });
   } catch (e) {
     const status = (e as { status?: number }).status;
     console.error("ai error:", status, String((e as Error).message).slice(0, 300));
