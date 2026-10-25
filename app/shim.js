@@ -158,13 +158,20 @@
       // Распознаём каждое фото отдельным запросом (ocr_only) — иначе на нескольких фото разом функция
       // Supabase упирается в свой лимит времени (150 с) и падает без ответа («Не получилось»).
       // Отдельные запросы быстрее по одному и не считаются в дневной лимит (там модель не вызывается).
+      // Не прочиталось — пробуем ещё раз; не вышло и со второго раза — фото помечаем как непрочитанное (null),
+      // а не пустым текстом: иначе ассистент уверенно отвечает «на фото ни одного вкуса»
       const texts=await Promise.all(blocks.map(async b=>{
-        try{const r=await callAI({system:"",messages:[{role:"user",content:[b]}],tools:[],ocr_only:true},opts.signal,()=>{});
-          if(r.ocr)ocr=r.ocr;return (r.ocr_texts||[])[0]||""}
-        catch(e){return ""}}));
+        let err="";
+        for(let a=0;a<2;a++){
+          try{const r=await callAI({system:"",messages:[{role:"user",content:[b]}],tools:[],ocr_only:true},opts.signal,()=>{});
+            if(!r.ocr){err="not_read";continue}
+            ocr=r.ocr;return (r.ocr_texts||[])[0]||""}
+          catch(e){if(e&&e.name==="AbortError")return {failed:"cancelled"};err=e&&e.code||"network";console.warn("photo read failed:",err)}}
+        return {failed:err}}));
       // opts.photo — приложение само сверяет текст с каталогом; сверка — наш код, может споткнуться на непредвиденном
       // тексте с фото: тогда не роняем весь запрос, а откатываемся к сырому OCR-тексту для этой картинки
-      photo=texts.map(t=>{try{return opts.photo?opts.photo(t||""):"[Фото, текст прочитан с фото]\n"+(t||"(текста на фото не нашлось)")}
+      photo=texts.map((t,i)=>{if(t&&t.failed)return "[Фото "+(i+1)+" не удалось прочитать (ошибка: "+t.failed+"). Скажи человеку, что это фото не прочиталось, и попроси прислать его ещё раз. Вкусы с него не угадывай.]";
+        try{return opts.photo?opts.photo(t||""):"[Фото, текст прочитан с фото]\n"+(t||"(текста на фото не нашлось)")}
         catch(e){console.warn("photo match failed:",e);return "[Фото, текст прочитан с фото]\n"+(t||"(текста на фото не нашлось)")}});
       const last=msgs[msgs.length-1];
       last.content=[...photo.map(t=>({type:"text",text:t})),{type:"text",text:String(last.content)}]}
