@@ -764,13 +764,13 @@ $("#moods").addEventListener("click",e=>{const b=e.target.closest("[data-mood]")
 
 // Крепость точками: 1–10 → 5 точек
 function sd5(n){const k=Math.round(n/2);return '<span class="sd5" aria-label="Крепость '+n+' из 10">'+[1,2,3,4,5].map(i=>'<i'+(i<=k?' class="on"':"")+'></i>').join("")+'</span>'}
-function itemRow(x,hlOn,showB){const m=mk(x.id),f=hlOn?hl:esc,tg=x.t.filter(t=>t!=="лимитка");
+function itemRow(x,hlOn,showB){const f=hlOn?hl:esc,tg=x.t.filter(t=>t!=="лимитка");
   return '<div class="it" style="--k:'+(x.c[0]?"var(--c-"+x.c[0]+")":"var(--muted)")+'">'+ava(x.c[0])+'<div class="itl">'+(showB?'<span class="ib">'+esc(x.b)+'</span>':"")+'<span class="nm">'+f(x.n)+'</span>'+(x.l?'<span class="ln">'+esc(x.l)+'</span>':"")
     +(isNew(x)?'<span class="dotb">'+(NEWS.lim.includes(x.id)?"Лимитка":"Новое")+'</span>':"")
     +(tg.length?'<span class="tags">'+tg.map(t=>'<span class="tag">'+esc(t)+'</span>').join("")+'</span>':"")
     +(x.d?'<div class="ds">'+f(x.d)+'</div>':"")
     +(x.st?'<div class="ist">'+sd5(x.st)+'</div>':"")
-    +'</div><div class="itr"><button type="button" class="ic'+(m.w?" on":"")+'" data-want="'+x.id+'" aria-pressed="'+!!m.w+'" aria-label="Хочу попробовать" title="Хочу попробовать">'+(m.w?"♥":"♡")+'</button></div></div>'}
+    +'</div></div>'}
 
 // Анимация появления только при переходе (не при каждом ♡ или обновлении наличия)
 function navAnim(){document.body.classList.add("nav-anim");clearTimeout(navAnim.t);navAnim.t=setTimeout(()=>document.body.classList.remove("nav-anim"),900)}
@@ -778,8 +778,7 @@ document.addEventListener("click",e=>{if(e.target.closest&&e.target.closest(".do
 let brandY=0;
 function render(){
   document.body.classList.toggle("inbrand",!!st.brand&&st.tab==="tob");
-  const meN=DATA.filter(x=>mk(x.id).w).length;
-  $("#c-mix").textContent=MIXES.filter(mixOK).length?String(MIXES.filter(mixOK).length):"";$("#c-me").textContent=meN+mine.length?String(meN+mine.length):"";
+  $("#c-mix").textContent=MIXES.filter(mixOK).length?String(MIXES.filter(mixOK).length):"";$("#c-me").textContent=mine.length?String(mine.length):"";
   [["tob","t-tob"],["mix","t-mix"],["me","t-me"]].forEach(([t,i])=>$("#"+i).setAttribute("aria-current",st.tab===t?"page":"false"));
   $("#v-menu").hidden=st.tab!=="tob";$("#mixes").hidden=st.tab!=="mix";$("#me").hidden=st.tab!=="me";
   if(st.tab==="mix"){renderMixes();return}
@@ -954,15 +953,12 @@ function MINEHTML(){let h='<div class="mixes"><button type="button" class="wcard
   mine.forEach((m,i)=>{if(!fromMaster(m))h+=mixCard(m,i)});
   return h+'</div>'}
 function renderMe(){
-  const w=DATA.filter(x=>mk(x.id).w);
-  const fl='<div class="mixes"><p class="note">Избранное хранится только на этом телефоне.</p><h2 class="sect-h">Хочу попробовать</h2>'
-    +(w.length?'<div class="its">'+w.map(x=>itemRow(x,false,true)).join("")+'</div>':'<p class="note" style="margin:0">Нажми ♡ у вкуса в меню, и он появится здесь.</p>')+'</div>';
-  // Три вкладки: миксы мастеров, свои миксы, вкусы с ♡
-  const mt=["mx","fl"].includes(st.meTab)?st.meTab:"ms",nm=mine.filter(fromMaster).length,nu=mine.length-nm;
+  // Две вкладки: миксы мастеров и свои миксы
+  const mt=st.meTab==="mx"?"mx":"ms",nm=mine.filter(fromMaster).length,nu=mine.length-nm;
   const tab=(k,l,n)=>'<button type="button" role="tab" data-mt="'+k+'" aria-selected="'+(mt===k)+'">'+l+(n?' <small>'+n+'</small>':"")+'</button>';
-  const seg='<div class="mseg" role="tablist">'+tab("ms","Миксы мастеров",nm)+tab("mx","Мои миксы",nu)+tab("fl","Вкусы",w.length)+'</div>';
+  const seg='<div class="mseg" role="tablist">'+tab("ms","Миксы мастеров",nm)+tab("mx","Мои миксы",nu)+'</div>';
   // QR «Пусть запишет мастер» — над вкладками, виден всегда
-  $("#me").innerHTML='<div class="meqr">'+QRCARD+'</div>'+seg+(mt==="ms"?MASTERHTML():mt==="mx"?MINEHTML():fl);
+  $("#me").innerHTML='<div class="meqr">'+QRCARD+'</div>'+seg+(mt==="ms"?MASTERHTML():MINEHTML());
   $("#me").querySelectorAll("[data-mt]").forEach(b=>b.onclick=()=>{st.meTab=b.dataset.mt;render()});
   const am=$("#addmix");if(am)am.onclick=showForm;
   document.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{
@@ -1333,8 +1329,6 @@ dialog::backdrop{animation:fin .25s}
 nav.dock{bottom:max(8px,calc(env(safe-area-inset-bottom,0px) - 20px));transition:transform .25s cubic-bezier(.2,.8,.2,1),opacity .2s}
 body.kb nav.dock{transform:translateY(140%);opacity:0;pointer-events:none}
 body.searching #list{min-height:100dvh}
-.mseg{grid-template-columns:repeat(3,1fr)}
-.mseg button{font-size:13px;padding:10px 4px;line-height:1.2}
 .macts{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.macts .btn{margin:0}
 .btn.fav.on{background:var(--ember-soft)}
 /* Экран для мастера — то же тёмное стекло, что и карта */
