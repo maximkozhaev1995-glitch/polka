@@ -2,17 +2,7 @@
 // Полка: слой между приложением и базой. Приложение написано под window.claude.use("db"), здесь тот же интерфейс поверх Supabase.
 (function(){
   const CFG=window.POLKA_CONFIG, tg=window.Telegram&&window.Telegram.WebApp;
-  if(tg){try{tg.ready();tg.expand();
-    // Полный экран (Bot API 8.0+): прячет шапку Telegram. На её месте, в зоне
-    // плавающих кнопок Telegram (закрыть/настройки), появляется безопасная
-    // зона contentSafeAreaInset — учитываем её вместе с обычным safe-area-inset
-    // через CSS-переменную --safe-top (см. :root в src/stoika.html).
-    if(tg.requestFullscreen&&(!tg.isVersionAtLeast||tg.isVersionAtLeast("8.0")))try{tg.requestFullscreen()}catch(e){}
-    const syncSafeTop=()=>{try{const c=tg.contentSafeAreaInset||{},s=tg.safeAreaInset||{};
-      document.documentElement.style.setProperty("--safe-top","max(env(safe-area-inset-top,0px),"+Math.max(c.top||0,s.top||0)+"px)")}catch(e){}};
-    syncSafeTop();
-    if(tg.onEvent){tg.onEvent("contentSafeAreaChanged",syncSafeTop);tg.onEvent("safeAreaChanged",syncSafeTop);tg.onEvent("fullscreenChanged",syncSafeTop)}
-  }catch(e){}}
+  if(tg){try{tg.ready();tg.expand()}catch(e){}}
   const $=s=>document.querySelector(s);
   let session=null, resolveReady, readyP=new Promise(r=>resolveReady=r);
   const wall=document.createElement("div");wall.id="login";
