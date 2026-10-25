@@ -1071,10 +1071,13 @@ function matchText(text){const raw=String(text||"");
    // склеиваются в несуществующий вкус (так получился ложный «Black Burn Overdose»)
    const labels=[...raw.matchAll(/^Этикетка\s*\d+\s*:\s*(.*)$/gim)].map(m=>m[1]);
    const chunks=labels.length?labels:[raw];
-   const seen=new Set(),found=[];
+   // Один вкус на нескольких этикетках — это несколько банок (сервер уже склеил куски одной этикетки
+   // по координатам), считаем их в jars, а не теряем вторую банку
+   const seen=new Map(),found=[];
    chunks.forEach(chunk=>{const{hit,byN,T}=matchChunk(chunk);
-     hit.forEach(x=>{if(seen.has(x.id))return;seen.add(x.id);
-       found.push({...aiItem(x),ambiguous:(byN[cnTxt(x.n)]||[]).length>1&&!T.includes(cnTxt(x.b))||undefined})})});
+     hit.forEach(x=>{if(seen.has(x.id)){if(labels.length)seen.get(x.id).jars++;return}
+       const it={...aiItem(x),jars:1,ambiguous:(byN[cnTxt(x.n)]||[]).length>1&&!T.includes(cnTxt(x.b))||undefined};
+       seen.set(x.id,it);found.push(it)})});
    const brands=new Set(DATA.map(x=>cnTxt(x.b).trim()));
    const names=found.map(x=>cnTxt(x.name));
    const lines=(labels.length?labels:raw.split(/\n+/)).map(l=>l.trim());
@@ -1084,7 +1087,7 @@ function matchText(text){const raw=String(text||"");
 // маленькая модель на ПК иначе пропускает банки и придумывает вкусы
 function photoNote(text){const m=matchText(text);
   return "[Фото: текст распознан Yandex Vision и уже сверен с каталогом приложением. Опирайся на этот список, вкусов сверх него не придумывай.]\n"
-   +"НАЙДЕНО В КАТАЛОГЕ ("+m.found.length+"):\n"+(m.found.map(x=>"— "+x.brand+" "+x.name+" (id "+x.id+", на складе "+x.wh+(x.onBar?", на стойке":"")+(x.ambiguous?", бренд на фото не прочитан — уточни":"")+")").join("\n")||"— ничего")
+   +"НАЙДЕНО В КАТАЛОГЕ ("+m.found.length+"):\n"+(m.found.map(x=>"— "+x.brand+" "+x.name+(x.jars>1?" ×"+x.jars+" (на "+x.jars+" разных этикетках — скорее всего столько банок)":"")+" (id "+x.id+", на складе "+x.wh+(x.onBar?", на стойке":"")+(x.ambiguous?", бренд на фото не прочитан — уточни":"")+")").join("\n")||"— ничего")
    +(m.not_found_lines.length?"\nНЕ НАШЛОСЬ В КАТАЛОГЕ (строки с фото, могут быть рукописные или с ошибкой распознавания — добери через find_items или переспроси):\n"+m.not_found_lines.map(l=>"— "+l).join("\n"):"")}
 const AI_TOOLS=[
  {name:"find_items",description:"Ищет вкусы в каталоге. query — слова из бренда, линейки, названия или описания (можно пусто). where: all (по умолчанию), bar — на стойке, wh — есть на складе, low — на складе 0–1 шт., stop, slow, order, pending — в черновике. Возвращает до limit (по умолчанию 30, максимум 80) вкусов: id, brand, line, name, desc, tags, wh (банок на складе), onBar, stop, slow, order, pending, и total — сколько всего нашлось.",
