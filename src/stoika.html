@@ -431,6 +431,8 @@ body{margin:0}
 .wm .lam{width:.74em;height:.74em;margin-left:.02em;overflow:visible;transform:translateY(.01em)}
 .top h1 .wm,.dtitle .wm{color:var(--fg)}
 .lgrow .lgm{width:56px;height:34px;color:var(--fg)}.dtitle .wm{font-size:20px;font-weight:500}
+/* overflow-x:hidden у body ломает «липкую» шапку поиска; clip режет так же, но не мешает */
+@supports (overflow:clip){html,body{overflow-x:clip}}
 </style>
 
 <div class="wrap">
