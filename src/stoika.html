@@ -11,13 +11,22 @@
   --accent:#e2600b; --accent-soft:#fbe3d1; --ok:#2f7d4f; --pend:#b7791f;
   --display:"Unbounded","Arial Black",system-ui,sans-serif;
   --body:"Golos Text",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --solid:var(--surface); --glass-bar:var(--bg); --blur:none; --glass-hi:0 0 0 transparent; --glass-sh:0 0 0 transparent; --accent-glow:0 0 0 transparent; --glow:none;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#17100b; --surface:#21170f; --line:#3a2b1f; --fg:#f3e9df; --muted:#b5a496; --line-ctl:#4a3b31;
-  --accent:#ff7a1a; --accent-soft:#3a2312; --ok:#5fbf86; --pend:#e0a84a; color-scheme:dark}}
+  --bg:#0c0806; --surface:rgba(255,236,220,.055); --line:rgba(255,232,212,.09); --fg:#f6ede4; --muted:#a99a8c; --line-ctl:rgba(255,232,212,.16);
+  --accent:#ff7a1a; --accent-soft:rgba(255,122,26,.15); --ok:#5fbf86; --pend:#e0a84a; color-scheme:dark;
+  --solid:#17100b; --glass-bar:rgba(16,11,8,.74); --blur:blur(22px) saturate(150%);
+  --glass-hi:inset 0 1px 0 rgba(255,255,255,.07); --glass-sh:0 10px 30px rgba(0,0,0,.35);
+  --accent-glow:0 0 0 1px rgba(255,122,26,.55),0 6px 22px rgba(255,122,26,.28);
+  --glow:radial-gradient(120% 60% at 0% 0%,rgba(255,110,20,.22),transparent 60%),radial-gradient(90% 50% at 100% 100%,rgba(255,90,10,.12),transparent 65%),linear-gradient(180deg,#120c08,#0a0705)}}
 :root[data-theme="dark"]{
-  --bg:#17100b; --surface:#21170f; --line:#3a2b1f; --fg:#f3e9df; --muted:#b5a496; --line-ctl:#4a3b31;
-  --accent:#ff7a1a; --accent-soft:#3a2312; --ok:#5fbf86; --pend:#e0a84a; color-scheme:dark}
+  --bg:#0c0806; --surface:rgba(255,236,220,.055); --line:rgba(255,232,212,.09); --fg:#f6ede4; --muted:#a99a8c; --line-ctl:rgba(255,232,212,.16);
+  --accent:#ff7a1a; --accent-soft:rgba(255,122,26,.15); --ok:#5fbf86; --pend:#e0a84a; color-scheme:dark;
+  --solid:#17100b; --glass-bar:rgba(16,11,8,.74); --blur:blur(22px) saturate(150%);
+  --glass-hi:inset 0 1px 0 rgba(255,255,255,.07); --glass-sh:0 10px 30px rgba(0,0,0,.35);
+  --accent-glow:0 0 0 1px rgba(255,122,26,.55),0 6px 22px rgba(255,122,26,.28);
+  --glow:radial-gradient(120% 60% at 0% 0%,rgba(255,110,20,.22),transparent 60%),radial-gradient(90% 50% at 100% 100%,rgba(255,90,10,.12),transparent 65%),linear-gradient(180deg,#120c08,#0a0705)}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.45;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 48px}
@@ -315,6 +324,36 @@ body.inv-mode .chip[aria-pressed="true"]{background:var(--fg);border-color:var(-
 .kthumb{width:120px;height:120px;object-fit:cover;border-radius:10px;display:block;cursor:pointer}
 .trow2{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px;cursor:pointer}.trow2 input{width:20px;height:20px;flex:none}.trow2 span{flex:1;min-width:0}
 .strl{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding:10px 0;border-bottom:1px solid var(--line);margin-top:6px}.strl select,.strr select{height:40px;font:inherit;font-size:16px;border:1px solid var(--line-ctl);border-radius:8px;background:var(--surface);color:var(--fg);padding:0 8px}.strl label{margin-left:auto}.strr{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--line);font-size:14px}.strr .sword{flex:none;margin-left:auto;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.02em}
+/* Тёмное стекло: в тёмной теме фон со свечением, полупрозрачные карточки, размытие только у закреплённых панелей и окон */
+body::after{content:"";position:fixed;inset:0;z-index:-1;background:var(--glow);pointer-events:none}
+body::before{background:var(--glass-bar);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur)}
+.bar{background:transparent;isolation:isolate}
+.bar::before{content:"";position:absolute;inset:0 -100vw;z-index:-1;background:var(--glass-bar);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur)}
+.search,.hsec,.hbig,.hcard,.hs-t,.hlist,.hdet,.guide,.scard,.mcard,.isumcard,.itile,.dcard,.oseg,.tabs,.thseg,.hai,.trow.hai,.taken,.omanual{box-shadow:var(--glass-hi),var(--glass-sh)}
+.search{border-radius:14px}
+.btn,.chip,.ab,.burger,.dclose,.hlp{box-shadow:var(--glass-hi)}
+.hprim,.chip[data-os][aria-pressed="true"],.chip[aria-pressed="true"],.oseg .chip[aria-pressed="true"],.tab[aria-selected="true"],.nav .tab[aria-current="page"],.msg.user{box-shadow:var(--accent-glow)}
+.btn.oadd{border-color:color-mix(in srgb,var(--accent) 55%,transparent);background:var(--accent-soft)}
+#bnav{left:max(10px,env(safe-area-inset-left,0px));right:max(10px,env(safe-area-inset-right,0px));bottom:max(8px,env(safe-area-inset-bottom,0px));max-width:600px;margin:0 auto;padding:4px;border:1px solid var(--line-ctl);border-radius:22px;background:var(--glass-bar);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);box-shadow:var(--glass-hi),0 12px 32px rgba(0,0,0,.45)}
+#bnav button{border-radius:18px}
+#bnav button[aria-current="page"]{background:var(--accent-soft);color:var(--accent)}
+body.hasnav{padding-bottom:calc(90px + env(safe-area-inset-bottom,0px))}
+.drawer,dialog,.hsh{background:var(--solid);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur)}
+.drawer{border-right-color:var(--line-ctl)}
+dialog{border-color:var(--line-ctl);border-radius:20px;box-shadow:var(--glass-hi),0 24px 60px rgba(0,0,0,.5)}
+.tray{left:max(10px,env(safe-area-inset-left,0px));right:max(10px,env(safe-area-inset-right,0px));bottom:max(8px,env(safe-area-inset-bottom,0px));border-radius:20px;padding:10px 12px}
+.chat,.ai-in{background:transparent}
+.dcard,.thseg{background:var(--surface)}
+body.hasnav .tray{bottom:calc(80px + env(safe-area-inset-bottom,0px))}
+:root[data-theme="dark"] .tray{background:var(--glass-bar);color:var(--fg);border:1px solid var(--line-ctl);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);box-shadow:var(--glass-hi),0 12px 32px rgba(0,0,0,.45)}
+:root[data-theme="dark"] .toast{background:rgba(40,28,20,.82);color:var(--fg);border:1px solid var(--line-ctl);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur)}
+:root[data-theme="dark"] .chip[data-os][aria-pressed="true"],:root[data-theme="dark"] .chip.scope[aria-pressed="true"],:root[data-theme="dark"] body.inv-mode .chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+:root[data-theme="dark"] .btn.go{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:var(--accent-glow)}
+:root[data-theme="dark"] section.brand.open{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:0 14px 4px;margin:10px 0;box-shadow:var(--glass-hi),var(--glass-sh)}
+:root[data-theme="dark"] .brand.open .bh{border-bottom:1px solid var(--line-ctl)}
+:root[data-theme="dark"] .brand.open .row:last-child{border-bottom:0}
+:root[data-theme="dark"] .row.r2.sel{margin:0 -8px;padding-inline:8px}
+@media (prefers-reduced-transparency:reduce){body::before,.bar::before,#bnav,.drawer,dialog,.hsh{-webkit-backdrop-filter:none;backdrop-filter:none}}
 </style>
 
 <div class="wrap">
@@ -1807,8 +1846,8 @@ if(true){
   const SUB=new Set(["wish","pack","str","team","log","mixes","inv","sup","stop","slow","smena","chk"]);
   const tgw=window.Telegram&&window.Telegram.WebApp;let tgBack=false;
   const navVis=()=>{["t-str","t-wish","t-pack","t-team","t-log","t-inv"].forEach(i=>{const e=$("#"+i);if(e)e.hidden=!isMgr});const ds=$("#d-set");if(ds)ds.hidden=!isMgr;const g1=$("#dg1");if(g1)g1.textContent=isMgr?"Управление":"Работа"};
-  const TH=[["auto","авто"],["dark","тёмная"],["light","светлая"]];let thm="auto";try{thm=localStorage.getItem("polka_theme")||"auto"}catch(e){}
-  const thApply=()=>{const r=document.documentElement;let t=thm;if(t==="auto"){t=tgw&&tgw.colorScheme?tgw.colorScheme:""}if(t)r.setAttribute("data-theme",t);else r.removeAttribute("data-theme");document.querySelectorAll("#theme-sw [data-th]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.th===thm))};
+  const TH=[["auto","авто"],["dark","тёмная"],["light","светлая"]];let thm="dark";try{thm=localStorage.getItem("polka_theme")||"dark"}catch(e){}
+  const thApply=()=>{const r=document.documentElement;let t=thm;if(t==="auto"){t=tgw&&tgw.colorScheme?tgw.colorScheme:(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")}if(t)r.setAttribute("data-theme",t);else r.removeAttribute("data-theme");document.querySelectorAll("#theme-sw [data-th]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.th===thm))};
   thApply();$("#theme-sw").addEventListener("click",e=>{const b=e.target.closest("[data-th]");if(!b)return;thm=b.dataset.th;try{localStorage.setItem("polka_theme",thm)}catch(e){}thApply()});$("#d-close").onclick=()=>menu(false);
   const vw=$("#view-sw");
   const vwSync=()=>{vw.hidden=!realMgr;vw.innerHTML=ic("eye")+(isMgr?"Посмотреть как мастер":"Вернуться к управляющему")};
