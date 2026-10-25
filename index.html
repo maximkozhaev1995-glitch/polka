@@ -36,16 +36,11 @@
    убирает этот конфликт без disableVerticalSwipes() (который ломает обычный
    скролл и показывает лишнюю кнопку «Закрыть», см. app/shim.js). */
 html{overscroll-behavior-y:none}
-/* В Telegram (особенно в полноэкранном режиме) скролл всей страницы (body)
-   иногда перехватывается системным жестом сворачивания/закрытия, а свою
-   прокрутку внутри элемента с overflow-y:auto Telegram не трогает (так уже
-   устроена боковая шторка .drawer — там скролл всегда работал нормально).
-   Поэтому сам body больше не скроллится — скроллится .wrap внутри него. */
 body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.45;
-  height:100dvh;overflow:hidden;
-  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+  overscroll-behavior-y:none;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 48px}
 body::before{content:"";position:fixed;inset:0 0 auto;height:var(--safe-top);z-index:10;background:var(--bg)}
-.wrap{max-width:860px;margin:0 auto;height:100%;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior-y:none;padding-block:0 48px}
+.wrap{max-width:860px;margin:0 auto}
 header.top{padding-block:24px 8px;display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .mark{display:flex;gap:6px;margin-bottom:10px}.mark i{width:10px;height:10px;background:var(--accent);display:block}
 h1{font-family:var(--display);font-weight:800;font-size:clamp(26px,6vw,40px);line-height:1;margin:0;text-transform:uppercase;letter-spacing:-.01em;text-wrap:balance}
@@ -130,7 +125,7 @@ button.where.ch{border-color:var(--pend);color:var(--pend)}
 .tray .in{max-width:860px;margin:0 auto;display:flex;align-items:center;gap:12px;justify-content:space-between}
 .tray-txt{font-size:14px;min-width:0}
 .tray .btn.go{background:var(--accent);border-color:var(--accent);color:#fff;flex:none;height:40px;padding:0 16px}
-body.has-tray .wrap{padding-bottom:100px}
+body.has-tray{padding-bottom:100px}
 dialog{border:1px solid var(--line);border-radius:14px;background:var(--surface);color:var(--fg);padding:20px;width:min(520px,calc(100vw - 32px));max-height:calc(100dvh - 48px);overflow:auto;position:fixed;inset:0;margin:auto;z-index:201}
 dialog::backdrop{background:rgba(0,0,0,.45)}
 .dlg-scrim{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200}
@@ -181,7 +176,8 @@ dialog textarea{resize:none;width:100%;font:inherit;font-size:13px;background:va
 .cnt.stopb{background:var(--pend);color:#fff}
 body.menu-open{overflow:hidden}
 .chat{display:flex;flex-direction:column;gap:8px;position:fixed;z-index:4;top:var(--chat-top,120px);bottom:max(var(--trayh,0px),env(safe-area-inset-bottom,0px));left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));max-width:860px;margin:0 auto;padding-top:8px;background:var(--bg)}
-body.ai-mode .wrap{overscroll-behavior:none;padding-bottom:0}
+body.ai-mode{overflow:hidden;padding-bottom:0}
+body.ai-mode .wrap{overscroll-behavior:none}
 .ai-top .btn{flex:none}
 .ai-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .ai-log{display:flex;flex-direction:column;gap:8px;flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding-bottom:4px}
@@ -211,7 +207,7 @@ body.hsh-on{overflow:hidden}
 .msrc{display:block;margin-top:4px;font-size:11px;color:var(--muted);white-space:nowrap}
 .ai-imgs{align-self:flex-start;border:1px dashed var(--accent);background:var(--accent-soft);color:var(--accent);font:inherit;font-size:13px;border-radius:999px;padding:4px 12px;cursor:pointer}
 [hidden]{display:none!important}
-html,body{max-width:100%;-webkit-text-size-adjust:100%;touch-action:pan-x pan-y}
+html,body{overflow-x:hidden;max-width:100%;-webkit-text-size-adjust:100%;touch-action:pan-x pan-y}
 
 .chip.warn{background:#fff4e5;border-color:#f5b041;color:#b75d00}.chip.warn small{color:#b75d00;font-weight:700}
 .aioff{background:#fff4e5;border:1px solid #f5b041;border-radius:12px;padding:10px 12px;color:#7a3a00}
@@ -265,7 +261,7 @@ input,textarea,select{font-size:16px!important}
 #scan-fab{position:fixed;right:14px;bottom:16px;z-index:30;height:48px;padding:0 18px;border-radius:999px;box-shadow:0 4px 14px rgba(0,0,0,.25);font-weight:600}body.has-tray #scan-fab{bottom:84px}.vf{position:relative;height:190px;border-radius:14px;background:#241a12;color:#e8dccf;display:grid;place-content:center;text-align:center;overflow:hidden;margin:10px 0;font-size:14px;padding:0 14px}.vf::before{content:"";position:absolute;inset:26px 46px;border:2px solid #e8dccf88;border-radius:10px}.vf .ln{position:absolute;left:46px;right:46px;height:2px;background:var(--accent);animation:scn 1.6s ease-in-out infinite alternate}@keyframes scn{from{top:30px}to{top:158px}}.scres{position:relative;background:var(--surface);color:var(--fg);border-radius:10px;padding:10px 12px;font-size:14px}.scl{margin:4px 0;padding-left:18px;font-size:14px}.scq{width:100%;font:inherit;font-size:16px;height:42px;border:1px solid var(--line-ctl);border-radius:10px;padding:0 12px;margin:6px 0;background:var(--surface)}.scpick{display:flex;flex-wrap:wrap;gap:6px;max-height:240px;overflow:auto}
 .scimg{width:100%;max-height:200px;object-fit:cover;border-radius:12px;margin:8px 0}.scf{list-style:none;margin:0 0 10px;padding:0}.scf li{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}.qc{display:flex;align-items:center;gap:8px}.qc b{min-width:18px;text-align:center}.sc-ph{display:inline-grid;place-content:center;cursor:pointer}
 .taken{display:flex;flex-wrap:wrap;gap:6px;align-items:center;background:var(--accent-soft);border:1px solid var(--accent);border-radius:12px;padding:10px 12px;margin:8px 0;font-size:14px}.taken small{flex-basis:100%;color:var(--muted);font-size:12px}
-body.hasnav .wrap{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}#bnav{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;background:var(--surface);border-top:1px solid var(--line);padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px))}#bnav button{flex:1;display:grid;justify-items:center;gap:2px;border:0;background:none;color:var(--muted);font:inherit;font-size:11px;font-weight:600;padding:4px 0;min-height:52px;cursor:pointer}#bnav button[aria-current="page"]{color:var(--fg)}#bnav button[aria-current="page"] svg{stroke:var(--accent)}body.hasnav .tray{bottom:calc(64px + env(safe-area-inset-bottom,0px));padding-bottom:12px}body.hasnav.has-tray .wrap{padding-bottom:calc(150px + env(safe-area-inset-bottom,0px))}body.hasnav .toast{bottom:calc(76px + env(safe-area-inset-bottom,0px))}body.hasnav.has-tray .toast{bottom:calc(144px + env(safe-area-inset-bottom,0px))}body.hasnav #scan-fab{bottom:calc(76px + env(safe-area-inset-bottom,0px))}body.hasnav.has-tray #scan-fab{bottom:calc(144px + env(safe-area-inset-bottom,0px))}
+body.hasnav{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}#bnav{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;background:var(--surface);border-top:1px solid var(--line);padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px))}#bnav button{flex:1;display:grid;justify-items:center;gap:2px;border:0;background:none;color:var(--muted);font:inherit;font-size:11px;font-weight:600;padding:4px 0;min-height:52px;cursor:pointer}#bnav button[aria-current="page"]{color:var(--fg)}#bnav button[aria-current="page"] svg{stroke:var(--accent)}body.hasnav .tray{bottom:calc(64px + env(safe-area-inset-bottom,0px));padding-bottom:12px}body.hasnav.has-tray{padding-bottom:calc(150px + env(safe-area-inset-bottom,0px))}body.hasnav .toast{bottom:calc(76px + env(safe-area-inset-bottom,0px))}body.hasnav.has-tray .toast{bottom:calc(144px + env(safe-area-inset-bottom,0px))}body.hasnav #scan-fab{bottom:calc(76px + env(safe-area-inset-bottom,0px))}body.hasnav.has-tray #scan-fab{bottom:calc(144px + env(safe-area-inset-bottom,0px))}
 svg.ico{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}
 .hs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}.hs-t{display:grid;gap:2px;justify-items:start;text-align:left;border:0;background:var(--surface);color:var(--fg);font:inherit;border-radius:14px;padding:11px 12px;cursor:pointer;min-width:0}.hs-t b{font:800 18px/1.1 var(--display)}.hs-t span{font-size:12px;color:var(--muted)}
 .trow{display:flex;align-items:center;gap:12px;border:0;border-bottom:1px solid var(--line);background:none;color:var(--fg);font:inherit;padding:13px 14px;text-align:left;cursor:pointer;width:100%}.hlist .trow:last-child{border-bottom:0}
@@ -350,7 +346,7 @@ body::before{background:var(--glass-bar);-webkit-backdrop-filter:var(--blur);bac
 #bnav{left:max(10px,env(safe-area-inset-left,0px));right:max(10px,env(safe-area-inset-right,0px));bottom:max(8px,env(safe-area-inset-bottom,0px));max-width:600px;margin:0 auto;padding:4px;border:1px solid var(--line-ctl);border-radius:22px;background:var(--glass-bar);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);box-shadow:var(--glass-hi),0 12px 32px rgba(0,0,0,.45)}
 #bnav button{border-radius:18px}
 #bnav button[aria-current="page"]{background:var(--accent-soft);color:var(--accent)}
-body.hasnav .wrap{padding-bottom:calc(90px + env(safe-area-inset-bottom,0px))}
+body.hasnav{padding-bottom:calc(90px + env(safe-area-inset-bottom,0px))}
 .drawer,dialog,.hsh{background:var(--solid);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur)}
 .drawer{border-right-color:var(--line-ctl)}
 dialog{border-color:var(--line-ctl);border-radius:20px;box-shadow:var(--glass-hi),0 24px 60px rgba(0,0,0,.5)}
@@ -444,10 +440,8 @@ body{margin:0}
 .wm .lam{width:.74em;height:.74em;margin-left:.02em;overflow:visible;transform:translateY(.01em)}
 .top h1 .wm,.dtitle .wm{color:var(--fg)}
 .lgrow .lgm{width:56px;height:34px;color:var(--fg)}.dtitle .wm{font-size:20px;font-weight:500}
-/* Раньше здесь был hack с overflow-x:clip — overflow-x:hidden на body ломал
-   «липкую» (position:sticky) шапку поиска. Теперь прокручивается не body,
-   а .wrap (см. правило body{...} выше по файлу), и это уже не нужно:
-   .wrap — его же и scroll-контейнер, и контекст для sticky одновременно. */
+/* overflow-x:hidden у body ломает «липкую» шапку поиска; clip режет так же, но не мешает */
+@supports (overflow:clip){html,body{overflow-x:clip}}
 </style>
 
 <div class="wrap">
@@ -1353,10 +1347,7 @@ drawer.addEventListener("touchend",e=>{if(tx!==null&&tx-e.changedTouches[0].clie
 // Анимация появления только при переходе (не при каждом обновлении данных)
 function navAnim(){document.body.classList.add("nav-anim");clearTimeout(navAnim.t);navAnim.t=setTimeout(()=>document.body.classList.remove("nav-anim"),800)}
 document.addEventListener("click",e=>{if(e.target.closest&&e.target.closest("button.bh,[data-row],#bnav button,.nav .tab,[data-sb],[data-brand]"))navAnim()},true);
-// Скроллится .wrap, не body (см. body{} в <style> — иначе Telegram иногда
-// перехватывает скролл страницы как жест сворачивания приложения).
-const scrTop=()=>{const w=$(".wrap");if(w)w.scrollTop=0};
-const go=t=>{if(!$("#hsh").hidden)hClose();st.tab=t;st.f="";st.q="";selId="";{const q=$("#q");if(q)q.value="";const c=$("#clear");if(c)c.hidden=true}if(t!=="stop"&&t!=="slow")st.brand="";save();render();hlpUi();menu(false);scrTop()};
+const go=t=>{if(!$("#hsh").hidden)hClose();st.tab=t;st.f="";st.q="";selId="";{const q=$("#q");if(q)q.value="";const c=$("#clear");if(c)c.hidden=true}if(t!=="stop"&&t!=="slow")st.brand="";save();render();hlpUi();menu(false);window.scrollTo(0,0)};
 $("#t-or").onclick=()=>go("order");
 $("#t-bar").onclick=()=>go("bar");$("#t-mix").onclick=()=>go("mixes");$("#t-log").onclick=()=>go("log");$("#t-team").onclick=()=>go("team");$("#t-str").onclick=()=>go("str");$("#list").addEventListener("click",e=>{if(st.tab!=="inv")return;const c=e.target.closest("[data-ig]");if(c){st.ig=c.dataset.ig;render();return}
   if(e.target.closest("#inv-nosz")){invNoSz=!invNoSz;render();return}
@@ -2196,7 +2187,7 @@ if(true){
   thApply();$("#theme-sw").addEventListener("click",e=>{const b=e.target.closest("[data-th]");if(!b)return;thm=b.dataset.th;try{localStorage.setItem("polka_theme",thm)}catch(e){}thApply()});$("#d-close").onclick=()=>menu(false);
   const vw=$("#view-sw");
   const vwSync=()=>{vw.hidden=!realMgr;vw.innerHTML=ic("eye")+(isMgr?"Посмотреть как мастер":"Вернуться к управляющему")};
-  vw.onclick=()=>{isMgr=!isMgr;try{localStorage.setItem("polka_view",isMgr?"manager":"master")}catch(e){}if(!isMgr&&["inv","sup","log","team","str","pack","wish","order"].includes(st.tab))st.tab="home";menu(false);$("#who").textContent=isMgr?"Управляющий":"Мастер · просмотр";render();scrTop()};
+  vw.onclick=()=>{isMgr=!isMgr;try{localStorage.setItem("polka_view",isMgr?"manager":"master")}catch(e){}if(!isMgr&&["inv","sup","log","team","str","pack","wish","order"].includes(st.tab))st.tab="home";menu(false);$("#who").textContent=isMgr?"Управляющий":"Мастер · просмотр";render();window.scrollTo(0,0)};
   $("#t-chk").onclick=()=>go("chk");$("#t-know").onclick=()=>go("know");
   const backSync=()=>{navVis();vwSync();if(realMgr)$("#who").textContent=isMgr?"Управляющий":"Мастер · просмотр";const sub=st.tab!=="home";if(tgw&&tgw.BackButton){try{if(!tgBack){tgw.BackButton.onClick(()=>go("home"));tgBack=true}sub?tgw.BackButton.show():tgw.BackButton.hide()}catch(e){}}
     const l=$("#list");if(SUB.has(st.tab)&&!l.hidden&&!l.querySelector("#s-back"))l.insertAdjacentHTML("afterbegin",'<button type="button" class="btn sback" id="s-back">← На главную</button>')};
