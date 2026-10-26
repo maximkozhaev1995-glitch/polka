@@ -2400,7 +2400,8 @@ if(true){
     const card=(n,l,t,x)=>'<button type="button" class="hcard" data-go="'+t+'"'+(x?' data-x="'+x+'"':"")+'><b>'+n+'</b><span>'+l+'</span></button>';
     const att=(n,l,t)=>n?'<button type="button" class="hrow" data-go="'+t+'"><span>'+l+'</span><b>'+n+'</b><i>›</i></button>':"";
     const feed=[];let last="";moves.slice(0,14).forEach(m=>{const x=byId[m.item];if(!x)return;const d=new Date(m.at),dn=dayName(d);if(dn!==last){feed.push('<h3 class="sub">'+dn+'</h3>');last=dn}
-      feed.push('<div class="hfeed"><span><b>'+esc(nm(x))+'</b><br><small>'+esc(actText(m))+'</small></span><time>'+d.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})+'</time></div>')});
+      feed.push('<div class="hfeed"><span><b>'+esc(nm(x))+'</b><br><small>'+esc(actText(m))+'</small></span><time>'+d.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})+'</time>'
+       +(isMgr&&m.id?'<button type="button" class="btn sm" data-undo="'+esc(m.id)+'">Отменить</button>':'')+'</div>')});
     const wn=new Set(wishes.filter(w=>w.state==="new").map(w=>norm(w.b)+"|"+norm(w.f))).size;
     const li=moves.find(m=>m.kind==="inv"),invDays=li?Math.floor((Date.now()-new Date(li.at))/864e5):null;
     const whN=DATA.reduce((a,x)=>a+wh(x),0),ww=whWeight0();
@@ -2430,6 +2431,7 @@ if(true){
   $("#list").addEventListener("toggle",e=>{if(e.target.matches&&e.target.matches("details.hdet"))feedOpen=e.target.open},true);;
   const guide=()=>'<details class="hdet gd"><summary>Как пользоваться</summary><div class="guide" style="margin-top:8px">'+guideSecs().map(g=>'<details><summary>'+g[0]+'</summary>'+gshot(g)+g[1]+'</details>').join("")+'</div></details>';
   $("#list").addEventListener("click",e=>{if(st.tab!=="home")return;if(e.target.closest("#h-photo")){const f=$("#scan-fab");if(f){f.hidden=false;f.click()}return}
+    const u=e.target.closest("[data-undo]");if(u){if(!u.dataset.sure){u.dataset.sure="1";u.textContent="Точно отменить?";setTimeout(()=>{if(u.isConnected){delete u.dataset.sure;u.textContent="Отменить"}},3000);return}undoMove(u.dataset.undo);return}
     const g=e.target.closest("[data-go]");if(g){if(g.dataset.x==="low")whLow=true;go(g.dataset.go)}});
   const SUB=new Set(["wish","pack","str","team","log","mixes","inv","sup","stop","slow","smena","chk"]);
   const tgw=window.Telegram&&window.Telegram.WebApp;let tgBack=false;
