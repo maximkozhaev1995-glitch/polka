@@ -1,5 +1,6 @@
 // © 2026 Максим Кожаев. Все права защищены. Копирование, распространение и использование без письменного согласия автора запрещены.
-// Вход через Telegram Mini App: проверяем подпись initData, находим сотрудника, выдаём JWT для базы.
+// Вход: Telegram Mini App (подпись initData) или обычный веб через Telegram Login Widget (подпись виджета,
+// другая схема secret_key — см. checkWidgetAuth). Находим сотрудника, выдаём JWT для базы.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const enc = new TextEncoder();
@@ -45,6 +46,27 @@ async function checkInitData(initData: string, botToken: string) {
   try { return JSON.parse(p.get("user") || "null"); } catch { return null; }
 }
 
+// Telegram Login Widget (для обычного браузера, без Mini App): плоский объект
+// {id, first_name, last_name?, username?, photo_url?, auth_date, hash}.
+// Схема подписи другая: secret_key = SHA256(botToken) напрямую, без "WebAppData".
+async function checkWidgetAuth(auth: Record<string, unknown>, botToken: string) {
+  if (!auth || typeof auth !== "object") return null;
+  const hash = String(auth.hash || "").toLowerCase();
+  if (!hash) return null;
+  const dcs = Object.keys(auth).filter((k) => k !== "hash" && auth[k] !== undefined && auth[k] !== null)
+    .sort().map((k) => `${k}=${auth[k]}`).join("\n");
+  const secret = await crypto.subtle.digest("SHA-256", enc.encode(botToken));
+  const calc = hex(await hmac(new Uint8Array(secret), dcs));
+  if (!sameHex(calc, hash)) return null;
+  const authDate = Number(auth.auth_date);
+  if (!Number.isFinite(authDate) || authDate <= 0) return null;
+  const age = Math.floor(Date.now() / 1000) - authDate;
+  if (age > 86400 || age < -300) return null;
+  const id = Number(auth.id);
+  if (!Number.isFinite(id)) return null;
+  return { id, first_name: auth.first_name, last_name: auth.last_name, username: auth.username };
+}
+
 async function signJwt(payload: Record<string, unknown>, secret: string) {
   const h = b64u(JSON.stringify({ alg: "HS256", typ: "JWT" }));
   const b = b64u(JSON.stringify(payload));
@@ -55,11 +77,12 @@ async function signJwt(payload: Record<string, unknown>, secret: string) {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
-    const { initData, invite } = await req.json();
+    const { initData, widgetAuth, invite } = await req.json();
     const botToken = Deno.env.get("TELEGRAM_BOT_TOKEN");
     const jwtSecret = Deno.env.get("APP_JWT_SECRET");
     if (!botToken || !jwtSecret) return json({ error: "server_not_configured" }, 500);
-    const tg = await checkInitData(String(initData || ""), botToken);
+    const tg = initData ? await checkInitData(String(initData), botToken)
+      : widgetAuth ? await checkWidgetAuth(widgetAuth, botToken) : null;
     if (!tg || !tg.id) return json({ error: "bad_signature" }, 401);
 
     const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
