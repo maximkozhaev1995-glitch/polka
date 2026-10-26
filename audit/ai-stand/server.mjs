@@ -11,7 +11,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(HERE, "../..");
+// STAND_ROOT — другая копия репозитория (например, main для замера «до»)
+const ROOT = process.env.STAND_ROOT || path.resolve(HERE, "../..");
 const PORT = Number(process.env.STAND_PORT || 8787);
 const AI_UPSTREAM = process.env.AI_UPSTREAM || "http://127.0.0.1:8000";
 const VENUE = "00000000-0000-4000-8000-000000000001";

@@ -1431,7 +1431,8 @@ function aiItem(x){const r={id:x.id,brand:x.b,name:x.n,wh:wh(x),onBar:onBar(x)};
 const cnTxt=v=>" "+norm(String(v||"")).replace(/[^a-zа-я0-9]+/g," ").trim()+" ";
 // Слова названия встретились в тексте — не обязательно подряд: на этикетке их печатают в разном порядке
 // (напр. рукописное «шипучка вишнёвая» вместо каталожного «Вишнёвая шипучка»)
-const nameIn=(T,n)=>{const w=n.trim().split(" ").filter(Boolean);return w.length>1?w.every(x=>T.includes(" "+x+" ")):T.includes(n)};
+// Однословное название — только целым словом: иначе «orange» находился внутри «barvyorange» (→ Sebero Orange)
+const nameIn=(T,n)=>{const w=n.trim().split(" ").filter(Boolean);return w.length>1?w.every(x=>T.includes(" "+x+" ")):T.includes(" "+n.trim()+" ")};
 // Разбор одного кусочка текста (весь текст, либо одна этикетка — см. matchText)
 // Расстояние Левенштейна — для «почти совпало» внутри бренда с этикетки («pear bate» = Pear Date)
 // Латиница из кириллицы — рукописное «блади оранж» сравниваем с каталожным Bloody Orange
@@ -1451,13 +1452,17 @@ function fixBrands(T){const heads=BRAND_HEADS(),words=T.trim().split(" "),fixed=
     if(m){fixed.push(w);return m.c}return w});
   return{T:" "+out.join(" ")+" ",fixed}}
 const lev=(a,b)=>{let p=[...Array(b.length+1).keys()];for(let i=1;i<=a.length;i++){const c=[i];for(let j=1;j<=b.length;j++)c[j]=Math.min(p[j]+1,c[j-1]+1,p[j-1]+(a[i-1]===b[j-1]?0:1));p=c}return p[b.length]};
-function matchChunk(text,label){let T=cnTxt(text),fixed=[];if(label)({T,fixed}=fixBrands(T));
+// label — этикетка с фото (чиним бренд с ошибкой); own — строка, где бренд, если прочитан, ограничивает поиск своими вкусами
+function matchChunk(text,label,own){let T=cnTxt(text),fixed=[];if(label)({T,fixed}=fixBrands(T));
    const brands=new Set(DATA.map(x=>cnTxt(x.b).trim()));
    // Название, совпадающее с брендом (Black Burn «Overdose» и бренд Overdose), засчитываем только рядом со своим брендом
    let hit=DATA.filter(x=>{const n=cnTxt(x.n);return n.length>4&&nameIn(T,n.trim())&&(!brands.has(n.trim())||T.includes(cnTxt(x.b+" "+x.n))||nameIn(T,cnTxt(x.b+" "+x.n).trim()))});
    // Одно название у разных брендов (Cola у Sebero, Palitra, Deus) — оставляем тех, чей бренд тоже есть в этом
    // кусочке текста; если бренд не прочитан и кандидатов несколько — не угадываем ни одного (иначе на одну
    // банку выводится сразу три «похожих» бренда вместо одного настоящего)
+   // Слитный текст с фото («BARVYORANGE»): по словам ничего не нашлось — ищем многословное название без пробелов
+   // (от 8 букв) внутри слитного текста. Дальше те же правила бренда: несколько кандидатов без бренда — не угадываем
+   if(!hit.length){const Tc=T.replace(/ /g,"");hit=DATA.filter(x=>{const n=cnTxt(x.n).trim();return n.includes(" ")&&n.replace(/ /g,"").length>=8&&Tc.includes(n.replace(/ /g,""))})}
    const byN={};hit.forEach(x=>(byN[cnTxt(x.n)]=byN[cnTxt(x.n)]||[]).push(x));
    // Запасные написания (поле a): «Хулиган» на этикетке = «Хулиган Соник», «Queen Ann's Revenge» = «Queen Anne's Revenge»
    DATA.forEach(x=>{if(x.a&&!hit.includes(x)&&x.a.some(v=>nameIn(T,cnTxt(v).trim()))){hit.push(x);byN[cnTxt(x.n)]=byN[cnTxt(x.n)]||[x]}});
@@ -1468,7 +1473,7 @@ function matchChunk(text,label){let T=cnTxt(text),fixed=[];if(label)({T,fixed}=f
    // На одной этикетке прочитан бренд из каталога — вкус ищем только у этого бренда. Иначе «PALITRA Pear bate»
    // находился как Darkside Pear, а «PALITRA Sour Rasp Berry» — как Tangiers Sour. Точного совпадения у бренда нет —
    // сравниваем без пробелов и с допуском на одну-две буквы; не нашлось и так — в «не нашлось», чужой бренд не берём
-   if(label){const lb=[...brands].filter(b=>b.length>2&&T.includes(" "+b+" "));
+   if(label||own){const lb=[...brands].filter(b=>b.length>2&&T.includes(" "+b+" "));
      if(lb.length){const own=hit.filter(x=>lb.includes(cnTxt(x.b).trim()));
        if(own.length)hit=own;
        else{let rest=T;lb.forEach(b=>{rest=rest.replace(" "+b+" "," ")});const r=rest.replace(/ /g,"");
@@ -1487,24 +1492,37 @@ function matchChunk(text,label){let T=cnTxt(text),fixed=[];if(label)({T,fixed}=f
              let pre=own.filter(x=>lat(cnTxt(x.n).replace(/ /g,"")).startsWith(q));
              // «MANG?» подходит и к Mango, и к Mango Yogurt — берём тот, где слов столько же, сколько видно на этикетке
              if(pre.length>1)pre=pre.filter(x=>cnTxt(x.n).trim().split(" ").length===ws.length-i);if(pre.length===1)hit=pre}}}}}
-   return{hit,byN,T,brands,fixed}}
+   // Один бренд и одно название в нескольких линейках или фасовках (Kraken Raspberry: Medium Seco и Strong Ligero,
+   // Tangiers Lemongrass и Lemongrass 100 г): берём ту, чьи слова линейки есть в тексте (больше всего совпавших слов);
+   // линейку не прочитали или не различить — не берём ни одну, а отдаём как неоднозначную (раньше брались обе)
+   const amb=[],byBN={};hit.forEach(x=>{const k=cnTxt(x.b)+"|"+cnTxt(x.n);(byBN[k]=byBN[k]||[]).push(x)});
+   hit=Object.values(byBN).flatMap(g=>{if(g.length<2)return g;
+     const sc=g.map(x=>[x,cnTxt(x.l).trim().split(" ").filter(w=>w.length>=3&&T.includes(" "+w+" ")).length]),top=Math.max(...sc.map(a=>a[1]));
+     const best=sc.filter(a=>a[1]===top).map(a=>a[0]);if(top>0&&best.length===1)return best;
+     amb.push(g);return []});
+   return{hit,byN,T,brands,fixed,amb}}
 function matchText(text){const raw=String(text||"");
    // С фото банок сервер отдаёт текст по этикеткам («Этикетка N: …» — см. readPhotos на сервере). Разбираем каждую
    // отдельно: иначе бренд с одной банки и название с соседней, встретившиеся просто где-то в общем тексте,
    // склеиваются в несуществующий вкус (так получился ложный «Black Burn Overdose»)
    const labels=[...raw.matchAll(/^Этикетка\s*\d+\s*:\s*(.*)$/gim)].map(m=>m[1]);
-   const chunks=labels.length?labels:[raw];
+   // Текст без «Этикетка N:» (команда, вставленный список, ответ модели) — каждая строка и каждый кусок через «,» или «;»
+   // отдельно: иначе бренд из одной строки «подтверждал» вкус из другой («Sebero Grape / Darkside Supernova» давало
+   // ещё и Darkside Grape)
+   const parts=raw.split(/\n+|[,;]/).map(l=>l.trim()).filter(Boolean);
+   const chunks=labels.length?labels:parts.length>1?parts:[raw];
    // Один вкус на нескольких этикетках — это несколько банок (сервер уже склеил куски одной этикетки
    // по координатам), считаем их в jars, а не теряем вторую банку
    const seen=new Map(),found=[];
-   const gotLabel=new Set(),tally={},newf=[];
+   const gotLabel=new Set(),tally={},newf=[],ambiguous=[],ambLine=new Set();
    // Бренд на этикетке так, как он записан в каталоге (для подсчёта банок и новых вкусов)
    const brandOf=T=>{const b=[...new Set(DATA.map(x=>x.b))].filter(b=>cnTxt(b).trim().length>2&&T.includes(cnTxt(b))).sort((a,b)=>b.length-a.length);return b[0]||""};
-   chunks.forEach(chunk=>{const{hit,byN,T,fixed}=matchChunk(chunk,labels.length>0);if(hit.length)gotLabel.add(chunk.trim());
+   chunks.forEach(chunk=>{const{hit,byN,T,fixed,amb}=matchChunk(chunk,labels.length>0,true);if(hit.length)gotLabel.add(chunk.trim());
+     amb.forEach(g=>{ambLine.add(chunk.trim());ambiguous.push({text:chunk.trim(),options:g.map(x=>({id:x.id,brand:x.b,line:x.l||"",name:x.n,wh:wh(x),onBar:onBar(x)}))})});
      if(labels.length){const b=hit.length?hit[0].b:brandOf(T);tally[b||"Без бренда"]=(tally[b||"Без бренда"]||0)+1;
        // Бренд прочитан, а вкуса у него в каталоге нет — кандидат в новые вкусы (что осталось от этикетки без бренда)
        // Этикетка с «?» обрезана краем кадра — из её огрызка («Coff») новый вкус не предлагаем
-       if(!hit.length&&b&&!/\?|\.{2,}|…/.test(chunk)){const words=[...cnTxt(b).trim().split(" "),...(fixed||[])];let n=chunk.replace(/[«»"?]/g," ");
+       if(!hit.length&&!amb.length&&b&&!/\?|\.{2,}|…/.test(chunk)){const words=[...cnTxt(b).trim().split(" "),...(fixed||[])];let n=chunk.replace(/[«»"?]/g," ");
          words.forEach(w=>{n=n.replace(new RegExp("(^|[^\\p{L}\\p{N}])"+w.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"(?=$|[^\\p{L}\\p{N}])","iu")," ")});
          n=n.replace(/\s+/g," ").trim();if(n.length>=3)n=n.split(" ").map(w=>w&&w===w.toUpperCase()&&/[a-z]/i.test(w)?w[0]+w.slice(1).toLowerCase():w).join(" ");
          n=n.charAt(0).toUpperCase()+n.slice(1);
@@ -1514,9 +1532,16 @@ function matchText(text){const raw=String(text||"");
        seen.set(x.id,it);found.push(it)})});
    const brands=new Set(DATA.map(x=>cnTxt(x.b).trim()));
    const names=found.map(x=>cnTxt(x.name));
-   const lines=(labels.length?labels:raw.split(/\n+/)).map(l=>l.trim());
-   const miss=lines.filter(l=>{if(gotLabel.has(l))return false;const c=cnTxt(l);return c.trim().length>2&&!brands.has(c.trim())&&!names.some(n=>nameIn(c,n.trim())||c.includes(n)||n.includes(c))});
-   return{found:found.slice(0,80),not_found_lines:miss.slice(0,40),jars_by_brand:tally,new_flavors:newf}}
+   const lines=chunks.map(l=>l.trim());
+   const miss=lines.filter(l=>{if(gotLabel.has(l)||ambLine.has(l))return false;const c=cnTxt(l);return c.trim().length>2&&!brands.has(c.trim())&&!names.some(n=>nameIn(c,n.trim())||c.includes(n)||n.includes(c))});
+   return{found:found.slice(0,80),not_found_lines:miss.slice(0,40),ambiguous:ambiguous.slice(0,20),jars_by_brand:tally,new_flavors:newf}}
+// Неоднозначные линейки/фасовки — строкой для человека (команды) и для модели (фото)
+const ambName=o=>o.brand+(o.line?" "+o.line:"")+" "+o.name;
+// Вероятный вариант — только подсказка: та линейка, что одна стоит на стойке, иначе одна есть на складе. Выбирает человек
+const ambLikely=a=>{const b=a.options.filter(o=>o.onBar);if(b.length===1)return[b[0],"стоит на стойке"];const w=a.options.filter(o=>o.wh>0);return w.length===1?[w[0],"есть на складе"]:null};
+// Ничего не нашлось, но есть неоднозначные линейки — не пишем «не нашёл», только просим уточнить
+const nfTxt=(m,t)=>(m.ambiguous||[]).length?"Ничего не сделал — нужно уточнить."+ambTxt(m):t;
+const ambTxt=m=>(m.ambiguous||[]).length?"\n\nУточни линейку или фасовку (с ними ничего не сделано):\n"+m.ambiguous.map(a=>{const l=ambLikely(a);return "— «"+a.text+"»: "+a.options.map(ambName).join(" или ")+(l?" (вероятнее "+ambName(l[0])+" — "+l[1]+")":"")}).join("\n")+"\nНапиши ещё раз с линейкой, например «"+ambName(m.ambiguous[0].options[0])+"».":"";
 // Фото, прочитанное на сервере (Sonnet или Яндекс): приложение само сверяет текст с каталогом и отдаёт модели готовый список —
 // маленькая модель на ПК иначе пропускает банки и придумывает вкусы
 // Итог по фото за один вопрос: банки по брендам и новые вкусы. Приложение само ставит его в начало ответа и
@@ -1530,6 +1555,7 @@ function photoNote(text){const m=matchText(text);
     m.new_flavors.forEach(y=>{if(!photoAcc.newf.some(z=>z.b===y.b&&norm(z.n)===norm(y.n)))photoAcc.newf.push(y)})}
   return "[Фото: текст прочитан с фото и уже сверен с каталогом приложением. Общее количество банок по брендам и предложение добавить новые вкусы приложение покажет само — в ответе их не пересчитывай и не повторяй. Опирайся на этот список, вкусов сверх него не придумывай.]\n"
    +"НАЙДЕНО В КАТАЛОГЕ ("+m.found.length+"):\n"+(m.found.map(x=>"— "+x.brand+" "+x.name+(x.jars>1?" ×"+x.jars+" (на "+x.jars+" разных этикетках — скорее всего столько банок)":"")+" (id "+x.id+", на складе "+x.wh+(x.onBar?", на стойке":"")+(x.ambiguous?", бренд на фото не прочитан — уточни":"")+")").join("\n")||"— ничего")
+   +((m.ambiguous||[]).length?"\nНЕОДНОЗНАЧНО — у бренда несколько линеек или фасовок с этим вкусом, на фото не различить. Сам не выбирай и ничего с ними не делай: спроси человека, какая. Можно назвать вероятный вариант, но выбирает человек:\n"+m.ambiguous.map(a=>{const l=ambLikely(a);return "— «"+a.text+"»: "+a.options.map(o=>ambName(o)+" (id "+o.id+", на складе "+o.wh+(o.onBar?", на стойке":"")+")").join(" или ")+(l?"; вероятнее "+ambName(l[0])+" — "+l[1]:"")}).join("\n"):"")
    +(m.not_found_lines.length?"\nНЕ НАШЛОСЬ В КАТАЛОГЕ (строки с фото, могут быть рукописные или с ошибкой распознавания — добери через find_items или переспроси):\n"+m.not_found_lines.map(l=>"— "+l).join("\n"):"")}
 // Новый вкус с фото — в каталог (Склад, 0 шт.) и строка в Журнал «Новый вкус — внёс ассистент».
 // Kind "in" с нулём: отдельного вида движения в базе нет (moves_kind_check), текст строки берётся из reason
@@ -1668,35 +1694,35 @@ async function cmdFindIds(args,imgs,signal){let text=args||"";
     if(r.failed)text+="\n(часть фото не прочиталась)"}
   return{m:matchText(text),text}}
 async function cmdNaiti(out,args,imgs){const{m}=await cmdFindIds(args,imgs,aiCtl.signal);
-  if(!m.found.length){out.textContent="Не нашёл ничего на складе"+(args||(imgs&&imgs.length)?" по этому запросу":"")+". Пришли фото банок или напиши названия вкусов.";return}
+  if(!m.found.length){out.textContent=nfTxt(m,"Не нашёл ничего на складе"+(args||(imgs&&imgs.length)?" по этому запросу":"")+". Пришли фото банок или напиши названия вкусов.");return}
   const lines=m.found.map(x=>{const it=byId[x.id];return "— "+x.brand+" "+x.name+": на складе "+x.wh+(x.onBar?", на стойке":"")+(it&&flag(it,"slow")?" (неликвид)":"")+(it&&flag(it,"stop")?" (стоп)":"")});
-  out.textContent="Нашёл на складе и стойке:\n"+lines.join("\n")+(m.not_found_lines.length?"\n\nНе нашлось в каталоге:\n"+m.not_found_lines.map(l=>"— "+l).join("\n"):"")}
+  out.textContent="Нашёл на складе и стойке:\n"+lines.join("\n")+(m.not_found_lines.length?"\n\nНе нашлось в каталоге:\n"+m.not_found_lines.map(l=>"— "+l).join("\n"):"")+ambTxt(m)}
 async function cmdPerenos(out,args,imgs){const{m}=await cmdFindIds(args,imgs,aiCtl.signal);
   const st=AI_TOOLS.find(f=>f.name==="stage_stock"),done=[],none=[];
   m.found.forEach(x=>{const it=byId[x.id];if(!it)return;const avail=wh(it)+((draft[it.id]||{}).d||0);
     const n=(imgs&&imgs.length&&x.jars)?Math.min(x.jars,avail):avail;
     if(n<1){none.push(it);return}try{st.execute({id:it.id,delta:-n,toBar:true});done.push([it,n])}catch(e){none.push(it)}});
-  if(!done.length&&!none.length){out.textContent="Не нашёл на складе подходящих вкусов. Пришли фото банок или напиши названия.";return}
+  if(!done.length&&!none.length){out.textContent=nfTxt(m,"Не нашёл на складе подходящих вкусов. Пришли фото банок или напиши названия.");return}
   render();
   out.textContent="Перенос со склада на стойку, в черновике:\n"+(done.map(d=>"— "+d[0].b+" "+d[0].n+" ×"+d[1]).join("\n")||"(ничего)")
-   +(none.length?"\n\nНет на складе, не перенесены:\n"+none.map(x=>"— "+x.b+" "+x.n).join("\n"):"")
+   +(none.length?"\n\nНет на складе, не перенесены:\n"+none.map(x=>"— "+x.b+" "+x.n).join("\n"):"")+ambTxt(m)
    +"\n\nПроверь и нажми внизу «Списание / пополнение» → «Подтвердить»."}
 async function cmdPopolnit(out,args,imgs){const{m}=await cmdFindIds(args,imgs,aiCtl.signal);
-  if(!m.found.length){out.textContent="Не нашёл вкусы. Пришли фото банок или напиши названия.";return}
+  if(!m.found.length){out.textContent=nfTxt(m,"Не нашёл вкусы. Пришли фото банок или напиши названия.");return}
   const st=AI_TOOLS.find(f=>f.name==="stage_stock"),done=[];
   m.found.forEach(x=>{const it=byId[x.id];if(!it)return;const n=(imgs&&imgs.length&&x.jars)?x.jars:1;
     try{st.execute({id:it.id,delta:n});done.push([it,n])}catch(e){}});
   render();
-  out.textContent="Пополнение, в черновике:\n"+done.map(d=>"— "+d[0].b+" "+d[0].n+" +"+d[1]).join("\n")
+  out.textContent="Пополнение, в черновике:\n"+done.map(d=>"— "+d[0].b+" "+d[0].n+" +"+d[1]).join("\n")+ambTxt(m)
    +"\n\nПроверь и нажми внизу «Списание / пополнение» → «Подтвердить»."}
-async function cmdZakazat(out,args,imgs){let ids;
+async function cmdZakazat(out,args,imgs){let ids,amb="";
   if(!args&&!(imgs&&imgs.length)){const find_items=AI_TOOLS.find(f=>f.name==="find_items");ids=find_items.execute({where:"none",limit:80}).items.map(x=>x.id)}
-  else{const{m}=await cmdFindIds(args,imgs,aiCtl.signal);ids=m.found.map(x=>x.id)}
-  if(!ids.length){out.textContent="Не нашёл вкусы для заказа.";return}
+  else{const{m}=await cmdFindIds(args,imgs,aiCtl.signal);ids=m.found.map(x=>x.id);amb=ambTxt(m)}
+  if(!ids.length){out.textContent=(amb?"Ничего не сделал — нужно уточнить."+amb:"Не нашёл вкусы для заказа.");return}
   aiOrdAsk=true;aiOrdPhoto=false;aiOrdSeen=new Set();
   const set_order=AI_TOOLS.find(f=>f.name==="set_order"),r=set_order.execute({ids,qty:1});
   out.textContent="Поставлено в заказ по 1 шт.:\n"+(r.items.map(x=>"— "+x.brand+" "+x.name).join("\n")||"(ничего)")
-   +(r.skipped&&r.skipped.length?"\n\nНе поставлены:\n"+r.skipped.map(s=>"— "+s).join("\n"):"")}
+   +(r.skipped&&r.skipped.length?"\n\nНе поставлены:\n"+r.skipped.map(s=>"— "+s).join("\n"):"")+amb}
 async function cmdSpisatZakaz(out,args,imgs){const{m}=await cmdFindIds(args,imgs,aiCtl.signal);
   const st=AI_TOOLS.find(f=>f.name==="stage_stock"),spisano=[],toOrder=[];
   // В заказ уходит то, что было на нуле ДО списания (вкуса не нашли на складе) — не то, что стало нулём
@@ -1713,6 +1739,7 @@ async function cmdSpisatZakaz(out,args,imgs){const{m}=await cmdFindIds(args,imgs
   if(r&&r.items&&r.items.length)txt+="\n\nНе было на складе — поставлено в заказ:\n"+r.items.map(x=>"— "+x.brand+" "+x.name).join("\n");
   if(r&&r.skipped&&r.skipped.length)txt+="\n\nНе поставлены в заказ:\n"+r.skipped.map(s=>"— "+s).join("\n");
   if(m.not_found_lines.length)txt+="\n\nНе нашлось в каталоге (проверь вручную):\n"+m.not_found_lines.map(l=>"— "+l).join("\n");
+  txt+=ambTxt(m);
   out.textContent=txt+(spisano.length?"\n\nПроверь и нажми внизу «Списание / пополнение» → «Подтвердить».":"")}
 async function runCmd(cmd,out,args,imgs){
   // «Списать» и «перенос» — одна и та же команда (решение Максима 2026-10-26): найденное на складе

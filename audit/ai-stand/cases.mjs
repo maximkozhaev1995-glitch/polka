@@ -102,11 +102,17 @@ export const CMD_CASES = [
   { id: "cmd-03", group: "Команды", ask: "/перенос Cola", stock: { "Sebero|Cola": { wh: 2 }, "Palitra|Cola": { wh: 1 } },
     draftEmpty: true, noWrites: ["stock", "moves"] },
   { id: "cmd-04", group: "Команды", ask: "/перенос Kraken Raspberry", stock: { "Kraken|Medium Seco|Raspberry": { wh: 2 }, "Kraken|Strong Ligero|Raspberry": { wh: 1 } },
-    note: "Две линейки с одинаковым вкусом — переносить обе без вопроса нельзя", draftEmpty: true },
+    note: "Две линейки с одинаковым вкусом — переносить обе без вопроса нельзя", draftEmpty: true, says: [/Уточни линейку/] },
   { id: "cmd-05", group: "Команды", ask: "/списать и заказать Sebero Grape\nDarkside Supernova", stock: { "Sebero|Grape": { wh: 2 }, "Darkside|Supernova": { wh: 0 } },
     draft: { "Sebero|Grape": { d: -2 } }, orderHas: ["Darkside|Supernova"], orderNot: ["Sebero|Grape"] },
   { id: "cmd-06", group: "Команды", ask: "/пополнить Darkside Supernova 5", stock: { "Darkside|Supernova": { wh: 1 } },
     note: "Число в тексте команды — сколько пришло", draft: { "Darkside|Supernova": { d: 5 } } },
+  { id: "cmd-07", group: "Команды", ask: "/перенос Sebero Grape, Darkside Supernova", stock: { "Sebero|Grape": { wh: 2, bar: false }, "Darkside|Supernova": { wh: 1, bar: false }, "Darkside|Grape": { wh: 3 } },
+    note: "Список через запятую — без лишнего Darkside Grape", draft: { "Sebero|Grape": { d: -2, bar: true }, "Darkside|Supernova": { d: -1, bar: true } } },
+  { id: "cmd-08", group: "Команды", ask: "/перенос Kraken Strong Ligero Raspberry", stock: { "Kraken|Medium Seco|Raspberry": { wh: 2 }, "Kraken|Strong Ligero|Raspberry": { wh: 1, bar: false } },
+    note: "Линейка указана — переносится только она", draft: { "Kraken|Strong Ligero|Raspberry": { d: -1, bar: true } } },
+  { id: "cmd-09", group: "Команды", ask: "/найти Kraken Raspberry", stock: { "Kraken|Medium Seco|Raspberry": { wh: 2 } },
+    note: "Неоднозначная линейка — человеку показан выбор", says: [/Уточни линейку[\s\S]*Medium Seco[\s\S]*Strong Ligero/], draftEmpty: true },
 ];
 
 // Фото банок: файлы берутся из PHOTOS_DIR (в репозиторий не кладутся). Эталон — файл <имя>.expected.txt рядом:
