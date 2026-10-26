@@ -717,7 +717,7 @@ function actsV2(x){const n=wh(x),ob=onBar(x),stp=flag(x,"stop"),sl=flag(x,"slow"
 function rowV2(x){const n=wh(x),ob=onBar(x),stp=flag(x,"stop"),sl=flag(x,"slow"),sel=selId===x.id;
   const tags=x.t.length?'<span class="tags">'+x.t.map(t=>'<span class="tag">'+esc(t)+'</span>').join("")+'</span>':"";
   const bd=(stp?'<span class="bd stop">стоп</span>':"")+(flag(x,"retired")?'<span class="bd stop">выведен</span>':"")+(sl?'<span class="bd slow">неликвид</span>':"")+(st.tab!=="bar"&&ob?'<span class="bd on">на стойке</span>':"");
-  const right=st.tab==="wh"?'<span class="big3'+(n<=1?" one":"")+'">'+n+'</span><small>шт.</small>':st.tab==="slow"?'<span class="st3">'+(idleText(x)?idleText(x)+'<br>':"")+(n?n+" на скл.":"нет на скл.")+'</span>':st.tab==="stop"?'<span class="st3">'+(ob?"на стойке":"не на стойке")+'</span>':'<span class="st3'+(n<=1?" one":"")+'">'+(n?n+" на скл.":"нет на скл.")+'</span>';
+  const right=st.tab==="wh"?'<span class="big3'+(n<=1?" one":"")+'">'+n+'</span><small>шт.</small>':st.tab==="slow"?'<span class="st3">'+(idleText(x)?idleText(x)+'<br>':"")+(n?n+" на скл.":"нет на скл.")+'</span>':'<span class="st3'+(n<=1?" one":"")+'">'+(n?n+" на скл.":"нет на скл.")+'</span>';
   return '<div class="row r2'+(sel?" sel":"")+'" data-row="'+x.id+'"><i class="dot d-'+x.s+'"></i><div class="rb"><span class="nm">'+hl(x.l?x.n+" "+x.l:x.n)+'</span>'+(st.tab==="bar"?"":szTag(x))+tags+bd+(x.d?'<div class="ds'+(x.s!=="name"?" has":"")+'">'+hl(x.d)+'</div>':"")+'</div><div class="rc">'+right+'</div>'+(sel?actsV2(x):"")+'</div>'}
 function renderV2(){
   ["#sup","#omanual","#chat","#logbox","#brands","#filters","#tray","#otray"].forEach(q=>{const e=$(q);if(e)e.hidden=true});
