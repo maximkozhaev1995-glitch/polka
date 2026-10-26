@@ -1264,6 +1264,11 @@ function matchChunk(text,label){let T=cnTxt(text),fixed=[];if(label)({T,fixed}=f
      if(marked.length===1){hit.push(marked[0]);continue}
      ambiguous.push({brand:g[0].b,name:g[0].n,options:g.map(x=>({id:x.id,line:x.l||"(без линейки)"}))});
    }
+   // Название нашлось только слитным словом (PINACOLADA, BARVYORANGE), а бренда в этом кусочке нет — это лишь
+   // возможное название: в подтверждённые не берём, отдаём кандидатом на уточнение бренда
+   const exactIn=(n)=>{const w=n.trim().split(" ").filter(Boolean);return w.length>0&&w.every(t=>T.includes(" "+t+" "))};
+   hit=hit.filter(x=>{if(exactIn(cnTxt(x.n))||(x.a||[]).some(v=>exactIn(cnTxt(v)))||T.includes(cnTxt(x.b)))return true;
+     ambiguous.push({brand:x.b,name:x.n,need:"brand",options:[{id:x.id,line:x.l||"(без линейки)"}]});return false});
    return{hit,byN,T,brands,fixed,ambiguous}}
 function matchText(text){const raw=String(text||"");
    // С фото банок сервер отдаёт текст по этикеткам («Этикетка N: …» — см. readPhotos на сервере). Разбираем каждую
@@ -1311,7 +1316,7 @@ function photoNote(text){const m=matchText(text);
     m.new_flavors.forEach(y=>{if(!photoAcc.newf.some(z=>z.b===y.b&&norm(z.n)===norm(y.n)))photoAcc.newf.push(y)})}
   return "[Фото: текст прочитан с фото и уже сверен с каталогом приложением. Общее количество банок по брендам и предложение добавить новые вкусы приложение покажет само — в ответе их не пересчитывай и не повторяй. Опирайся на этот список, вкусов сверх него не придумывай.]\n"
    +"НАЙДЕНО В КАТАЛОГЕ ("+m.found.length+"):\n"+(m.found.map(x=>"— "+x.brand+" "+x.name+(x.jars>1?" ×"+x.jars+" (на "+x.jars+" разных этикетках — скорее всего столько банок)":"")+" (id "+x.id+", на складе "+x.wh+(x.onBar?", на стойке":"")+(x.ambiguous?", бренд на фото не прочитан — уточни":"")+")").join("\n")||"— ничего")
-   +(m.ambiguous?.length?"\nНЕОДНОЗНАЧНО (не выполняй никаких действий, уточни линейку):\n"+m.ambiguous.map(a=>"— "+a.brand+" "+a.name+": "+a.options.map(o=>o.line).join(" / ")).join("\n"):"")
+   +(m.ambiguous?.length?"\nНЕОДНОЗНАЧНО (не выполняй никаких действий, уточни линейку или бренд):\n"+m.ambiguous.map(a=>"— "+a.brand+" "+a.name+": "+(a.need==="brand"?"бренд на фото не прочитан, название только похоже":a.options.map(o=>o.line).join(" / "))).join("\n"):"")
    +(m.not_found_lines.length?"\nНЕ НАШЛОСЬ В КАТАЛОГЕ (строки с фото, могут быть рукописные или с ошибкой распознавания — добери через find_items или переспроси):\n"+m.not_found_lines.map(l=>"— "+l).join("\n"):"")}
 // Новый вкус с фото — в каталог (Склад, 0 шт.) и строка в Журнал «Новый вкус — внёс ассистент».
 // Kind "in" с нулём: отдельного вида движения в базе нет (moves_kind_check), текст строки берётся из reason
@@ -1463,14 +1468,42 @@ async function cmdPerenos(out,args,imgs){const{m}=await cmdFindIds(args,imgs,aiC
   out.textContent="Перенос со склада на стойку, в черновике:\n"+(done.map(d=>"— "+d[0].b+" "+d[0].n+" ×"+d[1]).join("\n")||"(ничего)")
    +(none.length?"\n\nНет на складе, не перенесены:\n"+none.map(x=>"— "+x.b+" "+x.n).join("\n"):"")
    +"\n\nПроверь и нажми внизу «Списание / пополнение» → «Подтвердить»."}
-async function cmdPopolnit(out,args,imgs){const{m}=await cmdFindIds(args,imgs,aiCtl.signal);
-  if(!m.found.length){out.textContent="Не нашёл вкусы. Пришли фото банок или напиши названия.";return}
-  const st=AI_TOOLS.find(f=>f.name==="stage_stock"),done=[];
-  m.found.forEach(x=>{const it=byId[x.id];if(!it)return;const n=(imgs&&imgs.length&&x.jars)?x.jars:1;
-    try{st.execute({id:it.id,delta:n});done.push([it,n])}catch(e){}});
-  render();
-  out.textContent="Пополнение, в черновике:\n"+done.map(d=>"— "+d[0].b+" "+d[0].n+" +"+d[1]).join("\n")
-   +"\n\nПроверь и нажми внизу «Списание / пополнение» → «Подтвердить»."}
+// Количество в конце строки команды: «Darkside Supernova 5», «×5», «5 шт». Без числа — 1.
+// 0, минус, дробь, «пять», «5а», больше 100 — строку не трогаем и пишем, что количество непонятно.
+// Число может быть частью названия («Rioja 17», «Mary Jane 2.0») — тогда это название, а если подходит и так,
+// и так — не угадываем
+const POP_MAX=100,NUM_WORDS=/^(ноль|один|одна|два|две|три|четыре|пять|шесть|семь|восемь|девять|десять|пару|пара|несколько)$/i;
+function popItems(args){const items=[],bad=[];
+  String(args||"").split(/\n|;|(?<!\d),|,(?!\d)/).map(x=>x.trim()).filter(Boolean).forEach(line=>{
+    const q=line.match(/^(.*?)\s*(?:[x×х*]\s*)?(\S+?)\s*(?:шт\.?|штук[аи]?|банк[аи]?|банок)?$/i);
+    const tok=q&&q[1].trim()?q[2]:"";
+    if(!tok||!(/\d/.test(tok)||NUM_WORDS.test(tok))){items.push({line,name:line,n:1});return}
+    const rest=q[1].trim(),full=matchText(line).found,inName=full.filter(f=>cnTxt(f.name).includes(cnTxt(tok)));
+    if(inName.length){const r=matchText(rest).found;
+      if(r.length&&r.some(f=>!full.some(g=>g.id===f.id))){bad.push(line+" — непонятно, число это количество или часть названия");return}
+      items.push({line,name:line,n:1});return}
+    if(!/^\+?\d+$/.test(tok)){bad.push(line+" — количество «"+tok+"» не понял, напиши целым числом");return}
+    const n=parseInt(tok,10);
+    if(n<1||n>POP_MAX){bad.push(line+" — количество "+n+" не подходит (нужно от 1 до "+POP_MAX+")");return}
+    items.push({line,name:rest,n})});
+  return{items,bad}}
+async function cmdPopolnit(out,args,imgs){
+  const st=AI_TOOLS.find(f=>f.name==="stage_stock"),done=[],bad=[],miss=[];
+  if(imgs&&imgs.length){const{m}=await cmdFindIds(args,imgs,aiCtl.signal);
+    m.found.forEach(x=>{const it=byId[x.id];if(!it)return;const n=x.jars||1;
+      try{st.execute({id:it.id,delta:n});done.push([it,n])}catch(e){}})}
+  else{const p=popItems(args);bad.push(...p.bad);
+    p.items.forEach(i=>{const f=matchText(i.name).found;
+      if(!f.length){miss.push(i.line);return}
+      // Одно количество на несколько вкусов в одной строке — не делим и не размножаем, просим разнести по строкам
+      if(f.length>1&&i.n!==1){bad.push(i.line+" — в строке несколько вкусов, напиши каждый с количеством отдельной строкой");return}
+      f.forEach(x=>{const it=byId[x.id];if(!it)return;try{st.execute({id:it.id,delta:i.n});done.push([it,i.n])}catch(e){}})})}
+  if(!done.length&&!bad.length){out.textContent="Не нашёл вкусы. Пришли фото банок или напиши названия.";return}
+  if(done.length)render();
+  out.textContent=(done.length?"Пополнение, в черновике:\n"+done.map(d=>"— "+d[0].b+" "+d[0].n+" +"+d[1]).join("\n"):"Ничего не добавлено в черновик.")
+   +(bad.length?"\n\nНе добавлено:\n"+bad.map(l=>"— "+l).join("\n"):"")
+   +(miss.length?"\n\nНе нашлось в каталоге:\n"+miss.map(l=>"— "+l).join("\n"):"")
+   +(done.length?"\n\nПроверь и нажми внизу «Списание / пополнение» → «Подтвердить».":"")}
 async function cmdZakazat(out,args,imgs){let ids;
   if(!args&&!(imgs&&imgs.length)){const find_items=AI_TOOLS.find(f=>f.name==="find_items");ids=find_items.execute({where:"none",limit:80}).items.map(x=>x.id)}
   else{const{m}=await cmdFindIds(args,imgs,aiCtl.signal);ids=m.found.map(x=>x.id)}
