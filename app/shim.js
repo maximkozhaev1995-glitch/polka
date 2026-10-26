@@ -165,26 +165,39 @@
       const e=j.error||(r.status===401?"session_expired":"server_error");
       if((e==="busy"||(e==="rate_limited"&&j.scope!=="daily"))&&a<2){if(onWait)onWait(a);await wait(a?9000:5000,signal);continue}
       throw {code:e==="not_configured"?"not_configured":e,text:""}}}
+  // Распознаёт фото без обращения к диалоговой модели (ocr_only) — для команд (/перенос и т.п.), где
+  // решение детерминированное и модель не нужна. Возвращает сырой текст по каждому фото (может быть {failed})
+  // и ocr — кто читал (sonnet/yandex), для подписи под ответом.
+  const readPhotos=async(images,signal)=>{
+    const blocks=await Promise.all(images.map(imgToBlock));
+    let ocr="";
+    // Распознаём каждое фото отдельным запросом (ocr_only) — иначе на нескольких фото разом функция
+    // Supabase упирается в свой лимит времени (150 с) и падает без ответа («Не получилось»).
+    // Отдельные запросы быстрее по одному и не считаются в дневной лимит (там модель не вызывается).
+    // Не прочиталось — пробуем ещё раз; не вышло и со второго раза — фото помечаем как непрочитанное,
+    // а не пустым текстом: иначе дальше уверенно решают, что на фото ни одного вкуса
+    const texts=await Promise.all(blocks.map(async b=>{
+      let err="";
+      for(let a=0;a<2;a++){
+        try{const r=await callAI({system:"",messages:[{role:"user",content:[b]}],tools:[],ocr_only:true},signal,()=>{});
+          if(!r.ocr){err="not_read";continue}
+          ocr=r.ocr;return (r.ocr_texts||[])[0]||""}
+        catch(e){if(e&&e.name==="AbortError")return {failed:"cancelled"};err=e&&e.code||"network";console.warn("photo read failed:",err)}}
+      return {failed:err}}));
+    return {texts,ocr}};
+  // Текст команды (/перенос, /пополнить, …): читает фото, без обращения к диалоговой модели.
+  // Возвращает {text, failed} — text уже в формате «Этикетка N: …», готов для matchText на клиенте.
+  const readLabels=async(images,signal)=>{
+    const{texts}=await readPhotos(images,signal);
+    const failed=texts.filter(t=>t&&t.failed).length;
+    return {text:texts.filter(t=>typeof t==="string").join("\n"),failed,total:texts.length}};
   const sample=async(turns,opts)=>{
     opts=opts||{};
     const first=turns[0]&&turns[0].role==="user"?turns[0].content:"";
     let msgs=turns.slice(2).map(t=>({role:t.role,content:t.content}));
     let ocr="",photo=null;
     if(opts.images&&opts.images.length){
-      const blocks=await Promise.all(opts.images.map(imgToBlock));
-      // Распознаём каждое фото отдельным запросом (ocr_only) — иначе на нескольких фото разом функция
-      // Supabase упирается в свой лимит времени (150 с) и падает без ответа («Не получилось»).
-      // Отдельные запросы быстрее по одному и не считаются в дневной лимит (там модель не вызывается).
-      // Не прочиталось — пробуем ещё раз; не вышло и со второго раза — фото помечаем как непрочитанное (null),
-      // а не пустым текстом: иначе ассистент уверенно отвечает «на фото ни одного вкуса»
-      const texts=await Promise.all(blocks.map(async b=>{
-        let err="";
-        for(let a=0;a<2;a++){
-          try{const r=await callAI({system:"",messages:[{role:"user",content:[b]}],tools:[],ocr_only:true},opts.signal,()=>{});
-            if(!r.ocr){err="not_read";continue}
-            ocr=r.ocr;return (r.ocr_texts||[])[0]||""}
-          catch(e){if(e&&e.name==="AbortError")return {failed:"cancelled"};err=e&&e.code||"network";console.warn("photo read failed:",err)}}
-        return {failed:err}}));
+      const r0=await readPhotos(opts.images,opts.signal),texts=r0.texts;ocr=r0.ocr;
       // opts.photo — приложение само сверяет текст с каталогом; сверка — наш код, может споткнуться на непредвиденном
       // тексте с фото: тогда не роняем весь запрос, а откатываемся к сырому OCR-тексту для этой картинки
       photo=texts.map((t,i)=>{if(t&&t.failed)return "[Фото "+(i+1)+" не удалось прочитать (ошибка: "+t.failed+"). Скажи человеку, что это фото не прочиталось, и попроси прислать его ещё раз. Вкусы с него не угадывай.]";
@@ -217,6 +230,7 @@
       try{const r=await callAI({system:first,messages:msgs,tools:[]},opts.signal,()=>{});if(r.model)src=r.model;text=r.content.filter(b=>b.type==="text").map(b=>b.text).join("")}catch(e){}}
     return {text:text||"Готово.",src:src+(ocr?"+"+ocr:""),photo}};
   sample.limits=async()=>({images:{mediaTypes:["image/jpeg","image/png","image/webp"]}});
+  sample.readLabels=readLabels;
   window.claude={use:async k=>{
     if(k==="db"){await readyP;return db}
     if(k==="user"){await readyP;window.__me=String(session.user.tg_id);return{canEdit:async()=>session.user.role==="manager",name:session.user.name,role:session.user.role,perms:session.user.perms||[]}}

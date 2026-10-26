@@ -453,7 +453,7 @@ body{margin:0}
 <section class="omanual" id="omanual" hidden></section>
 <main id="list"></main>
 <section class="chat" id="chat" hidden>
-  <div class="ai-top"><span class="muted small">Отвечает ИИ. Склад меняется только после «Подтвердить».</span><button class="btn sm" type="button" id="ai-new">Заново</button></div>
+  <div class="ai-top"><span class="muted small">Отвечает ИИ. Склад меняется только после «Подтвердить». Команды: /перенос /пополнить /списать /заказать /найти</span><button class="btn sm" type="button" id="ai-new">Заново</button></div>
   <div class="ai-log" id="ai-log" aria-live="polite"></div>
   <p class="small aioff" id="ai-off" hidden>Ассистент недоступен в этом окне. Открой страницу в claude.ai.</p>
   <button class="ai-imgs" id="ai-imgs" type="button" hidden></button>
@@ -1395,9 +1395,98 @@ function fitChat(){requestAnimationFrame(()=>{const r=document.documentElement.s
 window.addEventListener("resize",()=>{if(st.tab==="ai")fitChat()});
 if(window.visualViewport)visualViewport.addEventListener("resize",()=>{if(st.tab==="ai")fitChat()});
 function aiErr(c){return({not_granted:"Ассистент не разрешён для этой страницы.",sampling_disabled:"Claude недоступен для этого аккаунта.",not_configured:"Ассистент ещё не подключён. Скажи управляющему.",busy:"ИИ сейчас перегружен. Повтори вопрос через минуту.",rate_limited:"ИИ сейчас перегружен. Подожди минуту и повтори.",session_expired:"Нужно заново войти в claude.ai.",image_rejected:"Фото не подошло, попробуй другое.",refused:"Claude не стал отвечать на это. Сформулируй иначе.",prompt_too_large:"Слишком длинный разговор. Нажми «Новый разговор»."})[c]||"Не получилось. Попробуй ещё раз."}
+// Команды склада (/перенос /пополнить /списать /заказать /списать и заказать /найти): решение детерминированное,
+// без модели — быстрее, бесплатно и без риска, что модель напишет вызов функции текстом вместо настоящего вызова.
+// Разбор фото всё равно идёт через OCR на сервере (sampleFn.readLabels), а сверка с каталогом — тем же matchText,
+// что и у обычного ассистента.
+function parseCmd(raw){const s=String(raw||"");const m=s.match(/^\s*\/\s*(.*)$/s);if(!m)return null;
+  const body=m[1]||"";const nl=body.indexOf("\n");
+  const firstLine=(nl===-1?body:body.slice(0,nl)).trim(),restLines=(nl===-1?"":body.slice(nl+1)).trim();
+  const head=norm(firstLine);let cmd="",strip=1;
+  if(/спис/.test(head)&&/заказ/.test(head)){cmd="spisat_zakaz";strip=3}
+  else if(/^перенос|^перекин/.test(head))cmd="perenos";
+  else if(/^пополн|^привез|^приход|^оприход/.test(head))cmd="popolnit";
+  else if(/^спис/.test(head))cmd="spisat";
+  else if(/^заказ|^закаж/.test(head))cmd="zakazat";
+  else if(/^найти|^найд|^поиск/.test(head))cmd="naiti";
+  else return null;
+  const words=firstLine.split(/\s+/).filter(Boolean),tail=words.slice(Math.min(strip,words.length)).join(" ");
+  return{cmd,args:(tail+"\n"+restLines).trim()}}
+// Текст команды + фото (если есть) → matchText против каталога. Фото читает сервер (readLabels), без диалоговой модели.
+async function cmdFindIds(args,imgs,signal){let text=args||"";
+  if(imgs&&imgs.length&&sampleFn&&sampleFn.readLabels){
+    const r=await sampleFn.readLabels(imgs,signal);if(r.text)text=(text?text+"\n":"")+r.text;
+    if(r.failed)text+="\n(часть фото не прочиталась)"}
+  return{m:matchText(text),text}}
+async function cmdNaiti(out,args,imgs){const{m}=await cmdFindIds(args,imgs,aiCtl.signal);
+  if(!m.found.length){out.textContent="Не нашёл ничего на складе"+(args||(imgs&&imgs.length)?" по этому запросу":"")+". Пришли фото банок или напиши названия вкусов.";return}
+  const lines=m.found.map(x=>{const it=byId[x.id];return "— "+x.brand+" "+x.name+": на складе "+x.wh+(x.onBar?", на стойке":"")+(it&&flag(it,"slow")?" (неликвид)":"")+(it&&flag(it,"stop")?" (стоп)":"")});
+  out.textContent="Нашёл на складе и стойке:\n"+lines.join("\n")+(m.not_found_lines.length?"\n\nНе нашлось в каталоге:\n"+m.not_found_lines.map(l=>"— "+l).join("\n"):"")}
+async function cmdPerenos(out,args,imgs){const{m}=await cmdFindIds(args,imgs,aiCtl.signal);
+  const st=AI_TOOLS.find(f=>f.name==="stage_stock"),done=[],none=[];
+  m.found.forEach(x=>{const it=byId[x.id];if(!it)return;const avail=wh(it)+((draft[it.id]||{}).d||0);
+    const n=(imgs&&imgs.length&&x.jars)?Math.min(x.jars,avail):avail;
+    if(n<1){none.push(it);return}try{st.execute({id:it.id,delta:-n,toBar:true});done.push([it,n])}catch(e){none.push(it)}});
+  if(!done.length&&!none.length){out.textContent="Не нашёл на складе подходящих вкусов. Пришли фото банок или напиши названия.";return}
+  render();
+  out.textContent="Перенос со склада на стойку, в черновике:\n"+(done.map(d=>"— "+d[0].b+" "+d[0].n+" ×"+d[1]).join("\n")||"(ничего)")
+   +(none.length?"\n\nНет на складе, не перенесены:\n"+none.map(x=>"— "+x.b+" "+x.n).join("\n"):"")
+   +"\n\nПроверь и нажми внизу «Списание / пополнение» → «Подтвердить»."}
+async function cmdSpisat(out,args,imgs){const{m}=await cmdFindIds(args,imgs,aiCtl.signal);
+  const st=AI_TOOLS.find(f=>f.name==="stage_stock"),done=[],none=[];
+  m.found.forEach(x=>{const it=byId[x.id];if(!it)return;const avail=wh(it)+((draft[it.id]||{}).d||0);
+    const n=(imgs&&imgs.length&&x.jars)?Math.min(x.jars,avail):avail;
+    if(n<1){none.push(it);return}try{st.execute({id:it.id,delta:-n});done.push([it,n])}catch(e){none.push(it)}});
+  if(!done.length&&!none.length){out.textContent="Не нашёл на складе подходящих вкусов. Пришли фото банок или напиши названия.";return}
+  render();
+  out.textContent="Списание, в черновике:\n"+(done.map(d=>"— "+d[0].b+" "+d[0].n+" −"+d[1]).join("\n")||"(ничего)")
+   +(none.length?"\n\nНет на складе:\n"+none.map(x=>"— "+x.b+" "+x.n).join("\n"):"")
+   +"\n\nПроверь и нажми внизу «Списание / пополнение» → «Подтвердить»."}
+async function cmdPopolnit(out,args,imgs){const{m}=await cmdFindIds(args,imgs,aiCtl.signal);
+  if(!m.found.length){out.textContent="Не нашёл вкусы. Пришли фото банок или напиши названия.";return}
+  const st=AI_TOOLS.find(f=>f.name==="stage_stock"),done=[];
+  m.found.forEach(x=>{const it=byId[x.id];if(!it)return;const n=(imgs&&imgs.length&&x.jars)?x.jars:1;
+    try{st.execute({id:it.id,delta:n});done.push([it,n])}catch(e){}});
+  render();
+  out.textContent="Пополнение, в черновике:\n"+done.map(d=>"— "+d[0].b+" "+d[0].n+" +"+d[1]).join("\n")
+   +"\n\nПроверь и нажми внизу «Списание / пополнение» → «Подтвердить»."}
+async function cmdZakazat(out,args,imgs){let ids;
+  if(!args&&!(imgs&&imgs.length)){const find_items=AI_TOOLS.find(f=>f.name==="find_items");ids=find_items.execute({where:"none",limit:80}).items.map(x=>x.id)}
+  else{const{m}=await cmdFindIds(args,imgs,aiCtl.signal);ids=m.found.map(x=>x.id)}
+  if(!ids.length){out.textContent="Не нашёл вкусы для заказа.";return}
+  aiOrdAsk=true;aiOrdPhoto=false;aiOrdSeen=new Set();
+  const set_order=AI_TOOLS.find(f=>f.name==="set_order"),r=set_order.execute({ids,qty:1});
+  out.textContent="Поставлено в заказ по 1 шт.:\n"+(r.items.map(x=>"— "+x.brand+" "+x.name).join("\n")||"(ничего)")
+   +(r.skipped&&r.skipped.length?"\n\nНе поставлены:\n"+r.skipped.map(s=>"— "+s).join("\n"):"")}
+async function cmdSpisatZakaz(out,args,imgs){const{m}=await cmdFindIds(args,imgs,aiCtl.signal);
+  const st=AI_TOOLS.find(f=>f.name==="stage_stock"),spisano=[],toOrder=[];
+  m.found.forEach(x=>{const it=byId[x.id];if(!it)return;const avail=wh(it)+((draft[it.id]||{}).d||0);
+    const n=(imgs&&imgs.length&&x.jars)?Math.min(x.jars,avail):avail;
+    if(n>=1){try{st.execute({id:it.id,delta:-n});spisano.push([it,n]);return}catch(e){}}
+    toOrder.push(it.id)});
+  let r=null;
+  if(toOrder.length){aiOrdAsk=true;aiOrdPhoto=false;aiOrdSeen=new Set();
+    const set_order=AI_TOOLS.find(f=>f.name==="set_order");r=set_order.execute({ids:toOrder,qty:1})}
+  render();
+  let txt=spisano.length?"Списано (в черновике):\n"+spisano.map(d=>"— "+d[0].b+" "+d[0].n+" −"+d[1]).join("\n"):"Списывать на складе ничего не нашлось.";
+  if(r&&r.items&&r.items.length)txt+="\n\nНет на складе — поставлено в заказ:\n"+r.items.map(x=>"— "+x.brand+" "+x.name).join("\n");
+  if(r&&r.skipped&&r.skipped.length)txt+="\n\nНе поставлены в заказ:\n"+r.skipped.map(s=>"— "+s).join("\n");
+  if(m.not_found_lines.length)txt+="\n\nНе нашлось в каталоге (проверь вручную):\n"+m.not_found_lines.map(l=>"— "+l).join("\n");
+  out.textContent=txt+(spisano.length?"\n\nПроверь и нажми внизу «Списание / пополнение» → «Подтвердить».":"")}
+async function runCmd(cmd,out,args,imgs){
+  const fns={perenos:cmdPerenos,popolnit:cmdPopolnit,spisat:cmdSpisat,zakazat:cmdZakazat,spisat_zakaz:cmdSpisatZakaz,naiti:cmdNaiti};
+  await fns[cmd](out,args,imgs)}
 async function aiSend(){
   const box=$("#ai-in"),t=box.value.trim();if((!t&&!aiImgs.length)||aiCtl||!sampleFn)return;
-  const imgs=aiImgs;aiImgs=[];renderAiImgs();aiOrdPhoto=imgs.length>0;aiOrdAsk=ordAsked(t);aiOrdSeen=new Set();photoAcc=imgs.length?photoAccNew():null;const acc=photoAcc;
+  const imgs=aiImgs;aiImgs=[];renderAiImgs();
+  const cmd=parseCmd(t);
+  if(cmd){
+    aiBubble("user",(t||"Фото")+(imgs.length?"  [фото: "+imgs.length+"]":""));box.value="";
+    const out=aiBubble("assistant","Ищу…","wait");aiCtl=new AbortController();aiUi();
+    try{await runCmd(cmd.cmd,out,cmd.args,imgs)}
+    catch(e){out.textContent=(e&&e.message)||"Не получилось.";out.classList.add("err")}
+    out.classList.remove("wait");aiCtl=null;aiUi();render();return}
+  aiOrdPhoto=imgs.length>0;aiOrdAsk=ordAsked(t);aiOrdSeen=new Set();photoAcc=imgs.length?photoAccNew():null;const acc=photoAcc;
   aiBubble("user",(t||"Фото")+(imgs.length?"  [фото: "+imgs.length+"]":""));box.value="";
   aiTurns.push({role:"user",content:(t||"Разбери фото.")+(imgs.length?"\n(К сообщению приложено фото: "+imgs.length+")":"")});
   const out=aiBubble("assistant","Думаю…","wait");aiCtl=new AbortController();aiUi();
