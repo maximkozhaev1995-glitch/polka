@@ -195,7 +195,7 @@
     const tools=(opts.tools||[]).map(t=>({name:t.name,description:t.description,input_schema:t.inputSchema}));
     const byName=Object.fromEntries((opts.tools||[]).map(t=>[t.name,t]));
     let text="",src="";
-    for(let step=0;step<12;step++){
+    for(let step=0;step<20;step++){
       if(opts.signal&&opts.signal.aborted)throw {code:"cancelled",text};
       let r;try{r=await callAI({system:first,messages:msgs,tools},opts.signal,()=>{if(opts.onText)opts.onText({text:(text?text+"\n":"")+"ИИ занят, жду очередь…"})})}catch(e){if(e&&e.name==="AbortError")throw {code:"cancelled",text};throw Object.assign({text},e)}
       msgs.push({role:"assistant",content:r.content});if(r.model)src=r.model;if(r.ocr)ocr=r.ocr;

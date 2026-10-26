@@ -720,7 +720,7 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
     const tools=(opts.tools||[]).map(t=>({name:t.name,description:t.description,input_schema:t.inputSchema}));
     const byName=Object.fromEntries((opts.tools||[]).map(t=>[t.name,t]));
     let text="",src="";
-    for(let step=0;step<12;step++){
+    for(let step=0;step<20;step++){
       if(opts.signal&&opts.signal.aborted)throw {code:"cancelled",text};
       let r;try{r=await callAI({system:first,messages:msgs,tools},opts.signal,()=>{if(opts.onText)opts.onText({text:(text?text+"\n":"")+"ИИ занят, жду очередь…"})})}catch(e){if(e&&e.name==="AbortError")throw {code:"cancelled",text};throw Object.assign({text},e)}
       msgs.push({role:"assistant",content:r.content});if(r.model)src=r.model;if(r.ocr)ocr=r.ocr;
@@ -1387,6 +1387,7 @@ const AI_RULES=`Ты — второй мастер за стойкой каль�
 — stage_stock — черновик списания/пополнения (минус — списание). Записывается только после того, как Максим нажмёт внизу «Списание / пополнение» → «Подтвердить»; напоминай об этом одной строкой.
 — set_order — количество к заказу; set_flag — стоп / неликвид.
 — ЗАКАЗ: сам ставь в заказ только вкусы с фото банок и из стоп-листа, и только если они не в неликвиде. Всё остальное (кончается на складе, просят гости, часто берут) — только рекомендуй дособрать заказ словами, set_order для них не вызывай. Исключение: человек сам прямо просит составить заказ или поставить в заказ (например «составь заказ чего нет на складе») — тогда ставь через set_order всё подходящее по 1 шт. (если не сказал другое количество), кроме неликвида, и одной строкой скажи, что поставил в раздел «Заказ». Вкус и на фото, и в стоп-листе — одна позиция заказа, не дублируй и не суммируй.
+— Нужно поставить в заказ много вкусов разом (например «чего нет на складе», «весь Sebero», «всё из стоп-листа»): сначала find_items (при «нет на складе» — where: none), затем ОДИН вызов set_order с ids — списком всех найденных id — и тем же qty для всех. Не вызывай set_order по одному на каждый вкус и никогда не пиши вызов функции как обычный текст в ответе — только через настоящий вызов инструмента.
 
 МИКСЫ — главное
 — Собирай как мастер. Доли только по десяткам, сумма 100: три вкуса 50/30/20, четыре вкуса 40/30/20/10. Холодок только Darkside Supernova и не больше 10%. Всегда давай проценты. Не пиши про колесо вкусов.
@@ -1569,10 +1570,10 @@ function newFlavorBox(el,list){const box=document.createElement("div");box.class
     box.innerHTML='<small class="muted">'+(bad?"Добавлено: "+good+", не получилось: "+bad:"Добавлено в каталог: "+good+" ✓ (Склад, 0 шт.)")+'</small>';render()};
   if(no)no.onclick=()=>{box.innerHTML='<small class="muted">Не добавлено.</small>'}}
 const AI_TOOLS=[
- {name:"find_items",description:"Ищет вкусы в каталоге. query — слова из бренда, линейки, названия или описания (можно пусто). where: all (по умолчанию), bar — на стойке, wh — есть на складе, low — на складе 0–1 шт., stop, slow, order, pending — в черновике. Возвращает до limit (по умолчанию 30, максимум 80) вкусов: id, brand, line, name, desc, tags, wh (банок на складе), onBar, stop, slow, order, pending, и total — сколько всего нашлось.",
-  inputSchema:{type:"object",properties:{query:{type:"string"},where:{type:"string",enum:["all","bar","wh","low","stop","slow","order","pending"]},brand:{type:"string"},limit:{type:"number"}}},
+ {name:"find_items",description:"Ищет вкусы в каталоге. query — слова из бренда, линейки, названия или описания (можно пусто). where: all (по умолчанию), bar — на стойке, wh — есть на складе, none — нет на складе (0 шт., кроме выведенных из палитры), low — на складе 0–1 шт., stop, slow, order, pending — в черновике. Возвращает до limit (по умолчанию 30, максимум 80) вкусов: id, brand, line, name, desc, tags, wh (банок на складе), onBar, stop, slow, order, pending, и total — сколько всего нашлось.",
+  inputSchema:{type:"object",properties:{query:{type:"string"},where:{type:"string",enum:["all","bar","wh","none","low","stop","slow","order","pending"]},brand:{type:"string"},limit:{type:"number"}}},
   execute(i){const w=String(i.where||"all"),words=norm(String(i.query||"")).split(/\s+/).filter(Boolean),br=norm(String(i.brand||"")),lim=Math.min(80,Math.max(1,Number(i.limit)||30));
-   const ok=x=>w==="bar"?onBar(x):w==="wh"?wh(x)>0:w==="low"?tracked(x)&&wh(x)<=1:w==="stop"?flag(x,"stop"):w==="slow"?flag(x,"slow"):w==="order"?oq(x)>0:w==="pending"?!!draft[x.id]:true;
+   const ok=x=>w==="bar"?onBar(x):w==="wh"?wh(x)>0:w==="none"?!wh(x)&&!flag(x,"retired"):w==="low"?tracked(x)&&wh(x)<=1:w==="stop"?flag(x,"stop"):w==="slow"?flag(x,"slow"):w==="order"?oq(x)>0:w==="pending"?!!draft[x.id]:true;
    const hay=x=>norm([x.b,x.l,x.n,x.d,x.t.join(" "),(x.a||[]).join(" ")].join(" "));
    const r=DATA.filter(x=>ok(x)&&(!br||norm(x.b).includes(br))&&words.every(t=>hay(x).includes(t)));
    // Ничего не нашлось по всем словам (опечатка, другое написание с фото) — ближайшие по числу совпавших слов
@@ -1589,9 +1590,16 @@ const AI_TOOLS=[
    if(wh(x)+(cur.d||0)+d<0)throw new Error("на складе всего "+(wh(x)+(cur.d||0))+" шт., столько списать нельзя");
    cur.d=(cur.d||0)+d;if(typeof i.toBar==="boolean"){if(i.toBar===onBar(x))delete cur.bar;else cur.bar=i.toBar}
    draft[x.id]=cur;saveDraft();render();return aiItem(x)}},
- {name:"set_order",description:"Ставит, сколько штук вкуса заказать (qty, 0 — убрать из заказа). Сохраняется сразу. Только вкусы с фото банок и из стоп-листа, не неликвид.",
-  inputSchema:{type:"object",properties:{id:{type:"string"},qty:{type:"number"}},required:["id","qty"]},
-  execute(i){const x=byId[String(i.id)];if(!x)throw new Error("нет такого id");const k=Math.max(0,Math.round(Number(i.qty)||0));
+ {name:"set_order",description:"Ставит, сколько штук вкуса заказать (qty, 0 — убрать из заказа). Сохраняется сразу. Только вкусы с фото банок и из стоп-листа, не неликвид. Для многих вкусов разом (например, «добавь всё, чего нет на складе») передай ids — список id вместо одного id, тем же qty для всех, одним вызовом.",
+  inputSchema:{type:"object",properties:{id:{type:"string"},ids:{type:"array",items:{type:"string"}},qty:{type:"number"}},required:["qty"]},
+  execute(i){const k=Math.max(0,Math.round(Number(i.qty)||0));
+   if(Array.isArray(i.ids)){const done=[],skipped=[];
+     i.ids.forEach(raw=>{const x=byId[String(raw)];if(!x){skipped.push(raw+": нет такого id");return}
+       if(k&&!i._ok){const e=ordGate(x,aiOrdPhoto,aiOrdAsk);if(e){skipped.push(nm(x)+": "+e);return}
+         if(aiOrdSeen.has(x.id)){skipped.push(nm(x)+": уже в заказе этим ответом");return}aiOrdSeen.add(x.id)}
+       if(k)orderQ[x.id]=k;else{revertWish(wishIdsFor(x.id));delete orderQ[x.id]}done.push(aiItem(x))});
+     saveOrder();render();return {queued:done.length,items:done,skipped:skipped.length?skipped:undefined}}
+   const x=byId[String(i.id)];if(!x)throw new Error("нет такого id");
    if(k&&!i._ok){const e=ordGate(x,aiOrdPhoto,aiOrdAsk);if(e)throw new Error(e);if(aiOrdSeen.has(x.id))return {already:true,item:aiItem(x),note:"уже в заказе этим ответом — второй раз не ставь"};aiOrdSeen.add(x.id)}
    if(k)orderQ[x.id]=k;else{revertWish(wishIdsFor(x.id));delete orderQ[x.id]}saveOrder();render();return aiItem(x)}},
  {name:"set_flag",description:"Ставит (on=true) или снимает (on=false) метку flag: stop — вкус в стоп-листе, slow — неликвид. Сохраняется сразу.",
