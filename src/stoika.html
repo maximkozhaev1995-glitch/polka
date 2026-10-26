@@ -544,6 +544,10 @@ function toggleBrand(b){const k=fk(b);if(flip[k])delete flip[k];else flip[k]=tru
 const stock={};let db=null,moves=[],busy=false;
 // Черновик: изменения копятся здесь и пишутся в базу только после подтверждения в окне
 let draft={};
+// Позиции, которые в черновик положила команда (/перенос, /списать и т.п.) — команда уже сама
+// решила, что должно уйти в заказ; автодозаказ по остатку (autoOrder в commit()) для них не нужен,
+// иначе после «Подтвердить» в заказ попадает то же самое ещё раз (баг, найденный Максимом 2026-10-26)
+let cmdDraftIds=new Set(),inCmd=false;
 try{draft=JSON.parse(localStorage.getItem("stoika-draft")||"{}")||{}}catch(e){draft={}}
 const saveDraft=()=>{for(const k in draft){const d=draft[k];if(!d.d&&d.bar===undefined)delete draft[k]}try{localStorage.setItem("stoika-draft",JSON.stringify(draft))}catch(e){}};
 const byId=Object.fromEntries(DATA.map(x=>[x.id,x]));
@@ -911,7 +915,8 @@ async function commit(){
     catch(e){fail++}
   }
   done.forEach(id=>delete draft[id]);saveDraft();busy=false;
-  const auto=Object.keys(leftOf).map(id=>{const x=byId[id];return x&&leftOf[id]<=1?[x,autoOrder(x,leftOf[id])]:null}).filter(a=>a&&a[1]);
+  const auto=Object.keys(leftOf).map(id=>{if(cmdDraftIds.has(id))return null;const x=byId[id];return x&&leftOf[id]<=1?[x,autoOrder(x,leftOf[id])]:null}).filter(a=>a&&a[1]);
+  ids.forEach(id=>cmdDraftIds.delete(id));
   if(fail){setStatus("Не сохранилось позиций: "+fail+". Они остались в черновике",true);openReview()}
   else{closeDlg();setStatus("Подтверждено позиций: "+done.length);if(auto.length)toast("В заказ сами добавились: "+auto.map(a=>esc(nm(a[0]))+" — "+a[1]).join(", "))}
   render();
@@ -1361,7 +1366,7 @@ const AI_TOOLS=[
    const d=Math.round(Number(i.delta)||0),cur=draft[x.id]||{d:0};
    if(wh(x)+(cur.d||0)+d<0)throw new Error("на складе всего "+(wh(x)+(cur.d||0))+" шт., столько списать нельзя");
    cur.d=(cur.d||0)+d;if(typeof i.toBar==="boolean"){if(i.toBar===onBar(x))delete cur.bar;else cur.bar=i.toBar}
-   draft[x.id]=cur;saveDraft();render();return aiItem(x)}},
+   draft[x.id]=cur;if(inCmd)cmdDraftIds.add(x.id);saveDraft();render();return aiItem(x)}},
  {name:"set_order",description:"Ставит, сколько штук вкуса заказать (qty, 0 — убрать из заказа). Сохраняется сразу. Только вкусы с фото банок и из стоп-листа, не неликвид. Для многих вкусов разом (например, «добавь всё, чего нет на складе») передай ids — список id вместо одного id, тем же qty для всех, одним вызовом.",
   inputSchema:{type:"object",properties:{id:{type:"string"},ids:{type:"array",items:{type:"string"}},qty:{type:"number"}},required:["qty"]},
   execute(i){const k=Math.max(0,Math.round(Number(i.qty)||0));
@@ -1469,7 +1474,7 @@ async function runCmd(cmd,out,args,imgs){
   // «Списать» и «перенос» — одна и та же команда (решение Максима 2026-10-26): найденное на складе
   // сразу переносится на стойку, отдельного «списания без переноса» больше нет
   const fns={perenos:cmdPerenos,popolnit:cmdPopolnit,spisat:cmdPerenos,zakazat:cmdZakazat,spisat_zakaz:cmdSpisatZakaz,naiti:cmdNaiti};
-  await fns[cmd](out,args,imgs)}
+  inCmd=true;try{await fns[cmd](out,args,imgs)}finally{inCmd=false}}
 async function aiSend(){
   const box=$("#ai-in"),t=box.value.trim();if((!t&&!aiImgs.length)||aiCtl||!sampleFn)return;
   const imgs=aiImgs;aiImgs=[];renderAiImgs();
