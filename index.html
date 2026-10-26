@@ -2198,10 +2198,23 @@ function renderJournal(){
   let html='<div class="chips" style="margin:10px 0">'+F.map(([k,t])=>'<button type="button" class="chip" data-lf="'+k+'" aria-pressed="'+(logF===k)+'">'+t+'</button>').join("")+'</div>';
   if(logF==="wo"){const t=L.reduce((a,m)=>a-m.qty,0);html+='<p class="hintline">Списано за всё время в журнале: '+t+' шт.</p>'}
   let last="";L.slice(0,200).forEach(m=>{const x=byId[m.item];if(!x)return;const d=new Date(m.at),dn=d.toLocaleDateString("ru-RU",{day:"numeric",month:"long"});if(dn!==last){html+='<h3 class="sub">'+dn+'</h3>';last=dn}
-    html+='<div class="hfeed"><span><b>'+esc(nm(x))+'</b><br><small>'+esc(actText(m))+'</small></span><time>'+d.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})+'</time></div>'});
+    html+='<div class="hfeed"><span><b>'+esc(nm(x))+'</b><br><small>'+esc(actText(m))+'</small></span><time>'+d.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})+'</time>'
+     +(isMgr&&m.id?'<button type="button" class="btn sm" data-undo="'+esc(m.id)+'">Отменить</button>':'')+'</div>'});
   if(!L.length)html+='<p class="hintline">Записей нет.</p>';
   $("#list").innerHTML=html}
-$("#list").addEventListener("click",e=>{if(st.tab!=="log")return;const b=e.target.closest("[data-lf]");if(b){logF=b.dataset.lf;render()}});
+// Отмена записи журнала — не только свежий тост (6 с), а любая запись: возвращает остаток/флаг «на стойке»
+// к prev, который сохраняется в каждой записи, и удаляет саму запись
+async function undoMove(id){if(!db||busy)return;const m=moves.find(x=>x.id===id);if(!m||!m.prev)return;
+  busy=true;const x=byId[m.item];
+  try{const cur=Object.assign({},stock[m.item]||{});if(typeof m.prev.wh==="number")cur.wh=m.prev.wh;if(typeof m.prev.bar==="boolean")cur.bar=m.prev.bar;
+    await db.doc("stock/"+m.item).set(cur);await db.doc("moves/"+id).delete();
+    setStatus(x?esc(nm(x))+": действие отменено":"Действие отменено")}
+  catch(e){setStatus("Не получилось отменить: "+(e&&e.message||"нет доступа"),true)}
+  busy=false;render()}
+$("#list").addEventListener("click",e=>{if(st.tab!=="log")return;const b=e.target.closest("[data-lf]");if(b){logF=b.dataset.lf;render();return}
+  const u=e.target.closest("[data-undo]");if(!u)return;
+  if(!u.dataset.sure){u.dataset.sure="1";u.textContent="Точно отменить?";setTimeout(()=>{if(u.isConnected){delete u.dataset.sure;u.textContent="Отменить"}},3000);return}
+  undoMove(u.dataset.undo)});
 /* Миксы: мастера выставляют свои, управляющий отмечает микс недели и сезонные */
 var mixes=[];var MK={week:"Микс недели",season:"Сезонное предложение",master:"Микс мастера"};
 var myPerms=[];var can=p=>isMgr||myPerms.includes(p);var team=[],invites=[];var PERMS=[["take","Брать со склада на стойку"],["add","Пополнять склад"],["offbar","Убирать со стойки"],["slow","Отмечать неликвид"],["unstop","Возвращать вкус из стопа"]];var mixSeeded=false;var MTAGS=["ягодный","цитрусовый","фруктовый","десертный","свежий","пряный","цветочный","напиточный","кислый","сладкий","крепкий","лёгкий"];var mixTag="";
