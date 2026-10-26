@@ -1432,16 +1432,6 @@ async function cmdPerenos(out,args,imgs){const{m}=await cmdFindIds(args,imgs,aiC
   out.textContent="Перенос со склада на стойку, в черновике:\n"+(done.map(d=>"— "+d[0].b+" "+d[0].n+" ×"+d[1]).join("\n")||"(ничего)")
    +(none.length?"\n\nНет на складе, не перенесены:\n"+none.map(x=>"— "+x.b+" "+x.n).join("\n"):"")
    +"\n\nПроверь и нажми внизу «Списание / пополнение» → «Подтвердить»."}
-async function cmdSpisat(out,args,imgs){const{m}=await cmdFindIds(args,imgs,aiCtl.signal);
-  const st=AI_TOOLS.find(f=>f.name==="stage_stock"),done=[],none=[];
-  m.found.forEach(x=>{const it=byId[x.id];if(!it)return;const avail=wh(it)+((draft[it.id]||{}).d||0);
-    const n=(imgs&&imgs.length&&x.jars)?Math.min(x.jars,avail):avail;
-    if(n<1){none.push(it);return}try{st.execute({id:it.id,delta:-n});done.push([it,n])}catch(e){none.push(it)}});
-  if(!done.length&&!none.length){out.textContent="Не нашёл на складе подходящих вкусов. Пришли фото банок или напиши названия.";return}
-  render();
-  out.textContent="Списание, в черновике:\n"+(done.map(d=>"— "+d[0].b+" "+d[0].n+" −"+d[1]).join("\n")||"(ничего)")
-   +(none.length?"\n\nНет на складе:\n"+none.map(x=>"— "+x.b+" "+x.n).join("\n"):"")
-   +"\n\nПроверь и нажми внизу «Списание / пополнение» → «Подтвердить»."}
 async function cmdPopolnit(out,args,imgs){const{m}=await cmdFindIds(args,imgs,aiCtl.signal);
   if(!m.found.length){out.textContent="Не нашёл вкусы. Пришли фото банок или напиши названия.";return}
   const st=AI_TOOLS.find(f=>f.name==="stage_stock"),done=[];
@@ -1461,22 +1451,25 @@ async function cmdZakazat(out,args,imgs){let ids;
 async function cmdSpisatZakaz(out,args,imgs){const{m}=await cmdFindIds(args,imgs,aiCtl.signal);
   const st=AI_TOOLS.find(f=>f.name==="stage_stock"),spisano=[],toOrder=[];
   // Списали до нуля (или вкуса на складе вообще не было) — остаток 0, по просьбе Максима такие позиции
-  // сразу уходят и в заказ (кроме неликвида — это отфильтрует сам set_order), не только те, что не нашлись
+  // сразу уходят и в заказ (кроме неликвида — это отфильтрует сам set_order), не только те, что не нашлись.
+  // «Списать» теперь = «перенос» (решение Максима 2026-10-26): найденное на складе сразу на стойку
   m.found.forEach(x=>{const it=byId[x.id];if(!it)return;const avail=wh(it)+((draft[it.id]||{}).d||0);
     const n=(imgs&&imgs.length&&x.jars)?Math.min(x.jars,avail):avail;
-    if(n>=1){try{st.execute({id:it.id,delta:-n});spisano.push([it,n]);if(avail-n<=0)toOrder.push(it.id);return}catch(e){}}
+    if(n>=1){try{st.execute({id:it.id,delta:-n,toBar:true});spisano.push([it,n]);if(avail-n<=0)toOrder.push(it.id);return}catch(e){}}
     toOrder.push(it.id)});
   let r=null;
   if(toOrder.length){aiOrdAsk=true;aiOrdPhoto=false;aiOrdSeen=new Set();
     const set_order=AI_TOOLS.find(f=>f.name==="set_order");r=set_order.execute({ids:toOrder,qty:1})}
   render();
-  let txt=spisano.length?"Списано (в черновике):\n"+spisano.map(d=>"— "+d[0].b+" "+d[0].n+" −"+d[1]).join("\n"):"Списывать на складе ничего не нашлось.";
+  let txt=spisano.length?"Списано со склада и перенесено на стойку (в черновике):\n"+spisano.map(d=>"— "+d[0].b+" "+d[0].n+" ×"+d[1]).join("\n"):"Списывать на складе ничего не нашлось.";
   if(r&&r.items&&r.items.length)txt+="\n\nОстаток 0 — поставлено в заказ:\n"+r.items.map(x=>"— "+x.brand+" "+x.name).join("\n");
   if(r&&r.skipped&&r.skipped.length)txt+="\n\nНе поставлены в заказ:\n"+r.skipped.map(s=>"— "+s).join("\n");
   if(m.not_found_lines.length)txt+="\n\nНе нашлось в каталоге (проверь вручную):\n"+m.not_found_lines.map(l=>"— "+l).join("\n");
   out.textContent=txt+(spisano.length?"\n\nПроверь и нажми внизу «Списание / пополнение» → «Подтвердить».":"")}
 async function runCmd(cmd,out,args,imgs){
-  const fns={perenos:cmdPerenos,popolnit:cmdPopolnit,spisat:cmdSpisat,zakazat:cmdZakazat,spisat_zakaz:cmdSpisatZakaz,naiti:cmdNaiti};
+  // «Списать» и «перенос» — одна и та же команда (решение Максима 2026-10-26): найденное на складе
+  // сразу переносится на стойку, отдельного «списания без переноса» больше нет
+  const fns={perenos:cmdPerenos,popolnit:cmdPopolnit,spisat:cmdPerenos,zakazat:cmdZakazat,spisat_zakaz:cmdSpisatZakaz,naiti:cmdNaiti};
   await fns[cmd](out,args,imgs)}
 async function aiSend(){
   const box=$("#ai-in"),t=box.value.trim();if((!t&&!aiImgs.length)||aiCtl||!sampleFn)return;
