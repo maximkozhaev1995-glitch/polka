@@ -1535,10 +1535,12 @@ function orderFixBox(el,text,ask){const part=String(text||"").split(/\n\s*\n/).f
   el.append(box);box.querySelector("button").onclick=()=>{list.forEach(x=>{if(orderQ[x.id]===1)delete orderQ[x.id]});saveOrder();render();box.innerHTML='<small class="muted">Убрано из заказа.</small>'}}
 // То же для склада: просили перенести/списать/оприходовать, модель написала «переношу», а stage_stock не вызвала —
 // приложение само кладёт вкусы из этих абзацев в черновик (он записывается только после «Подтвердить», так что безопасно)
-const stockAsked=t=>/перен|перекин|спис|на\s+стойк|за\s+стойк|пришл|привез|оприход|пополн|на\s+склад/i.test(String(t||""));
+// «на стойке», «на складе», «за стойкой» — это состояние (где лежит), не просьба что-то сделать;
+// действие — «на стойку», «на склад», «за стойку» (без «е»/«ой»), поэтому эти окончания не считаем
+const stockAsked=t=>/перен|перекин|спис|на\s+стойк(?!е)|за\s+стойк(?!ой)|пришл|привез|оприход|пополн|на\s+склад(?!е)/i.test(String(t||""));
 function stockFixBox(el,text,jars,toBar){const st=AI_TOOLS.find(f=>f.name==="stage_stock"),done=[];
   String(text||"").split(/\n\s*\n/).forEach(p=>{if(/заказ/i.test(p))return;
-    const k=/перен|на\s+стойк|за\s+стойк/i.test(p)?"bar":/спис/i.test(p)?"off":/пополн|пришл|привез|оприход|на\s+склад/i.test(p)?"in":"";if(!k)return;
+    const k=/перен|на\s+стойк(?!е)|за\s+стойк(?!ой)/i.test(p)?"bar":/спис/i.test(p)?"off":/пополн|пришл|привез|оприход|на\s+склад(?!е)/i.test(p)?"in":"";if(!k)return;
     p.split(/\n/).forEach(l=>{const f=matchText(l).found;if(f.length!==1)return;const x=byId[f[0].id];if(!x||done.some(d=>d[0]===x))return;
       const n=Math.max(1,Number((l.match(/(\d+)\s*шт/)||l.match(/[×x]\s*(\d+)/i)||[])[1])||1);
       try{st.execute(k==="bar"?{id:x.id,delta:-n,toBar:true}:{id:x.id,delta:k==="off"?-n:n});done.push([x,k==="in"?"+"+n:"−"+n])}catch(e){}})});
@@ -1634,7 +1636,7 @@ async function aiSend(){
     const d0=JSON.stringify(draft);
     const r=await sampleFn(turns,{tools:AI_TOOLS,signal:aiCtl.signal,images:imgs.length?imgs:undefined,photo:photoNote,onText:({text})=>{out.classList.remove("wait");out.textContent=text;aiScroll(false)}});
     const head=acc?photoHead(acc):"";if(head)r.text=head+"\n\n"+r.text;
-    out.classList.remove("wait");out.textContent=r.text;aiSrc(out,r.src);if(acc&&acc.newf.length)newFlavorBox(out,acc.newf);if(aiOrdAsk&&!aiOrdSeen.size)orderFixBox(out,r.text,t);if(acc&&Object.keys(acc.jars).length&&/перен|перекин|на\s+стойк|за\s+стойк/i.test(t))photoMoveBox(out,acc.jars,d0);else if(stockAsked(t)&&JSON.stringify(draft)===d0)stockFixBox(out,r.text,acc&&acc.jars,/перен|перекин|на\s+стойк|за\s+стойк/i.test(t));if(acc&&Object.keys(acc.jars).length)lastPhotoIds=Object.keys(acc.jars);if(r.photo)aiTurns[aiTurns.length-1].content=(t||"Разбери фото.")+"\n"+r.photo.join("\n\n");aiTurns.push({role:"assistant",content:r.text});
+    out.classList.remove("wait");out.textContent=r.text;aiSrc(out,r.src);if(acc&&acc.newf.length)newFlavorBox(out,acc.newf);if(aiOrdAsk&&!aiOrdSeen.size)orderFixBox(out,r.text,t);if(acc&&Object.keys(acc.jars).length&&/перен|перекин|на\s+стойк(?!е)|за\s+стойк(?!ой)/i.test(t))photoMoveBox(out,acc.jars,d0);else if(stockAsked(t)&&JSON.stringify(draft)===d0)stockFixBox(out,r.text,acc&&acc.jars,/перен|перекин|на\s+стойк(?!е)|за\s+стойк(?!ой)/i.test(t));if(acc&&Object.keys(acc.jars).length)lastPhotoIds=Object.keys(acc.jars);if(r.photo)aiTurns[aiTurns.length-1].content=(t||"Разбери фото.")+"\n"+r.photo.join("\n\n");aiTurns.push({role:"assistant",content:r.text});
     aiView.push({role:"user",text:(t||"Фото")+(imgs.length?"  [фото: "+imgs.length+"]":"")},{role:"assistant",text:r.text,src:r.src||""});
   }catch(e){out.classList.remove("wait");
     if(e&&e.code==="cancelled"){out.textContent=(e.text||"")+(e.text?"\n":"")+"(остановлено)"}
