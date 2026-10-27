@@ -56,7 +56,7 @@
   // ===== база =====
   const H=()=>({apikey:CFG.anon,Authorization:"Bearer "+session.token,"Content-Type":"application/json"});
   const V=()=>session.user.venue_id;
-  async function rest(path,opt,again){const r=await fetch(CFG.url+"/rest/v1/"+path,Object.assign({headers:H()},opt));if(r.status===401&&!again&&await refresh().catch(()=>false)){if(opt&&opt.headers&&opt.headers.Authorization)opt=Object.assign({},opt,{headers:Object.assign({},opt.headers,H())});return rest(path,opt,true)}if(!r.ok){let t="";try{t=(await r.json()).message}catch(e){}throw new Error(t||("HTTP "+r.status))}const t=await r.text();return t?JSON.parse(t):null}
+  async function rest(path,opt,again){const r=await fetch(CFG.url+"/rest/v1/"+path,Object.assign({headers:H()},opt));if(r.status===401&&!again&&await refresh().catch(()=>false)){if(opt&&opt.headers&&opt.headers.Authorization)opt=Object.assign({},opt,{headers:Object.assign({},opt.headers,H())});return rest(path,opt,true)}if(!r.ok){let t="";try{t=(await r.json()).message}catch(e){}const error=new Error(t||("HTTP "+r.status));error.status=r.status;throw error}const t=await r.text();return t?JSON.parse(t):null}
   const iso=x=>x?new Date(x).toISOString():undefined;
   const MAP={
     stock:{table:"stock",key:"flavor_id",
