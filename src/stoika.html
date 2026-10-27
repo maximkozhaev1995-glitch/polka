@@ -1214,7 +1214,7 @@ function aiItem(x){const r={id:x.id,brand:x.b,name:x.n,wh:wh(x),onBar:onBar(x)};
 const cnTxt=v=>" "+norm(String(v||"")).replace(/[^a-zа-я0-9]+/g," ").trim()+" ";
 // Слова названия встретились в тексте — не обязательно подряд: на этикетке их печатают в разном порядке
 // (напр. рукописное «шипучка вишнёвая» вместо каталожного «Вишнёвая шипучка»)
-const nameIn=(T,n)=>{const w=n.trim().split(" ").filter(Boolean);return w.length>1?w.every(x=>T.includes(" "+x+" ")):T.includes(n)};
+const nameIn=(T,n)=>{const w=n.trim().split(" ").filter(Boolean);return w.length>1?w.every(x=>T.includes(" "+x+" ")):T.includes(" "+n.trim()+" ")};
 // Разбор одного кусочка текста (весь текст, либо одна этикетка — см. matchText)
 // Расстояние Левенштейна — для «почти совпало» внутри бренда с этикетки («pear bate» = Pear Date)
 // Латиница из кириллицы — рукописное «блади оранж» сравниваем с каталожным Bloody Orange
@@ -1234,16 +1234,30 @@ function fixBrands(T){const heads=BRAND_HEADS(),words=T.trim().split(" "),fixed=
     if(m){fixed.push(w);return m.c}return w});
   return{T:" "+out.join(" ")+" ",fixed}}
 const lev=(a,b)=>{let p=[...Array(b.length+1).keys()];for(let i=1;i<=a.length;i++){const c=[i];for(let j=1;j<=b.length;j++)c[j]=Math.min(p[j]+1,c[j-1]+1,p[j-1]+(a[i-1]===b[j-1]?0:1));p=c}return p[b.length]};
-function matchChunk(text,label){let T=cnTxt(text),fixed=[];if(label)({T,fixed}=fixBrands(T));
+// Exact spelling variants only: BLACKBURN = Black Burn, OVER DOSE = Overdose.
+// Never borrow a Russian flavour description from a different brand.
+function photoBrandText(T){
+  const brands=[...new Set(DATA.map(x=>cnTxt(x.b).trim()))].sort((a,b)=>b.length-a.length);
+  brands.forEach(b=>{const compact=b.replace(/ /g,"");if(compact!==b)T=T.replaceAll(" "+compact+" "," "+b+" ")});
+  return T;
+}
+function photoNameIn(T,n){
+  if(nameIn(T,n))return true;
+  const target=n.replace(/ /g,""),words=T.trim().split(" ");
+  return words.some((_,i)=>{let joined="";for(let j=i;j<words.length&&joined.length<target.length;j++){joined+=words[j];if(joined===target)return true}return false});
+}
+function matchChunk(text,label,photo=false){let T=cnTxt(text),fixed=[];if(photo)T=photoBrandText(T);else if(label)({T,fixed}=fixBrands(T));
+   const photoBrand=photo?[...new Set(DATA.map(x=>x.b))].filter(b=>T.includes(cnTxt(b))).sort((a,b)=>T.indexOf(cnTxt(a))-T.indexOf(cnTxt(b))||b.length-a.length)[0]:null;
    const brands=new Set(DATA.map(x=>cnTxt(x.b).trim()));
+   if(photo&&/[?…]|\.{2,}/.test(text))return{hit:[],byN:{},T,brands,fixed};
    // Название, совпадающее с брендом (Black Burn «Overdose» и бренд Overdose), засчитываем только рядом со своим брендом
-   let hit=DATA.filter(x=>{const n=cnTxt(x.n);return n.length>4&&nameIn(T,n.trim())&&(!brands.has(n.trim())||T.includes(cnTxt(x.b+" "+x.n))||nameIn(T,cnTxt(x.b+" "+x.n).trim()))});
+   let hit=DATA.filter(x=>{const n=cnTxt(x.n);if(photo)return x.b===photoBrand&&n.length>4&&photoNameIn(T,n.trim());return n.length>4&&nameIn(T,n.trim())&&(!brands.has(n.trim())||T.includes(cnTxt(x.b+" "+x.n))||nameIn(T,cnTxt(x.b+" "+x.n).trim()))});
    // Одно название у разных брендов (Cola у Sebero, Palitra, Deus) — оставляем тех, чей бренд тоже есть в этом
    // кусочке текста; если бренд не прочитан и кандидатов несколько — не угадываем ни одного (иначе на одну
    // банку выводится сразу три «похожих» бренда вместо одного настоящего)
    const byN={};hit.forEach(x=>(byN[cnTxt(x.n)]=byN[cnTxt(x.n)]||[]).push(x));
    // Запасные написания (поле a): «Хулиган» на этикетке = «Хулиган Соник», «Queen Ann's Revenge» = «Queen Anne's Revenge»
-   DATA.forEach(x=>{if(x.a&&!hit.includes(x)&&x.a.some(v=>nameIn(T,cnTxt(v).trim()))){hit.push(x);byN[cnTxt(x.n)]=byN[cnTxt(x.n)]||[x]}});
+   DATA.forEach(x=>{if(x.a&&(!photo||x.b===photoBrand)&&!hit.includes(x)&&x.a.some(v=>nameIn(T,cnTxt(v).trim()))){hit.push(x);byN[cnTxt(x.n)]=byN[cnTxt(x.n)]||[x]}});
    hit=Object.values(byN).flatMap(g=>{const b=g.filter(x=>T.includes(cnTxt(x.b)));if(b.length)return b;return g.length>1?[]:g});
    // «Cream» внутри «Cream Soda» — отбрасываем короткое название, если оно целиком (по словам) входит в другое
    // найденное в этом же кусочке более длинное название: это та же банка, оставляем длинное и более точное
@@ -1254,6 +1268,7 @@ function matchChunk(text,label){let T=cnTxt(text),fixed=[];if(label)({T,fixed}=f
    if(label){const lb=[...brands].filter(b=>b.length>2&&T.includes(" "+b+" "));
      if(lb.length){const own=hit.filter(x=>lb.includes(cnTxt(x.b).trim()));
        if(own.length)hit=own;
+       else if(photo)hit=[];
        else{let rest=T;lb.forEach(b=>{rest=rest.replace(" "+b+" "," ")});const r=rest.replace(/ /g,"");
          const own=DATA.filter(x=>lb.includes(cnTxt(x.b).trim()));
          const pick=c=>c.length&&(c.length<2||c[0][1]<c[1][1])?[c[0][0]]:[];
@@ -1270,24 +1285,29 @@ function matchChunk(text,label){let T=cnTxt(text),fixed=[];if(label)({T,fixed}=f
              let pre=own.filter(x=>lat(cnTxt(x.n).replace(/ /g,"")).startsWith(q));
              // «MANG?» подходит и к Mango, и к Mango Yogurt — берём тот, где слов столько же, сколько видно на этикетке
              if(pre.length>1)pre=pre.filter(x=>cnTxt(x.n).trim().split(" ").length===ws.length-i);if(pre.length===1)hit=pre}}}}}
+   if(photo){
+     // A photo match needs its own brand and complete name on the same label.
+     hit=hit.filter(x=>T.includes(cnTxt(x.b)));
+     if(hit.length!==1)hit=[];
+   }
    return{hit,byN,T,brands,fixed}}
-function matchText(text){const raw=String(text||"");
+function matchText(text,photo=false){const raw=String(text||"");
    // С фото банок сервер отдаёт текст по этикеткам («Этикетка N: …» — см. readPhotos на сервере). Разбираем каждую
    // отдельно: иначе бренд с одной банки и название с соседней, встретившиеся просто где-то в общем тексте,
    // склеиваются в несуществующий вкус (так получился ложный «Black Burn Overdose»)
    const labels=[...raw.matchAll(/^Этикетка\s*\d+\s*:\s*(.*)$/gim)].map(m=>m[1]);
-   const chunks=labels.length?labels:[raw];
+   const chunks=labels.length?labels:photo?raw.split(/\n+/).filter(l=>l.trim()):[raw];
    // Один вкус на нескольких этикетках — это несколько банок (сервер уже склеил куски одной этикетки
    // по координатам), считаем их в jars, а не теряем вторую банку
    const seen=new Map(),found=[];
    const gotLabel=new Set(),tally={},newf=[];
    // Бренд на этикетке так, как он записан в каталоге (для подсчёта банок и новых вкусов)
    const brandOf=T=>{const b=[...new Set(DATA.map(x=>x.b))].filter(b=>cnTxt(b).trim().length>2&&T.includes(cnTxt(b))).sort((a,b)=>b.length-a.length);return b[0]||""};
-   chunks.forEach(chunk=>{const{hit,byN,T,fixed}=matchChunk(chunk,labels.length>0);if(hit.length)gotLabel.add(chunk.trim());
+   chunks.forEach(chunk=>{const{hit,byN,T,fixed}=matchChunk(chunk,labels.length>0||photo,photo);if(hit.length)gotLabel.add(chunk.trim());
      if(labels.length){const b=hit.length?hit[0].b:brandOf(T);tally[b||"Без бренда"]=(tally[b||"Без бренда"]||0)+1;
        // Бренд прочитан, а вкуса у него в каталоге нет — кандидат в новые вкусы (что осталось от этикетки без бренда)
        // Этикетка с «?» обрезана краем кадра — из её огрызка («Coff») новый вкус не предлагаем
-       if(!hit.length&&b&&!/\?|\.{2,}|…/.test(chunk)){const words=[...cnTxt(b).trim().split(" "),...(fixed||[])];let n=chunk.replace(/[«»"?]/g," ");
+       if(!photo&&!hit.length&&b&&!/\?|\.{2,}|…/.test(chunk)){const words=[...cnTxt(b).trim().split(" "),...(fixed||[])];let n=chunk.replace(/[«»"?]/g," ");
          words.forEach(w=>{n=n.replace(new RegExp("(^|[^\\p{L}\\p{N}])"+w.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"(?=$|[^\\p{L}\\p{N}])","iu")," ")});
          n=n.replace(/\s+/g," ").trim();if(n.length>=3)n=n.split(" ").map(w=>w&&w===w.toUpperCase()&&/[a-z]/i.test(w)?w[0]+w.slice(1).toLowerCase():w).join(" ");
          n=n.charAt(0).toUpperCase()+n.slice(1);
@@ -1298,7 +1318,7 @@ function matchText(text){const raw=String(text||"");
    const brands=new Set(DATA.map(x=>cnTxt(x.b).trim()));
    const names=found.map(x=>cnTxt(x.name));
    const lines=(labels.length?labels:raw.split(/\n+/)).map(l=>l.trim());
-   const miss=lines.filter(l=>{if(gotLabel.has(l))return false;const c=cnTxt(l);return c.trim().length>2&&!brands.has(c.trim())&&!names.some(n=>nameIn(c,n.trim())||c.includes(n)||n.includes(c))});
+   const miss=lines.filter(l=>{if(gotLabel.has(l))return false;if(photo)return !!l.trim();const c=cnTxt(l);return c.trim().length>2&&!brands.has(c.trim())&&!names.some(n=>nameIn(c,n.trim())||c.includes(n)||n.includes(c))});
    return{found:found.slice(0,80),not_found_lines:miss.slice(0,40),jars_by_brand:tally,new_flavors:newf}}
 // Фото, прочитанное на сервере (Sonnet или Яндекс): приложение само сверяет текст с каталогом и отдаёт модели готовый список —
 // маленькая модель на ПК иначе пропускает банки и придумывает вкусы
@@ -1308,12 +1328,12 @@ let photoAcc=null;
 const photoAccNew=()=>({tally:{},newf:[],jars:{}});
 function photoHead(a){const e=Object.entries(a.tally).sort((x,y)=>y[1]-x[1]);if(!e.length)return "";
   return "Общее количество банок: "+e.reduce((s,x)=>s+x[1],0)+"\n"+e.map((x,i)=>"#"+(i+1)+" "+x[0]+" = "+x[1]).join("\n")}
-function photoNote(text){const m=matchText(text);
+function photoNote(text){const m=matchText(text,true);
   if(photoAcc){m.found.forEach(x=>{photoAcc.jars[x.id]=(photoAcc.jars[x.id]||0)+(x.jars||1)});Object.entries(m.jars_by_brand).forEach(([b,c])=>{photoAcc.tally[b]=(photoAcc.tally[b]||0)+c});
     m.new_flavors.forEach(y=>{if(!photoAcc.newf.some(z=>z.b===y.b&&norm(z.n)===norm(y.n)))photoAcc.newf.push(y)})}
   return "[Фото: текст прочитан с фото и уже сверен с каталогом приложением. Общее количество банок по брендам и предложение добавить новые вкусы приложение покажет само — в ответе их не пересчитывай и не повторяй. Опирайся на этот список, вкусов сверх него не придумывай.]\n"
    +"НАЙДЕНО В КАТАЛОГЕ ("+m.found.length+"):\n"+(m.found.map(x=>"— "+x.brand+" "+x.name+(x.jars>1?" ×"+x.jars+" (на "+x.jars+" разных этикетках — скорее всего столько банок)":"")+" (id "+x.id+", на складе "+x.wh+(x.onBar?", на стойке":"")+(x.ambiguous?", бренд на фото не прочитан — уточни":"")+")").join("\n")||"— ничего")
-   +(m.not_found_lines.length?"\nНЕ НАШЛОСЬ В КАТАЛОГЕ (строки с фото, могут быть рукописные или с ошибкой распознавания — добери через find_items или переспроси):\n"+m.not_found_lines.map(l=>"— "+l).join("\n"):"")}
+   +(m.not_found_lines.length?"\nНЕ РАСПОЗНАНО УВЕРЕННО (не подбирай похожие позиции через find_items и не предлагай по ним операций):\n"+m.not_found_lines.map(l=>"— "+l).join("\n"):"")}
 // Новый вкус с фото — в каталог (Склад, 0 шт.) и строка в Журнал «Новый вкус — внёс ассистент».
 // Kind "in" с нулём: отдельного вида движения в базе нет (moves_kind_check), текст строки берётся из reason
 async function addNewFlavor(b,n){if(DATA.some(x=>norm(x.b)===norm(b)&&norm(x.n)===norm(n)))return;
@@ -1445,15 +1465,23 @@ function parseCmd(raw){const s=String(raw||"");const m=s.match(/^\s*\/\s*(.*)$/s
   const words=firstLine.split(/\s+/).filter(Boolean),tail=words.slice(Math.min(strip,words.length)).join(" ");
   return{cmd,args:(tail+"\n"+restLines).trim()}}
 // Текст команды + фото (если есть) → matchText против каталога. Фото читает сервер (readLabels), без диалоговой модели.
-async function cmdFindIds(args,imgs,signal){let text=args||"";
+async function cmdFindIds(args,imgs,signal){let text=args||"",failed=0;
   if(imgs&&imgs.length&&sampleFn&&sampleFn.readLabels){
-    const r=await sampleFn.readLabels(imgs,signal);if(r.text)text=(text?text+"\n":"")+r.text;
-    if(r.failed)text+="\n(часть фото не прочиталась)"}
-  return{m:matchText(text),text}}
+    const r=await sampleFn.readLabels(imgs,signal);text=r.text||"";failed=r.failed||0}
+  return{m:matchText(text,!!(imgs&&imgs.length)),text,failed}}
+const photoInspection=t=>!t||/^(?:(?:пожалуйста|привет)[,!.]?\s*)?(?:что\s+(?:на|здесь|тут)|разбери|распознай|распознать|прочитай|определи|перечисли|посмотри|проверь\s+фото)/i.test(t)&&!stockAsked(t)&&!ordAsked(t)&&!/микс|рекоменд|совет/i.test(t);
+async function inspectPhoto(out,args,imgs,signal){
+  const{m,failed}=await cmdFindIds("",imgs,signal);
+  lastPhotoIds=m.found.map(x=>x.id);
+  const lines=m.found.map(x=>"• "+x.brand+" "+x.name+(x.line?" · "+x.line:"")+(x.jars>1?" ×"+x.jars:""));
+  out.textContent=(lines.length?"Распознано по каталогу:\n"+lines.join("\n"):"Не удалось уверенно распознать позиции по каталогу.")
+    +(m.not_found_lines.length?"\n\nНе распознано уверенно:\n"+m.not_found_lines.map(l=>"• "+l).join("\n"):"")
+    +(failed?"\n\nНе удалось прочитать фото: "+failed+".":"");
+}
 async function cmdNaiti(out,args,imgs){const{m}=await cmdFindIds(args,imgs,aiCtl.signal);
   if(!m.found.length){out.textContent="Не нашёл ничего на складе"+(args||(imgs&&imgs.length)?" по этому запросу":"")+". Пришли фото банок или напиши названия вкусов.";return}
-  const lines=m.found.map(x=>{const it=byId[x.id];return "— "+x.brand+" "+x.name+": на складе "+x.wh+(x.onBar?", на стойке":"")+(it&&flag(it,"slow")?" (неликвид)":"")+(it&&flag(it,"stop")?" (стоп)":"")});
-  out.textContent="Нашёл на складе и стойке:\n"+lines.join("\n")+(m.not_found_lines.length?"\n\nНе нашлось в каталоге:\n"+m.not_found_lines.map(l=>"— "+l).join("\n"):"")}
+  const lines=m.found.map(x=>{const it=byId[x.id];return "— "+x.brand+" "+x.name+(imgs&&imgs.length&&x.jars>1?" ×"+x.jars:"")+": на складе "+x.wh+(x.onBar?", на стойке":"")+(it&&flag(it,"slow")?" (неликвид)":"")+(it&&flag(it,"stop")?" (стоп)":"")});
+  out.textContent=(imgs&&imgs.length?"Распознано по каталогу:\n":"Нашёл на складе и стойке:\n")+lines.join("\n")+(m.not_found_lines.length?"\n\nНе распознано уверенно:\n"+m.not_found_lines.map(l=>"— "+l).join("\n"):"")}
 async function cmdPerenos(out,args,imgs){const{m}=await cmdFindIds(args,imgs,aiCtl.signal);
   const st=AI_TOOLS.find(f=>f.name==="stage_stock"),done=[],none=[];
   m.found.forEach(x=>{const it=byId[x.id];if(!it)return;const avail=wh(it)+((draft[it.id]||{}).d||0);
@@ -1504,12 +1532,12 @@ async function runCmd(cmd,out,args,imgs){
   inCmd=true;try{await fns[cmd](out,args,imgs)}finally{inCmd=false}}
 async function aiSend(){
   const box=$("#ai-in"),t=box.value.trim();if((!t&&!aiImgs.length)||aiCtl||!sampleFn)return;
-  const imgs=aiImgs;aiImgs=[];renderAiImgs();
+  const imgs=aiImgs;aiImgs=[];if(imgs.length)lastPhotoIds=[];renderAiImgs();
   const cmd=parseCmd(t);
-  if(cmd){
+  if(cmd||imgs.length&&photoInspection(t)){
     aiBubble("user",(t||"Фото")+(imgs.length?"  [фото: "+imgs.length+"]":""));box.value="";
     const out=aiBubble("assistant","Ищу…","wait");aiCtl=new AbortController();aiUi();
-    try{await runCmd(cmd.cmd,out,cmd.args,imgs)}
+    try{if(cmd)await runCmd(cmd.cmd,out,cmd.args,imgs);else await inspectPhoto(out,t,imgs,aiCtl.signal)}
     catch(e){out.textContent=(e&&e.message)||"Не получилось.";out.classList.add("err")}
     out.classList.remove("wait");aiCtl=null;aiUi();render();return}
   aiOrdPhoto=imgs.length>0;aiOrdAsk=ordAsked(t);aiOrdSeen=new Set();photoAcc=imgs.length?photoAccNew():null;const acc=photoAcc;
@@ -1651,10 +1679,16 @@ function hDraw(){const tab=hTab(),c=hConvOf(tab),H=HELP[tab]||HELP.home;
 function hOpen(){$("#hsh").hidden=false;$("#hsh-scrim").hidden=false;document.body.classList.add("hsh-on");hDraw()}
 function hClose(){$("#hsh").hidden=true;$("#hsh-scrim").hidden=true;document.body.classList.remove("hsh-on")}
 async function hSend(){const box=$("#hsh-in"),t=box.value.trim();if((!t&&!hImgs.length)||hCtl||!sampleFn)return;
-  const tab=hTab(),c=hConvOf(tab),imgs=hImgs;hImgs=[];box.value="";
+  const tab=hTab(),c=hConvOf(tab),imgs=hImgs;hImgs=[];if(imgs.length)lastPhotoIds=[];box.value="";
   c.view.push({role:"user",text:(t||"Фото")+(imgs.length?"  [фото: "+imgs.length+"]":"")});
   c.turns.push({role:"user",content:(t||"Разбери фото.")+(imgs.length?"\n(К сообщению приложено фото: "+imgs.length+")":"")});
   const out={role:"assistant",text:"Думаю…",cls:"wait"};c.view.push(out);hCtl=new AbortController();hDraw();
+  if(imgs.length&&photoInspection(t)){
+    const result={textContent:""};
+    try{await inspectPhoto(result,t,imgs,hCtl.signal);out.cls="";out.text=result.textContent;c.turns.push({role:"assistant",content:out.text});c.kv.push({role:"user",text:t||"Фото"},{role:"assistant",text:out.text})}
+    catch(e){out.cls="err";out.text=aiErr(e&&e.code);c.turns.pop()}
+    hCtl=null;hImgs=[];hDraw();hKeep(tab);return;
+  }
   const acts={list:[],stock:false,photo:imgs.length>0,ask:ordAsked(t)};photoAcc=imgs.length?photoAccNew():null;const acc=photoAcc;
   try{const r=await sampleFn([{role:"user",content:hlpSystem(tab)},{role:"assistant",content:"Понял."},...c.turns.slice(-12)],{tools:hlpTools(tab,acts),signal:hCtl.signal,images:imgs.length?imgs:undefined,photo:photoNote,
       onText:({text})=>{out.cls="";out.text=text;if(hTab()===tab&&!$("#hsh").hidden)hDraw()}});
