@@ -129,6 +129,12 @@
   const bump=c=>setTimeout(()=>refresh(c),150);
   const listen=c=>({onSnapshot:(f,err)=>{const s=subs[c]||(subs[c]={fns:[],errs:[],hash:""});s.fns.push(f);if(err)s.errs.push(err);refresh(c)}});
   const db={
+    // B5: одна серверная транзакция для остатков и журнала; повторный запрос идемпотентен.
+    commitStockBatch:async(operationId,items)=>{
+      if(!/^[0-9a-f-]{36}$/i.test(operationId)||!Array.isArray(items)||!items.length)throw Error("Некорректная складская операция");
+      const result=await rest("rpc/mixora_commit_stock_batch",{method:"POST",body:JSON.stringify({p_operation_id:operationId,p_items:items})});
+      bump("stock");bump("moves");return result;
+    },
     // Один PostgREST INSERT/UPSERT выполняется транзакционно для всех меток.
     setStockBatch:async docs=>{const m=MAP.stock;const rows=Object.entries(docs).map(([id,o])=>m.fromDoc(id,o));
       if(!rows.length)return;await rest("stock?on_conflict="+m.conflict,{method:"POST",headers:Object.assign(H(),{Prefer:"resolution=merge-duplicates,missing=default"}),body:JSON.stringify(rows)});bump("stock")},
