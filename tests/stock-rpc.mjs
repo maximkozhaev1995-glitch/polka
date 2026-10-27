@@ -7,15 +7,15 @@ const venue='10000000-0000-0000-0000-000000000001',other='10000000-0000-0000-000
 // columns; it is not evidence of compatibility with the live deployment.
 await db.exec(`create role anon; create role authenticated;
 create table users(tg_id bigint primary key,venue_id uuid,role text,perms text[]);
-create table flavors(id text primary key);
-create table stock(venue_id uuid,flavor_id text references flavors(id),wh integer not null default 0,bar boolean,stop boolean default false,stop_auto boolean default false,slow boolean default false,retired boolean default false,primary key(venue_id,flavor_id));
-create table moves(id bigint generated always as identity primary key,venue_id uuid,flavor_id text references flavors(id),kind text check(kind in ('in','tobar','fin','off','wo','inv')),qty integer,left_after integer,reason text,prev jsonb,bar_to boolean,at timestamptz,by_tg bigint);
+create table flavors(id text primary key,venue_id uuid);
+create table stock(venue_id uuid,flavor_id text references flavors(id),wh integer not null default 0,bar boolean not null default false,stop boolean not null default false,stop_auto boolean not null default false,slow boolean not null default false,retired boolean not null default false,primary key(venue_id,flavor_id));
+create table moves(id bigint generated always as identity primary key,venue_id uuid,flavor_id text references flavors(id),kind text check(kind in ('in','tobar','off','wo','inv')),qty integer,left_after integer,reason text,prev jsonb,bar_to boolean,at timestamptz,by_tg bigint);
 alter table stock enable row level security;alter table moves enable row level security;
 create policy legacy_stock on stock for all to authenticated using(true) with check(true);
 create policy legacy_moves on moves for all to authenticated using(true) with check(true);
 grant all on stock,moves to authenticated;grant usage,select on all sequences in schema public to authenticated;
 insert into users values(1,'${venue}','manager','{}'),(2,'${venue}','master','{}'),(3,'${other}','manager','{}');
-insert into flavors values('a'),('b'),('c');`);
+insert into flavors(id) values('a'),('b'),('c');`);
 const migration=fs.readdirSync('supabase/migrations').find(x=>x.endsWith('_stock_rpc.sql'));
 await db.exec(fs.readFileSync('supabase/migrations/'+migration,'utf8'));
 let count=0;const test=async(name,fn)=>{await fn();console.log('PASS',name);count++};

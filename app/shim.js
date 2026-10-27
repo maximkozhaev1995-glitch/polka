@@ -22,8 +22,8 @@
   }
   // Токен живёт 12 часов: обновляем заранее, чтобы открытое на всю смену приложение не теряло доступ к базе
   let refreshT=0,refreshP=null;
-  const planRefresh=()=>{clearTimeout(refreshT);refreshT=setTimeout(()=>refresh().catch(()=>{}),11*3600e3)};
-  function refresh(){
+  const planRefresh=()=>{clearTimeout(refreshT);refreshT=setTimeout(()=>refreshSession().catch(()=>{}),11*3600e3)};
+  function refreshSession(){
     if(!refreshP)refreshP=call("").then(r=>{if(!r.ok)return false;session.token=r.body.token;session.user=r.body.user;planRefresh();return true}).finally(()=>{refreshP=null});
     return refreshP;
   }
@@ -56,7 +56,7 @@
   // ===== база =====
   const H=()=>({apikey:CFG.anon,Authorization:"Bearer "+session.token,"Content-Type":"application/json"});
   const V=()=>session.user.venue_id;
-  async function rest(path,opt,again){const r=await fetch(CFG.url+"/rest/v1/"+path,Object.assign({headers:H()},opt));if(r.status===401&&!again&&await refresh().catch(()=>false)){if(opt&&opt.headers&&opt.headers.Authorization)opt=Object.assign({},opt,{headers:Object.assign({},opt.headers,H())});return rest(path,opt,true)}if(!r.ok){let t="";try{t=(await r.json()).message}catch(e){}throw new Error(t||("HTTP "+r.status))}const t=await r.text();return t?JSON.parse(t):null}
+  async function rest(path,opt,again){const r=await fetch(CFG.url+"/rest/v1/"+path,Object.assign({headers:H()},opt));if(r.status===401&&!again&&await refreshSession().catch(()=>false)){if(opt&&opt.headers&&opt.headers.Authorization)opt=Object.assign({},opt,{headers:Object.assign({},opt.headers,H())});return rest(path,opt,true)}if(!r.ok){let t="";try{t=(await r.json()).message}catch(e){}throw new Error(t||("HTTP "+r.status))}const t=await r.text();return t?JSON.parse(t):null}
   const iso=x=>x?new Date(x).toISOString():undefined;
   const MAP={
     stock:{table:"stock",key:"flavor_id",

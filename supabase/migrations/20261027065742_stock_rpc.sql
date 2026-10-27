@@ -9,6 +9,10 @@ alter table public.stock add constraint stock_nonnegative_b5 check (wh >= 0);
 alter table public.moves add column operation_id uuid;
 alter table public.moves add column stock_revision integer;
 alter table public.moves add column next_state jsonb;
+-- The inspected baseline permits in/tobar/wo/inv/off, while the existing
+-- application also emits fin when a bar jar finishes.
+alter table public.moves drop constraint if exists moves_kind_check;
+alter table public.moves add constraint moves_kind_check check(kind in ('in','tobar','fin','off','wo','inv'));
 create unique index moves_operation_item_b5 on public.moves(operation_id, flavor_id);
 
 create table mixora_private.stock_requests (
@@ -80,7 +84,7 @@ begin
   end loop;
   for entry in select value from jsonb_array_elements(p_items) order by value->>'id' loop
     fid := entry->>'id';
-    if not exists(select 1 from public.flavors where id=fid) then raise exception 'stock_unknown_item'; end if;
+    if not exists(select 1 from public.flavors where id=fid and (venue_id is null or venue_id=actor.venue_id)) then raise exception 'stock_unknown_item'; end if;
     insert into public.stock(venue_id,flavor_id,wh) values(actor.venue_id,fid,0) on conflict(venue_id,flavor_id) do nothing;
     select * into strict cur from public.stock where venue_id=actor.venue_id and flavor_id=fid for update;
     if jsonb_typeof(entry->'revision') is distinct from 'number' or (entry->>'revision') !~ '^[0-9]+$'
@@ -103,7 +107,7 @@ begin
     if kind not in ('in','tobar','fin','off','wo','inv') or length(coalesce(reason,''))>1000 then raise exception 'stock_invalid_kind_or_reason'; end if;
     if exists(select 1 from jsonb_each(desired) kv where kv.key in ('bar','stop','stopAuto','slow','retired')
       and jsonb_typeof(kv.value) <> 'boolean' and not(kv.key='bar' and kv.value='null'::jsonb)) then raise exception 'stock_invalid_flag'; end if;
-    next_bar := (desired->>'bar')::boolean;
+    next_bar := coalesce((desired->>'bar')::boolean,cur.bar,false);
     next_stop := coalesce((desired->>'stop')::boolean,false);
     next_auto := coalesce((desired->>'stopAuto')::boolean,false);
     next_slow := coalesce((desired->>'slow')::boolean,false);
@@ -122,7 +126,7 @@ begin
         or kind in ('wo','inv')
         or (next_auto and not next_stop)
         or (next_auto and not coalesce(cur.stop_auto,false)
-          and not(kind='fin' and cur.wh=0 and next_wh=0 and next_bar is false and coalesce('take'=any(actor.perms),false)))
+          and not(kind='fin' and not coalesce(cur.stop,false) and cur.wh=0 and next_wh=0 and next_bar is false and coalesce('take'=any(actor.perms),false)))
         then raise exception 'stock_forbidden' using errcode='42501'; end if;
     end if;
     update public.stock set wh=next_wh,bar=next_bar,stop=next_stop,stop_auto=next_auto,
