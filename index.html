@@ -1448,7 +1448,15 @@ function aiItem(x){const r={id:x.id,brand:x.b,name:x.n,wh:wh(x),onBar:onBar(x)};
 const cnTxt=v=>" "+norm(String(v||"")).replace(/[^a-zа-я0-9]+/g," ").trim()+" ";
 // Слова названия встретились в тексте — не обязательно подряд: на этикетке их печатают в разном порядке
 // (напр. рукописное «шипучка вишнёвая» вместо каталожного «Вишнёвая шипучка»)
-const nameIn=(T,n)=>{const w=n.trim().split(" ").filter(Boolean);return w.length>1?w.every(x=>T.includes(" "+x+" ")):T.includes(n)};
+const nameIn=(T,n)=>{const w=n.trim().split(" ").filter(Boolean);
+  if(!w.length)return false;
+  // Only complete tokens: BARVYORANGE must not match a one-word Orange flavor.
+  if(w.length===1)return T.includes(" "+w[0]+" ");
+  if(w.every(x=>T.includes(" "+x+" ")))return true;
+  // OCR occasionally merges a MULTI-word flavor into one token (e.g. BARVYORANGE).
+  const joined=w.join("");
+  return joined.length>=8&&T.split(/\s+/).some(token=>token===joined);
+};
 // Разбор одного кусочка текста (весь текст, либо одна этикетка — см. matchText)
 // Расстояние Левенштейна — для «почти совпало» внутри бренда с этикетки («pear bate» = Pear Date)
 // Латиница из кириллицы — рукописное «блади оранж» сравниваем с каталожным Bloody Orange
@@ -1504,24 +1512,46 @@ function matchChunk(text,label){let T=cnTxt(text),fixed=[];if(label)({T,fixed}=f
              let pre=own.filter(x=>lat(cnTxt(x.n).replace(/ /g,"")).startsWith(q));
              // «MANG?» подходит и к Mango, и к Mango Yogurt — берём тот, где слов столько же, сколько видно на этикетке
              if(pre.length>1)pre=pre.filter(x=>cnTxt(x.n).trim().split(" ").length===ws.length-i);if(pre.length===1)hit=pre}}}}}
-   return{hit,byN,T,brands,fixed}}
+   // B1: a brand+flavor may exist in multiple product lines / pack variants.
+   // Never select both or guess from shelf availability. Only an explicit line wins.
+   const ambiguous=[];
+   const groups=new Map();
+   for(const x of hit){const k=cnTxt(x.b)+"|"+cnTxt(x.n);if(!groups.has(k))groups.set(k,[]);groups.get(k).push(x)}
+   hit=[];
+   for(const g of groups.values()){
+     if(g.length===1){hit.push(g[0]);continue}
+     const marked=g.filter(x=>{const line=cnTxt(x.l||"").trim();
+       return line&&line.split(" ").every(t=>T.includes(" "+t+" "))});
+     if(marked.length===1){hit.push(marked[0]);continue}
+     ambiguous.push({brand:g[0].b,name:g[0].n,options:g.map(x=>({id:x.id,line:x.l||"(без линейки)"}))});
+   }
+   // Название нашлось только слитным словом (PINACOLADA, BARVYORANGE), а бренда в этом кусочке нет — это лишь
+   // возможное название: в подтверждённые не берём, отдаём кандидатом на уточнение бренда
+   const exactIn=(n)=>{const w=n.trim().split(" ").filter(Boolean);return w.length>0&&w.every(t=>T.includes(" "+t+" "))};
+   hit=hit.filter(x=>{if(exactIn(cnTxt(x.n))||(x.a||[]).some(v=>exactIn(cnTxt(v)))||T.includes(cnTxt(x.b)))return true;
+     ambiguous.push({brand:x.b,name:x.n,need:"brand",options:[{id:x.id,line:x.l||"(без линейки)"}]});return false});
+   return{hit,byN,T,brands,fixed,ambiguous}}
 function matchText(text){const raw=String(text||"");
    // С фото банок сервер отдаёт текст по этикеткам («Этикетка N: …» — см. readPhotos на сервере). Разбираем каждую
    // отдельно: иначе бренд с одной банки и название с соседней, встретившиеся просто где-то в общем тексте,
    // склеиваются в несуществующий вкус (так получился ложный «Black Burn Overdose»)
    const labels=[...raw.matchAll(/^Этикетка\s*\d+\s*:\s*(.*)$/gim)].map(m=>m[1]);
-   const chunks=labels.length?labels:[raw];
+   // B3: a command can name one flavor per line, comma or semicolon.
+   // Never let brand from one item combine with flavor from another.
+   const chunks=labels.length?labels:raw.split(/[\n,;]+/).map(x=>x.trim()).filter(Boolean);
    // Один вкус на нескольких этикетках — это несколько банок (сервер уже склеил куски одной этикетки
    // по координатам), считаем их в jars, а не теряем вторую банку
    const seen=new Map(),found=[];
-   const gotLabel=new Set(),tally={},newf=[];
+   const gotLabel=new Set(),tally={},newf=[],ambiguous=[];
    // Бренд на этикетке так, как он записан в каталоге (для подсчёта банок и новых вкусов)
    const brandOf=T=>{const b=[...new Set(DATA.map(x=>x.b))].filter(b=>cnTxt(b).trim().length>2&&T.includes(cnTxt(b))).sort((a,b)=>b.length-a.length);return b[0]||""};
-   chunks.forEach(chunk=>{const{hit,byN,T,fixed}=matchChunk(chunk,labels.length>0);if(hit.length)gotLabel.add(chunk.trim());
+   chunks.forEach(chunk=>{const{hit,byN,T,fixed,ambiguous:uncertain}=matchChunk(chunk,labels.length>0);
+     if(hit.length)gotLabel.add(chunk.trim());
+     if(uncertain?.length){ambiguous.push(...uncertain);gotLabel.add(chunk.trim())}
      if(labels.length){const b=hit.length?hit[0].b:brandOf(T);tally[b||"Без бренда"]=(tally[b||"Без бренда"]||0)+1;
        // Бренд прочитан, а вкуса у него в каталоге нет — кандидат в новые вкусы (что осталось от этикетки без бренда)
        // Этикетка с «?» обрезана краем кадра — из её огрызка («Coff») новый вкус не предлагаем
-       if(!hit.length&&b&&!/\?|\.{2,}|…/.test(chunk)){const words=[...cnTxt(b).trim().split(" "),...(fixed||[])];let n=chunk.replace(/[«»"?]/g," ");
+       if(!hit.length&&!uncertain?.length&&b&&!/\?|\.{2,}|…/.test(chunk)){const words=[...cnTxt(b).trim().split(" "),...(fixed||[])];let n=chunk.replace(/[«»"?]/g," ");
          words.forEach(w=>{n=n.replace(new RegExp("(^|[^\\p{L}\\p{N}])"+w.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"(?=$|[^\\p{L}\\p{N}])","iu")," ")});
          n=n.replace(/\s+/g," ").trim();if(n.length>=3)n=n.split(" ").map(w=>w&&w===w.toUpperCase()&&/[a-z]/i.test(w)?w[0]+w.slice(1).toLowerCase():w).join(" ");
          n=n.charAt(0).toUpperCase()+n.slice(1);
@@ -1531,9 +1561,9 @@ function matchText(text){const raw=String(text||"");
        seen.set(x.id,it);found.push(it)})});
    const brands=new Set(DATA.map(x=>cnTxt(x.b).trim()));
    const names=found.map(x=>cnTxt(x.name));
-   const lines=(labels.length?labels:raw.split(/\n+/)).map(l=>l.trim());
+   const lines=chunks.map(l=>l.trim());
    const miss=lines.filter(l=>{if(gotLabel.has(l))return false;const c=cnTxt(l);return c.trim().length>2&&!brands.has(c.trim())&&!names.some(n=>nameIn(c,n.trim())||c.includes(n)||n.includes(c))});
-   return{found:found.slice(0,80),not_found_lines:miss.slice(0,40),jars_by_brand:tally,new_flavors:newf}}
+   return{found:found.slice(0,80),ambiguous:ambiguous.slice(0,40),not_found_lines:miss.slice(0,40),jars_by_brand:tally,new_flavors:newf}}
 // Фото, прочитанное на сервере (Sonnet или Яндекс): приложение само сверяет текст с каталогом и отдаёт модели готовый список —
 // маленькая модель на ПК иначе пропускает банки и придумывает вкусы
 // Итог по фото за один вопрос: банки по брендам и новые вкусы. Приложение само ставит его в начало ответа и
@@ -1547,6 +1577,7 @@ function photoNote(text){const m=matchText(text);
     m.new_flavors.forEach(y=>{if(!photoAcc.newf.some(z=>z.b===y.b&&norm(z.n)===norm(y.n)))photoAcc.newf.push(y)})}
   return "[Фото: текст прочитан с фото и уже сверен с каталогом приложением. Общее количество банок по брендам и предложение добавить новые вкусы приложение покажет само — в ответе их не пересчитывай и не повторяй. Опирайся на этот список, вкусов сверх него не придумывай.]\n"
    +"НАЙДЕНО В КАТАЛОГЕ ("+m.found.length+"):\n"+(m.found.map(x=>"— "+x.brand+" "+x.name+(x.jars>1?" ×"+x.jars+" (на "+x.jars+" разных этикетках — скорее всего столько банок)":"")+" (id "+x.id+", на складе "+x.wh+(x.onBar?", на стойке":"")+(x.ambiguous?", бренд на фото не прочитан — уточни":"")+")").join("\n")||"— ничего")
+   +(m.ambiguous?.length?"\nНЕОДНОЗНАЧНО (не выполняй никаких действий, уточни линейку или бренд):\n"+m.ambiguous.map(a=>"— "+a.brand+" "+a.name+": "+(a.need==="brand"?"бренд на фото не прочитан, название только похоже":a.options.map(o=>o.line).join(" / "))).join("\n"):"")
    +(m.not_found_lines.length?"\nНЕ НАШЛОСЬ В КАТАЛОГЕ (строки с фото, могут быть рукописные или с ошибкой распознавания — добери через find_items или переспроси):\n"+m.not_found_lines.map(l=>"— "+l).join("\n"):"")}
 // Новый вкус с фото — в каталог (Склад, 0 шт.) и строка в Журнал «Новый вкус — внёс ассистент».
 // Kind "in" с нулём: отдельного вида движения в базе нет (moves_kind_check), текст строки берётся из reason
@@ -1698,14 +1729,42 @@ async function cmdPerenos(out,args,imgs){const{m}=await cmdFindIds(args,imgs,aiC
   out.textContent="Перенос со склада на стойку, в черновике:\n"+(done.map(d=>"— "+d[0].b+" "+d[0].n+" ×"+d[1]).join("\n")||"(ничего)")
    +(none.length?"\n\nНет на складе, не перенесены:\n"+none.map(x=>"— "+x.b+" "+x.n).join("\n"):"")
    +"\n\nПроверь и нажми внизу «Списание / пополнение» → «Подтвердить»."}
-async function cmdPopolnit(out,args,imgs){const{m}=await cmdFindIds(args,imgs,aiCtl.signal);
-  if(!m.found.length){out.textContent="Не нашёл вкусы. Пришли фото банок или напиши названия.";return}
-  const st=AI_TOOLS.find(f=>f.name==="stage_stock"),done=[];
-  m.found.forEach(x=>{const it=byId[x.id];if(!it)return;const n=(imgs&&imgs.length&&x.jars)?x.jars:1;
-    try{st.execute({id:it.id,delta:n});done.push([it,n])}catch(e){}});
-  render();
-  out.textContent="Пополнение, в черновике:\n"+done.map(d=>"— "+d[0].b+" "+d[0].n+" +"+d[1]).join("\n")
-   +"\n\nПроверь и нажми внизу «Списание / пополнение» → «Подтвердить»."}
+// Количество в конце строки команды: «Darkside Supernova 5», «×5», «5 шт». Без числа — 1.
+// 0, минус, дробь, «пять», «5а», больше 100 — строку не трогаем и пишем, что количество непонятно.
+// Число может быть частью названия («Rioja 17», «Mary Jane 2.0») — тогда это название, а если подходит и так,
+// и так — не угадываем
+const POP_MAX=100,NUM_WORDS=/^(ноль|один|одна|два|две|три|четыре|пять|шесть|семь|восемь|девять|десять|пару|пара|несколько)$/i;
+function popItems(args){const items=[],bad=[];
+  String(args||"").split(/\n|;|(?<!\d),|,(?!\d)/).map(x=>x.trim()).filter(Boolean).forEach(line=>{
+    const q=line.match(/^(.*?)\s*(?:[x×х*]\s*)?(\S+?)\s*(?:шт\.?|штук[аи]?|банк[аи]?|банок)?$/i);
+    const tok=q&&q[1].trim()?q[2]:"";
+    if(!tok||!(/\d/.test(tok)||NUM_WORDS.test(tok))){items.push({line,name:line,n:1});return}
+    const rest=q[1].trim(),full=matchText(line).found,inName=full.filter(f=>cnTxt(f.name).includes(cnTxt(tok)));
+    if(inName.length){const r=matchText(rest).found;
+      if(r.length&&r.some(f=>!full.some(g=>g.id===f.id))){bad.push(line+" — непонятно, число это количество или часть названия");return}
+      items.push({line,name:line,n:1});return}
+    if(!/^\+?\d+$/.test(tok)){bad.push(line+" — количество «"+tok+"» не понял, напиши целым числом");return}
+    const n=parseInt(tok,10);
+    if(n<1||n>POP_MAX){bad.push(line+" — количество "+n+" не подходит (нужно от 1 до "+POP_MAX+")");return}
+    items.push({line,name:rest,n})});
+  return{items,bad}}
+async function cmdPopolnit(out,args,imgs){
+  const st=AI_TOOLS.find(f=>f.name==="stage_stock"),done=[],bad=[],miss=[];
+  if(imgs&&imgs.length){const{m}=await cmdFindIds(args,imgs,aiCtl.signal);
+    m.found.forEach(x=>{const it=byId[x.id];if(!it)return;const n=x.jars||1;
+      try{st.execute({id:it.id,delta:n});done.push([it,n])}catch(e){}})}
+  else{const p=popItems(args);bad.push(...p.bad);
+    p.items.forEach(i=>{const f=matchText(i.name).found;
+      if(!f.length){miss.push(i.line);return}
+      // Одно количество на несколько вкусов в одной строке — не делим и не размножаем, просим разнести по строкам
+      if(f.length>1&&i.n!==1){bad.push(i.line+" — в строке несколько вкусов, напиши каждый с количеством отдельной строкой");return}
+      f.forEach(x=>{const it=byId[x.id];if(!it)return;try{st.execute({id:it.id,delta:i.n});done.push([it,i.n])}catch(e){}})})}
+  if(!done.length&&!bad.length){out.textContent="Не нашёл вкусы. Пришли фото банок или напиши названия.";return}
+  if(done.length)render();
+  out.textContent=(done.length?"Пополнение, в черновике:\n"+done.map(d=>"— "+d[0].b+" "+d[0].n+" +"+d[1]).join("\n"):"Ничего не добавлено в черновик.")
+   +(bad.length?"\n\nНе добавлено:\n"+bad.map(l=>"— "+l).join("\n"):"")
+   +(miss.length?"\n\nНе нашлось в каталоге:\n"+miss.map(l=>"— "+l).join("\n"):"")
+   +(done.length?"\n\nПроверь и нажми внизу «Списание / пополнение» → «Подтвердить».":"")}
 async function cmdZakazat(out,args,imgs){let ids;
   if(!args&&!(imgs&&imgs.length)){const find_items=AI_TOOLS.find(f=>f.name==="find_items");ids=find_items.execute({where:"none",limit:80}).items.map(x=>x.id)}
   else{const{m}=await cmdFindIds(args,imgs,aiCtl.signal);ids=m.found.map(x=>x.id)}
