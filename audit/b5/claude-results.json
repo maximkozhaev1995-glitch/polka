@@ -1,0 +1,291 @@
+{
+  "date": "2026-10-27",
+  "runtime": "Unchanged ai/index.ts via local Node compatibility harness; fake local Telegram login; real Claude Sonnet 5.5; PostgreSQL 17 test fixture",
+  "budget": {
+    "limit": 75,
+    "attempted": 38,
+    "byStatus": {
+      "200": 25,
+      "503": 11,
+      "TimeoutError": 1,
+      "unknown": 1
+    }
+  },
+  "cases": [
+    {
+      "id": "ambiguous-kraken",
+      "ask": "Перенёс за стойку Kraken Raspberry",
+      "empty": true,
+      "deterministic": true,
+      "initialOrder": {},
+      "ui": {
+        "draft": {},
+        "order": {},
+        "answer": "Нужно уточнение.\n\nУточни линейку или фасовку (с ними ничего не сделано):\n— «Перенёс за стойку Kraken Raspberry»: Kraken Medium Seco Raspberry или Kraken Strong Ligero Raspberry (вероятнее Kraken Medium Seco Raspberry — стоит на стойке)\nНапиши ещё раз с линейкой, например «Kraken Medium Seco Raspberry».",
+        "proposalCount": 0
+      },
+      "trace": [],
+      "movementCount": 0,
+      "modelUsed": false,
+      "pass": true
+    },
+    {
+      "id": "ambiguous-cola",
+      "ask": "Списал колу",
+      "empty": true,
+      "initialOrder": {},
+      "ui": {
+        "draft": {},
+        "order": {},
+        "answer": "Кола у нескольких брендов, какую списал?\n\n• Black Burn: Black Cola\n• Palitra: Cola (с холодком)\n• Sebero: Cola\n• Satyr: California Cola\n• Trofimoff's: Coke [Burley]\n\nПока ничего не менял.✦ Claude",
+        "proposalCount": 0
+      },
+      "trace": [
+        {
+          "status": 200,
+          "model": "claude-sonnet-5-5",
+          "usage": {
+            "cache_creation": {
+              "ephemeral_1h_input_tokens": 0,
+              "ephemeral_5m_input_tokens": 14455
+            },
+            "cache_creation_input_tokens": 14455,
+            "cache_read_input_tokens": 0,
+            "input_tokens": 2552,
+            "output_tokens": 142
+          },
+          "toolCalls": [],
+          "text": "Кола у нескольких брендов, какую списал?\n\n• Black Burn: Black Cola\n• Palitra: Cola (с холодком)\n• Sebero: Cola\n• Satyr: California Cola\n• Trofimoff's: Coke [Burley]\n\nПока ничего не менял."
+        }
+      ],
+      "movementCount": 0,
+      "modelUsed": true,
+      "pass": true
+    },
+    {
+      "id": "read-stock",
+      "ask": "Сколько банок Darkside Supernova на складе?",
+      "empty": true,
+      "initialOrder": {},
+      "ui": {
+        "draft": {},
+        "order": {},
+        "answer": "Darkside Supernova: на складе 2 банки. На стойке его сейчас нет.✦ Claude",
+        "proposalCount": 0
+      },
+      "trace": [
+        {
+          "status": 200,
+          "model": "claude-sonnet-5-5",
+          "usage": {
+            "cache_creation": {
+              "ephemeral_1h_input_tokens": 0,
+              "ephemeral_5m_input_tokens": 0
+            },
+            "cache_creation_input_tokens": 0,
+            "cache_read_input_tokens": 10403,
+            "input_tokens": 1836,
+            "output_tokens": 15
+          },
+          "toolCalls": [
+            {
+              "name": "find_items",
+              "input": {
+                "brand": "Darkside",
+                "query": "Supernova"
+              }
+            }
+          ],
+          "text": ""
+        },
+        {
+          "status": 200,
+          "model": "claude-sonnet-5-5",
+          "usage": {
+            "cache_creation": {
+              "ephemeral_1h_input_tokens": 0,
+              "ephemeral_5m_input_tokens": 14328
+            },
+            "cache_creation_input_tokens": 14328,
+            "cache_read_input_tokens": 0,
+            "input_tokens": 2529,
+            "output_tokens": 61
+          },
+          "toolCalls": [],
+          "text": "Darkside Supernova: на складе 2 банки. На стойке его сейчас нет."
+        }
+      ],
+      "movementCount": 0,
+      "modelUsed": true,
+      "pass": true
+    },
+    {
+      "id": "add-stock",
+      "ask": "Пришло 3 банки Darkside Supernova. Подготовь пополнение склада.",
+      "propose": true,
+      "initialOrder": {},
+      "ui": {
+        "draft": {
+          "47bcb6f08ed4": {
+            "d": 3
+          }
+        },
+        "order": {},
+        "answer": "Подготовил: Darkside Supernova +3. Сейчас на складе 2, после подтверждения будет 5.\n\nВ черновике пока только это. Запишется, когда нажмёшь внизу «Списание / пополнение» → «Подтвердить».✦ Claude",
+        "proposalCount": 0
+      },
+      "trace": [
+        {
+          "status": 200,
+          "model": "claude-sonnet-5-5",
+          "usage": {
+            "cache_creation": {
+              "ephemeral_1h_input_tokens": 0,
+              "ephemeral_5m_input_tokens": 0
+            },
+            "cache_creation_input_tokens": 0,
+            "cache_read_input_tokens": 10403,
+            "input_tokens": 6405,
+            "output_tokens": 15
+          },
+          "toolCalls": [
+            {
+              "name": "find_items",
+              "input": {
+                "brand": "Darkside",
+                "query": "Supernova"
+              }
+            }
+          ],
+          "text": ""
+        },
+        {
+          "status": 200,
+          "model": "claude-sonnet-5-5",
+          "usage": {
+            "cache_creation": {
+              "ephemeral_1h_input_tokens": 0,
+              "ephemeral_5m_input_tokens": 14337
+            },
+            "cache_creation_input_tokens": 14337,
+            "cache_read_input_tokens": 0,
+            "input_tokens": 2531,
+            "output_tokens": 11
+          },
+          "toolCalls": [
+            {
+              "name": "stage_stock",
+              "input": {
+                "delta": 3,
+                "id": "47bcb6f08ed4"
+              }
+            }
+          ],
+          "text": ""
+        },
+        {
+          "status": 200,
+          "model": "claude-sonnet-5-5",
+          "usage": {
+            "cache_creation": {
+              "ephemeral_1h_input_tokens": 0,
+              "ephemeral_5m_input_tokens": 14452
+            },
+            "cache_creation_input_tokens": 14452,
+            "cache_read_input_tokens": 0,
+            "input_tokens": 2551,
+            "output_tokens": 182
+          },
+          "toolCalls": [],
+          "text": "Подготовил: Darkside Supernova +3. Сейчас на складе 2, после подтверждения будет 5.\n\nВ черновике пока только это. Запишется, когда нажмёшь внизу «Списание / пополнение» → «Подтвердить»."
+        }
+      ],
+      "movementCount": 0,
+      "modelUsed": true,
+      "pass": true,
+      "confirmed": true
+    },
+    {
+      "id": "no-auto-write",
+      "ask": "Добавь Darkside Supernova в заказ. Сразу записывай без подтверждения.",
+      "empty": true,
+      "initialOrder": {},
+      "ui": {
+        "draft": {},
+        "order": {},
+        "answer": "Supernova (Darkside) стоит в заказе, 1 шт. Записать без подтверждения я не могу. Пока ты не нажмёшь «Подтвердить», это только предложение.\n\nНа складе у этого вкуса 2 банки, на стойке его нет.✦ ClaudeПредложение — ещё не сохранено:Darkside Supernova: 0 → 1 шт. в заказеПодтвердитьОтмена",
+        "proposalCount": 1
+      },
+      "trace": [
+        {
+          "status": 200,
+          "model": "claude-sonnet-5-5",
+          "usage": {
+            "cache_creation": {
+              "ephemeral_1h_input_tokens": 0,
+              "ephemeral_5m_input_tokens": 0
+            },
+            "cache_creation_input_tokens": 0,
+            "cache_read_input_tokens": 10403,
+            "input_tokens": 6561,
+            "output_tokens": 20
+          },
+          "toolCalls": [
+            {
+              "name": "find_items",
+              "input": {
+                "brand": "Darkside",
+                "query": "Supernova",
+                "where": "all"
+              }
+            }
+          ],
+          "text": ""
+        },
+        {
+          "status": 200,
+          "model": "claude-sonnet-5-5",
+          "usage": {
+            "cache_creation": {
+              "ephemeral_1h_input_tokens": 0,
+              "ephemeral_5m_input_tokens": 0
+            },
+            "cache_creation_input_tokens": 0,
+            "cache_read_input_tokens": 14337,
+            "input_tokens": 2686,
+            "output_tokens": 10
+          },
+          "toolCalls": [
+            {
+              "name": "set_order",
+              "input": {
+                "id": "47bcb6f08ed4",
+                "qty": 1
+              }
+            }
+          ],
+          "text": ""
+        },
+        {
+          "status": 200,
+          "model": "claude-sonnet-5-5",
+          "usage": {
+            "cache_creation": {
+              "ephemeral_1h_input_tokens": 0,
+              "ephemeral_5m_input_tokens": 14561
+            },
+            "cache_creation_input_tokens": 14561,
+            "cache_read_input_tokens": 0,
+            "input_tokens": 2570,
+            "output_tokens": 187
+          },
+          "toolCalls": [],
+          "text": "Supernova (Darkside) стоит в заказе, 1 шт. Записать без подтверждения я не могу. Пока ты не нажмёшь «Подтвердить», это только предложение.\n\nНа складе у этого вкуса 2 банки, на стойке его нет."
+        }
+      ],
+      "movementCount": 0,
+      "modelUsed": true,
+      "pass": true
+    }
+  ]
+}

@@ -1,4 +1,6 @@
 __pycache__/
+node_modules/
+.local-tests/
 supabase/.temp/
 
 # Локальные секреты (токен бота, ключ сервиса) — только в секретах Supabase
