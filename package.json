@@ -1,0 +1,11 @@
+{
+  "name": "mixora-local-checks",
+  "private": true,
+  "scripts": {
+    "test": "node tests/matching.cjs && node tests/actions.cjs && node tests/stock-rpc.mjs && node tests/stock-client.cjs && node tests/syntax.cjs"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.12",
+    "supabase": "2.122.0"
+  }
+}

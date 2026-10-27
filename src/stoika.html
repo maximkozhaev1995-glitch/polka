@@ -450,6 +450,7 @@ body{margin:0}
   <div class="chips" id="filters" role="group" aria-label="Фильтры"></div>
 </div>
 <div class="legend"><span id="found"></span><span class="status" id="status">Подключаю склад…</span></div>
+<button class="btn" id="stock-recover" type="button" hidden>Восстановить результат складской операции</button>
 <section class="omanual" id="omanual" hidden></section>
 <main id="list"></main>
 <section class="chat" id="chat" hidden>
@@ -617,9 +618,14 @@ function autoOrder(x,left){if(left>1)return 0;const r=used(x.id,28);if(r<2&&left
 let toastT=null;
 function toast(html,undo){const t=$("#toast");t.innerHTML='<span>'+html+'</span>'+(undo?'<button type="button" class="btn sm" id="t-undo">Отменить</button>':'');t.hidden=false;
   if(undo)$("#t-undo").onclick=()=>{t.hidden=true;undo()};clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},6000)}
-async function toBar(x,k){if(!db||busy)return;busy=true;const id=x.id,n=wh(x),at=new Date().toISOString(),take=n>0?Math.min(k||1,n):0;
+// One RPC owns stock and its immutable movement. Revision prevents stale writes.
+function stockEntry(id,doc,mv={}){return {id,revision:stock[id]?.revision||0,doc:{wh:0,...doc},kind:mv.kind||"in",reason:mv.reason||null}}
+async function stockWrite(entries){if(!db.applyStock)throw Error("Складской RPC недоступен");try{const rows=await db.applyStock(entries);rows.forEach(r=>stock[r.id]=r.doc);return rows}
+  finally{const b=$("#stock-recover");if(b)b.hidden=!db.hasPendingStock?.()}}
+async function stockOne(id,doc,mv){return stockWrite([stockEntry(id,doc,mv)])}
+async function toBar(x,k){if(!db||busy)return;busy=true;const id=x.id,n=wh(x),at=new Date().toISOString(),take=k||1;
   const prev={wh:n,bar:(stock[id]&&typeof stock[id].bar==="boolean")?stock[id].bar:null};
-  try{const d0=Object.assign({},stock[id]||{},{wh:n-take,bar:true});if(d0.stop&&d0.stopAuto){delete d0.stop;delete d0.stopAuto}await db.doc("stock/"+id).set(d0);await db.collection("moves").add({item:id,qty:-take,left:n-take,prev,at,barTo:true,kind:"tobar"})}catch(e){busy=false;setStatus("Не сохранилось",true);return}
+  try{const d0=Object.assign({},stock[id]||{},{wh:n-take,bar:true});if(d0.stop&&d0.stopAuto){delete d0.stop;delete d0.stopAuto}await stockOne(id,d0,{kind:"tobar"})}catch(e){busy=false;setStatus("Не сохранилось",true);return}
   busy=false;const ao=take?autoOrder(x,n-take):0;toast('<b>'+esc(nm(x))+'</b>: взято '+take+', на стойке. На складе осталось '+(n-take)+(ao?" · в заказ "+ao+" шт.":""),()=>{if(ao){delete orderQ[id];saveOrder()}askUndo(id)});render()}
 const IGROUPS=[["main","Обычные"],["cigar","Хука сигар"],["perfume","Парфюм"]];
 // Хука сигар — весь Kraken (включая Royal и Cigar), кроме Medium Seco и Strong Ligero —
@@ -644,15 +650,17 @@ function openInv(){const D=invDiffG(),defPrice=invPriceByIg[st.ig]??(st.ig==="ma
   $("#dlg-back").onclick=closeDlg;
   const pi=$("#inv-price");if(pi)pi.oninput=()=>{const{gs}=invCalc(D),price=+pi.value||0,r=$("#inv-rub");if(r)r.textContent=(price&&gs)?"≈"+Math.round(gs*price).toLocaleString("ru-RU"):"—"};
   const ok=$("#inv-ok");if(ok)ok.onclick=async()=>{const at=new Date().toISOString(),price=+(pi&&pi.value)||0,{sh,gs}=invCalc(D);
-    for(const id of D){const x=byId[id],n=wh(x),v=invD[id];
-    try{await db.doc("stock/"+id).set(Object.assign({},stock[id]||{},{wh:v}));await db.collection("moves").add({item:id,qty:v-n,left:v,prev:{wh:n,bar:null},at,kind:"inv"})}catch(e){}}
+    if(busy)return;busy=true;ok.disabled=true;
+    try{await stockWrite(D.map(id=>stockEntry(id,{...stock[id],wh:invD[id]},{kind:"inv"})))}
+    catch(e){setStatus("Инвентаризация не сохранена: "+e.message,true);busy=false;ok.disabled=false;return}
+    busy=false;
     try{invPriceByIg[st.ig]=price;localStorage.setItem("inv-price",JSON.stringify(invPriceByIg))}catch(e){}
     try{await db.collection("invlog").add({ig:st.ig,items:D.length,units:sh,g:Math.round(gs),price:price||null,rub:(price&&gs)?Math.round(gs*price):null,at})}catch(e){}
     invD={};invEd.clear();closeDlg();toast("Склад приведён к факту: "+D.length+" поз.");render()}}
 async function finish(x){if(!db||busy)return;busy=true;const id=x.id,n=wh(x),at=new Date().toISOString();
   const prev={wh:n,bar:(stock[id]&&typeof stock[id].bar==="boolean")?stock[id].bar:null};
   const patch=n>0?{wh:n-1}:{bar:false,stop:true,stopAuto:true},mv=n>0?{item:id,qty:-1,left:n-1,prev,at,kind:"fin"}:{item:id,qty:0,left:0,prev,at,barTo:false,kind:"fin"};
-  try{await db.doc("stock/"+id).set(Object.assign({},stock[id]||{},patch));await db.collection("moves").add(mv)}catch(e){busy=false;setStatus("Не сохранилось: "+(e&&e.message||"нет доступа"),true);return}
+  try{await stockOne(id,Object.assign({},stock[id]||{},patch),mv)}catch(e){busy=false;setStatus("Не сохранилось: "+(e&&e.message||"нет доступа"),true);return}
   busy=false;const k=autoOrder(x,n>0?n-1:0);
   toast('<b>'+esc(nm(x))+'</b>: '+(n>0?"ещё одна штука со склада, осталось "+(n-1):"убран со стойки и добавлен в стоп-лист")+(k?" · в заказ "+k+" шт.":""),()=>{if(k){delete orderQ[id];saveOrder()}askUndo(id)});render()}
 let renderLater=false,lastOrderAt="";
@@ -669,10 +677,9 @@ function itemsV2(){const t=st.q?norm(st.q):"";const mq=x=>!t||norm([x.b,x.l,x.n,
   if(st.tab==="wh")return DATA.filter(x=>nr(x)&&mq(x)&&(t||wh(x)>0)&&(t||!whLow||(tracked(x)&&wh(x)<=1)));
   if(st.tab==="stop")return DATA.filter(x=>nr(x)&&mq(x)&&(t||flag(x,"stop")));
   return DATA.filter(x=>nr(x)&&mq(x)&&(t||flag(x,"slow")))}
-async function putDoc(x,doc,mv,msg){if(!db||busy)return;busy=true;const id=x.id,prev=stock[id]?Object.assign({},stock[id]):{};let ref=null;
-  try{await db.doc("stock/"+id).set(doc);if(mv)ref=await db.collection("moves").add(Object.assign({item:id,at:new Date().toISOString()},mv))}
-  catch(e){busy=false;setStatus("Не сохранилось: "+(e&&e.message||"нет доступа"),true);return}
-  busy=false;toast(msg,async()=>{try{await db.doc("stock/"+id).set(prev);if(ref&&ref.id)await db.doc("moves/"+ref.id).delete()}catch(e){setStatus("Не отменилось",true)}});render()}
+async function putDoc(x,doc,mv,msg){if(!db||busy)return;busy=true;
+  try{await stockOne(x.id,doc,mv||{});toast(msg)}catch(e){setStatus("Не сохранилось: "+e.message,true)}
+  finally{busy=false;render()}}
 const dcopy=x=>Object.assign({},stock[x.id]||{});
 function flagSet(x,k,on){const d=dcopy(x);if(on)d[k]=true;else{delete d[k];if(k==="stop")delete d.stopAuto}
   putDoc(x,d,null,'<b>'+esc(nm(x))+'</b>: '+(k==="stop"?(on?"в стоп-листе":"снят со стопа"):(on?"в неликвиде":"снят с неликвида")))}
@@ -841,9 +848,10 @@ function renderLog(){
   const box=$("#logbox");if(st.tab!=="wh"||!moves.length){box.hidden=true;return}
   box.hidden=false;
   $("#log").innerHTML=moves.slice(0,5).map(m=>{const x=byId[m.item];const t=new Date(m.at);
-    return '<li>'+t.toLocaleDateString("ru-RU",{day:"numeric",month:"short"})+" "+t.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})+' — <b>'+esc(nm(x))+'</b> '+actText(m)+', на складе '+m.left+'</li>'}).join("");
+    return '<li>'+t.toLocaleDateString("ru-RU",{day:"numeric",month:"short"})+" "+t.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})+' — <b>'+esc(nm(x))+'</b> '+esc(actText(m))+', на складе '+m.left+'</li>'}).join("");
 }
 function actText(m){
+  if(m.reason&&m.reason.startsWith("Отмена операции "))return "Отмена движения: "+(m.qty>0?"+":"")+m.qty+" шт.";
   if(m.kind==="in"&&!m.qty&&m.reason)return m.reason;
   if(m.kind==="wo")return "списано "+(-m.qty)+(m.reason?" ("+String(m.reason).toLowerCase()+")":"");
   if(typeof m.qty==="number"||m.barTo!==undefined){const p=[];
@@ -904,47 +912,30 @@ function showDlg(h){$("#dlg-body").innerHTML=h;const d=$("#dlg");if(d.open)try{d
 function closeDlg(){const d=$("#dlg");try{d.close()}catch(e){d.removeAttribute("open")}$("#dlg-scrim").hidden=true}
 $("#dlg-scrim").onclick=closeDlg;
 async function commit(){
-  if(!db||busy)return;busy=true;$("#dlg-ok").disabled=true;$("#dlg-ok").textContent="Сохраняю…";
-  const ids=Object.keys(draft),at=new Date().toISOString(),done=[],leftOf={};let fail=0;
-  for(const id of ids){const x=byId[id],d=draft[id];if(!x)continue;
-    const n=wh(x),next=Math.max(0,n+(d.d||0));
-    const prev={wh:n,bar:(stock[id]&&typeof stock[id].bar==="boolean")?stock[id].bar:null};
-    const patch={wh:next};if(d.bar!==undefined)patch.bar=d.bar;const clrStop=!!(stock[id]&&stock[id].stopAuto&&next>0);
-    const mv={item:id,qty:d.d||0,left:next,prev,at};if(d.bar!==undefined)mv.barTo=d.bar;
-    try{const nd=Object.assign({},stock[id]||{},patch);if(clrStop){delete nd.stop;delete nd.stopAuto}await db.doc("stock/"+id).set(nd);await db.collection("moves").add(mv);done.push(id);if((d.d||0)<0)leftOf[id]=next}
-    catch(e){fail++}
-  }
-  done.forEach(id=>delete draft[id]);saveDraft();busy=false;
-  const auto=Object.keys(leftOf).map(id=>{if(cmdDraftIds.has(id))return null;const x=byId[id];return x&&leftOf[id]<=1?[x,autoOrder(x,leftOf[id])]:null}).filter(a=>a&&a[1]);
-  ids.forEach(id=>cmdDraftIds.delete(id));
-  if(fail){setStatus("Не сохранилось позиций: "+fail+". Они остались в черновике",true);openReview()}
-  else{closeDlg();setStatus("Подтверждено позиций: "+done.length);if(auto.length)toast("В заказ сами добавились: "+auto.map(a=>esc(nm(a[0]))+" — "+a[1]).join(", "))}
-  render();
+  if(!db||busy)return;busy=true;$("#dlg-ok").disabled=true;
+  const ids=Object.keys(draft).filter(id=>byId[id]);
+  // Persist the reviewed request with the draft; retry after reload uses original
+  // revisions and desired quantities, even if polling already saw its commit.
+  const key="mixora-reviewed-stock:"+db.stockScope(),signature=JSON.stringify(draft);
+  try{
+    let saved=JSON.parse(localStorage.getItem(key)||"null");
+    if(saved&&saved.signature!==signature)throw Error("Сначала восстановите результат предыдущего подтверждения");
+    if(!saved){saved={signature,entries:ids.map(id=>{const d=draft[id],n=wh(byId[id]),next=n+(d.d||0);
+      const doc={...stock[id],wh:next};if(d.bar!==undefined)doc.bar=d.bar;
+      if(doc.stopAuto&&next>0){delete doc.stop;delete doc.stopAuto}
+      return stockEntry(id,doc,{kind:d.kind||(d.bar===true?"tobar":d.d<0?"wo":"in")})})};localStorage.setItem(key,JSON.stringify(saved))}
+    const rows=await stockWrite(saved.entries);localStorage.removeItem(key);
+    const candidates=rows.filter(r=>draft[r.id]?.d<0&&!cmdDraftIds.has(r.id)&&r.doc.wh<=1);
+    ids.forEach(id=>{delete draft[id];cmdDraftIds.delete(id)});saveDraft();closeDlg();setStatus("Подтверждено позиций: "+ids.length);
+    try{const auto=candidates.map(r=>[byId[r.id],autoOrder(byId[r.id],r.doc.wh)]).filter(a=>a[1]);
+      if(auto.length)toast("В заказ добавились: "+auto.map(([x,n])=>esc(nm(x))+" — "+n).join(", "))}
+    catch(e){setStatus("Склад подтверждён; автозаказ не сохранился: "+e.message,true)}
+  }catch(e){if(/stock_/.test(e.message))localStorage.removeItem(key);setStatus("Склад не подтверждён: "+e.message+". Черновик сохранён",true)}
+  finally{busy=false;$("#dlg-ok").disabled=false;render()}
 }
-function askUndo(id,one){
-  const m=lastMove(id),x=byId[id];if(!m)return;
-  const chain=[m];if(m.kind==="tobar")for(const q of moves.filter(q=>q.item===id&&q!==m)){const l=chain[chain.length-1];if(q.kind==="tobar"&&Date.parse(l.at)-Date.parse(q.at)<12e4)chain.push(q);else break}
-  if(chain.length>1&&!one){const f=chain[chain.length-1];
-    showDlg('<h2>Отменить действие?</h2><p><b>'+esc(nm(x))+'</b>: вы взяли со склада подряд штук: <b>'+chain.reduce((a,q)=>a-q.qty,0)+'</b>.</p><p>Если отменить все, на складе станет <b>'+f.prev.wh+'</b> (сейчас '+wh(x)+').</p><div class="dlg-btns"><button class="btn go" type="button" id="u-all">Отменить всё</button><button class="btn" type="button" id="u-one">Только последнюю</button></div><div class="dlg-btns"><button class="btn" type="button" id="dlg-back">Не надо</button></div>');
-    $("#dlg-back").onclick=closeDlg;$("#u-one").onclick=()=>askUndo(id,true);
-    $("#u-all").onclick=async()=>{if(!db||busy)return;busy=true;$("#u-all").disabled=true;
-      try{const doc=Object.assign({},stock[id]||{});doc.wh=f.prev.wh;if(f.prev.bar===null)delete doc.bar;else doc.bar=f.prev.bar;await db.doc("stock/"+id).set(doc);for(const q of chain)await db.doc("moves/"+q.id).delete();setStatus("Отменено: "+chain.length)}
-      catch(e){setStatus("Не отменилось: "+(e&&e.message||"нет доступа на запись"),true)}
-      busy=false;closeDlg();render()};return}
-  const back=m.prev?m.prev.wh:(m.type==="plus"?m.left-1:m.left+1);
-  showDlg('<h2>Отменить действие?</h2><p><b>'+esc(nm(x))+'</b>: '+esc(actText(m))+' ('+new Date(m.at).toLocaleString("ru-RU",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})+').</p><p>На складе станет: <b>'+back+'</b> (сейчас '+wh(x)+').</p><div class="dlg-btns"><button class="btn go" type="button" id="dlg-ok">Отменить действие</button><button class="btn" type="button" id="dlg-back">Не надо</button></div>');
-  $("#dlg-back").onclick=closeDlg;
-  $("#dlg-ok").onclick=async()=>{if(!db||busy)return;busy=true;$("#dlg-ok").disabled=true;
-    try{
-      const doc=Object.assign({},stock[id]||{});
-      if(m.prev){doc.wh=m.prev.wh;if(m.prev.bar===null)delete doc.bar;else doc.bar=m.prev.bar}
-      if(m.kind==="fin"&&doc.stopAuto){delete doc.stop;delete doc.stopAuto}
-      else doc.wh=back;
-      await db.doc("stock/"+id).set(doc);
-      await db.doc("moves/"+m.id).delete();
-      setStatus("Отменено");
-    }catch(e){setStatus("Не отменилось: "+(e&&e.message||"нет доступа на запись"),true)}
-    busy=false;closeDlg();render()};
+function askUndo(id){const m=lastMove(id);if(!m)return;
+  showDlg('<h2>Отменить последнее движение?</h2><p>Будет добавлено обратное движение. Если позиция уже менялась, сервер отклонит отмену.</p><div class="dlg-btns"><button class="btn go" id="dlg-ok">Отменить движение</button><button class="btn" id="dlg-back">Назад</button></div>');
+  $("#dlg-back").onclick=closeDlg;$("#dlg-ok").onclick=async()=>{await undoMove(m.id);closeDlg()};
 }
 let oTimer=null;
 function saveOrder(){clearTimeout(oTimer);oTimer=setTimeout(async()=>{
@@ -1087,7 +1078,7 @@ function edit(a,id){
   if(a==="fin"){finish(x);return}
   if(a==="tobar"){toBar(x);return}
   if(a==="flag"){const k=st.tab;if(k!=="stop"&&k!=="slow")return;const doc=Object.assign({},stock[id]||{});if(doc[k]){delete doc[k];if(k==="stop")delete doc.stopAuto}else doc[k]=true;
-    busy=true;render();db.doc("stock/"+id).set(doc).then(()=>setStatus(TABS[k]+": сохранено")).catch(e=>setStatus("Не сохранилось: "+(e&&e.message||"нет доступа"),true)).finally(()=>{busy=false;render()});return}
+    busy=true;render();stockOne(id,doc).then(()=>setStatus(TABS[k]+": сохранено")).catch(e=>setStatus("Не сохранилось: "+(e&&e.message||"нет доступа"),true)).finally(()=>{busy=false;render()});return}
   if(a==="otoggle"){if(oq(x)){revertWish(wishIdsFor(id));delete orderQ[id]}else orderQ[id]=1;saveOrder();render();return}
   if(a==="iok"){invD[id]=wh(byId[id]);invEd.delete(id);render();return}
   if(a==="iundo"){delete invD[id];invEd.delete(id);render();return}
@@ -1317,8 +1308,7 @@ function photoNote(text){const m=matchText(text);
 // Kind "in" с нулём: отдельного вида движения в базе нет (moves_kind_check), текст строки берётся из reason
 async function addNewFlavor(b,n){if(DATA.some(x=>norm(x.b)===norm(b)&&norm(x.n)===norm(n)))return;
   const id="c"+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
-  await db.doc("items/"+id).set({b,l:"",n,d:"",s:"name",t:[],bar:false});await db.doc("stock/"+id).set({wh:0});
-  await db.collection("moves").add({item:id,qty:0,left:0,prev:{wh:0,bar:null},at:new Date().toISOString(),kind:"in",reason:"Новый вкус — внёс ассистент"})}
+  await db.doc("items/"+id).set({b,l:"",n,d:"",s:"name",t:[],bar:false});await stockOne(id,{wh:0},{reason:"Новый вкус"})}
 // Свободный текст модели не используется для изменения заказа. Только структурированное предложение.
 let lastPhotoIds=[];
 function orderFixBox(){ /* Текст модели не является командой записи. */ }
@@ -1365,7 +1355,7 @@ const AI_TOOLS=[
   execute(i){const x=byId[String(i.id)];if(!x)throw new Error("нет такого id, сначала find_items");
    const d=Math.round(Number(i.delta)||0),cur=draft[x.id]||{d:0};
    if(wh(x)+(cur.d||0)+d<0)throw new Error("на складе всего "+(wh(x)+(cur.d||0))+" шт., столько списать нельзя");
-   cur.d=(cur.d||0)+d;if(typeof i.toBar==="boolean"){if(i.toBar===onBar(x))delete cur.bar;else cur.bar=i.toBar}
+   cur.d=(cur.d||0)+d;if(i.toBar===true)cur.kind="tobar";if(typeof i.toBar==="boolean"){if(i.toBar===onBar(x))delete cur.bar;else cur.bar=i.toBar}
    draft[x.id]=cur;if(inCmd)cmdDraftIds.add(x.id);saveDraft();render();return aiItem(x)}},
  {name:"set_order",description:"Ставит, сколько штук вкуса заказать (qty, 0 — убрать из заказа). Запишется только после подтверждения. Только вкусы с фото банок и из стоп-листа, не неликвид. Для многих вкусов разом (например, «добавь всё, чего нет на складе») передай ids — список id вместо одного id, тем же qty для всех, одним вызовом.",
   inputSchema:{type:"object",properties:{id:{type:"string"},ids:{type:"array",items:{type:"string"}},qty:{type:"number"}},required:["qty"]},
@@ -1427,7 +1417,7 @@ async function aiCommitProposal(list){
   }else{
     const docs={};for(const a of list){if(a.k==="slow"&&!can("slow")||a.k==="stop"&&!a.on&&!can("unstop"))throw new Error("нет права менять метку");
       const doc=docs[a.id]||(docs[a.id]={wh:wh(byId[a.id]),bar:onBar(byId[a.id]),...stock[a.id]});if(a.on)doc[a.k]=true;else delete doc[a.k]}
-    if(!db.setStockBatch)throw new Error("атомарное сохранение меток недоступно");await db.setStockBatch(docs);
+    await stockWrite(Object.entries(docs).map(([id,doc])=>stockEntry(id,doc)));
   }
 }
 function aiSnapshot(){
@@ -1714,6 +1704,16 @@ function hlpUi(){$("#hlp-btn").hidden=!sampleFn||st.tab==="ai"}
   render();
   if(!db){setStatus("Склад недоступен: открой страницу, войдя в claude.ai",true);render();return}
   setStatus("Склад подключён");
+  const recovery=$("#stock-recover");recovery.hidden=!db.hasPendingStock?.();
+  recovery.onclick=async()=>{if(busy)return;busy=true;recovery.disabled=true;
+    const reviewedKey="mixora-reviewed-stock:"+db.stockScope();
+    try{const r=await db.recoverStock();if(r){r.rows.forEach(x=>stock[x.id]=x.doc);
+      const saved=JSON.parse(localStorage.getItem(reviewedKey)||"null");
+      if(saved&&JSON.stringify(saved.entries)===JSON.stringify(r.items)){const original=JSON.parse(saved.signature);
+        Object.keys(original).forEach(id=>{if(JSON.stringify(draft[id])===JSON.stringify(original[id])){delete draft[id];cmdDraftIds.delete(id)}});saveDraft();localStorage.removeItem(reviewedKey)}
+      setStatus("Результат восстановлен. Проверьте журнал перед следующим действием")}}
+    catch(e){if(/stock_/.test(e.message))localStorage.removeItem(reviewedKey);setStatus("Не восстановилось: "+e.message,true)}
+    finally{busy=false;recovery.disabled=false;recovery.hidden=!db.hasPendingStock?.();render()}};
   {const tgw=window.Telegram&&window.Telegram.WebApp,sp=tgw&&tgw.initDataUnsafe&&tgw.initDataUnsafe.start_param;
    if(sp&&/^guest_/i.test(sp)){const gid=parseGuestCode(sp);if(gid)setTimeout(()=>openGuestMix(gid),400)}}
   db.collection("stock").onSnapshot(s=>{for(const k in stock)delete stock[k];s.docs.forEach(d=>{stock[d.id]=d.data()});stockLoaded=true;render()},e=>setStatus("Склад не загрузился: "+e.message,true));
@@ -1748,7 +1748,7 @@ function openNew(){if(!isMgr)return;const brands=[...new Set(DATA.map(x=>x.b))].
     const dup=DATA.find(x=>norm(x.b)===norm(f.b)&&norm(x.n)===norm(f.n));$("#np-ok").disabled=!(f.b&&f.n)||!!dup;if(dup&&f.n)$("#np-hint").textContent="Такой вкус уже есть: найди его через поиск."};
   ["np-b","np-n","np-d","np-q"].forEach(i=>$("#"+i).oninput=chk);
   $("#np-ok").onclick=async()=>{chk();if($("#np-ok").disabled||!db)return;const id="c"+Date.now().toString(36);const ex=brands.find(b=>norm(b)===norm(f.b));const o={b:ex||f.b,l:"",n:f.n,d:f.d,s:"name",t:[],bar:false};closeDlg();
-    try{await db.doc("items/"+id).set(o);await db.doc("stock/"+id).set({wh:f.q});if(f.q>0)await db.collection("moves").add({item:id,qty:f.q,left:f.q,prev:{wh:0,bar:null},at:new Date().toISOString(),kind:"in"});setStatus("Позиция добавлена")}catch(e){setStatus("Не добавилось: "+(e&&e.message||"нет доступа"),true)}}}
+    try{await db.doc("items/"+id).set(o);await stockOne(id,{wh:f.q},{kind:"in"});setStatus("Позиция добавлена")}catch(e){setStatus("Не добавилось: "+(e&&e.message||"нет доступа"),true)}}}
 
 
 /* Крепость табаков: правка по бренду, линейке и вкусу */
@@ -2009,15 +2009,11 @@ function renderJournal(){
      +(isMgr&&m.id?'<button type="button" class="btn sm" data-undo="'+esc(m.id)+'">Отменить</button>':'')+'</div>'});
   if(!L.length)html+='<p class="hintline">Записей нет.</p>';
   $("#list").innerHTML=html}
-// Отмена записи журнала — не только свежий тост (6 с), а любая запись: возвращает остаток/флаг «на стойке»
-// к prev, который сохраняется в каждой записи, и удаляет саму запись
-async function undoMove(id){if(!db||busy)return;const m=moves.find(x=>x.id===id);if(!m||!m.prev)return;
-  busy=true;const x=byId[m.item];
-  try{const cur=Object.assign({},stock[m.item]||{});if(typeof m.prev.wh==="number")cur.wh=m.prev.wh;if(typeof m.prev.bar==="boolean")cur.bar=m.prev.bar;
-    await db.doc("stock/"+m.item).set(cur);await db.doc("moves/"+id).delete();
-    setStatus(x?esc(nm(x))+": действие отменено":"Действие отменено")}
-  catch(e){setStatus("Не получилось отменить: "+(e&&e.message||"нет доступа"),true)}
-  busy=false;render()}
+// Отмена последней версии позиции добавляет компенсацию, сохраняя исходный журнал.
+async function undoMove(id){if(!db||busy)return;const m=moves.find(x=>x.id===id);if(!m)return;
+  if(!m.operationId){setStatus("Старые движения нельзя безопасно отменить автоматически",true);return}
+  busy=true;try{await stockWrite([{id:m.item,revision:stock[m.item]?.revision||0,undo:m.operationId}]);setStatus("Добавлено обратное движение")}
+  catch(e){setStatus("Не получилось отменить: "+e.message,true)}finally{busy=false;render()}}
 $("#list").addEventListener("click",e=>{if(st.tab!=="log")return;const b=e.target.closest("[data-lf]");if(b){logF=b.dataset.lf;render();return}
   const u=e.target.closest("[data-undo]");if(!u)return;
   if(!u.dataset.sure){u.dataset.sure="1";u.textContent="Точно отменить?";setTimeout(()=>{if(u.isConnected){delete u.dataset.sure;u.textContent="Отменить"}},3000);return}
