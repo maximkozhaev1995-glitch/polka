@@ -1,0 +1,27 @@
+name: Mixora B5 build consistency
+on:
+  pull_request:
+    paths:
+      - 'src/stoika.html'
+      - 'app/shim.js'
+      - 'app/config.js'
+      - 'build_app.py'
+      - 'index.html'
+      - '.github/workflows/mixora-build-consistency.yml'
+  workflow_dispatch:
+jobs:
+  build-consistency:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Rebuild staff app
+        run: python build_app.py
+      - name: Verify committed index.html matches sources
+        run: |
+          git diff --exit-code -- index.html
+          grep -q 'commitStockBatch' index.html
