@@ -904,22 +904,41 @@ function showDlg(h){$("#dlg-body").innerHTML=h;const d=$("#dlg");if(d.open)try{d
 function closeDlg(){const d=$("#dlg");try{d.close()}catch(e){d.removeAttribute("open")}$("#dlg-scrim").hidden=true}
 $("#dlg-scrim").onclick=closeDlg;
 async function commit(){
-  if(!db||busy)return;busy=true;$("#dlg-ok").disabled=true;$("#dlg-ok").textContent="Сохраняю…";
-  const ids=Object.keys(draft),at=new Date().toISOString(),done=[],leftOf={};let fail=0;
-  for(const id of ids){const x=byId[id],d=draft[id];if(!x)continue;
-    const n=wh(x),next=Math.max(0,n+(d.d||0));
-    const prev={wh:n,bar:(stock[id]&&typeof stock[id].bar==="boolean")?stock[id].bar:null};
-    const patch={wh:next};if(d.bar!==undefined)patch.bar=d.bar;const clrStop=!!(stock[id]&&stock[id].stopAuto&&next>0);
-    const mv={item:id,qty:d.d||0,left:next,prev,at};if(d.bar!==undefined)mv.barTo=d.bar;
-    try{const nd=Object.assign({},stock[id]||{},patch);if(clrStop){delete nd.stop;delete nd.stopAuto}await db.doc("stock/"+id).set(nd);await db.collection("moves").add(mv);done.push(id);if((d.d||0)<0)leftOf[id]=next}
-    catch(e){fail++}
+  if(!db||busy)return;
+  if(!db.commitStockBatch){setStatus("Складская транзакция недоступна. Ничего не записано.",true);return}
+  const ids=Object.keys(draft).filter(id=>byId[id]&&(draft[id].d||draft[id].bar!==undefined));
+  if(!ids.length)return;
+  const items=ids.map(id=>({id,delta:draft[id].d||0,expected_wh:wh(byId[id]),
+    ...(draft[id].bar===undefined?{}:{bar:draft[id].bar,expected_bar:onBar(byId[id])})}));
+  // Ключ сохраняется между повторами запроса после обрыва сети.
+  const fingerprint=JSON.stringify(items);
+  let pending=null;
+  try{pending=JSON.parse(localStorage.getItem("mixora-stock-pending")||"null")}catch(e){}
+  if(!pending||pending.fingerprint!==fingerprint){
+    if(pending){setStatus("Есть незавершённая складская операция. Повторите её или обновите данные перед новой.",true);return}
+    if(!crypto||!crypto.randomUUID){setStatus("Для безопасной записи нужен защищённый браузер.",true);return}
+    pending={id:crypto.randomUUID(),fingerprint,items};
+    try{localStorage.setItem("mixora-stock-pending",JSON.stringify(pending))}
+    catch(e){setStatus("Не удалось сохранить ключ операции. Ничего не записано.",true);return}
   }
-  done.forEach(id=>delete draft[id]);saveDraft();busy=false;
-  const auto=Object.keys(leftOf).map(id=>{if(cmdDraftIds.has(id))return null;const x=byId[id];return x&&leftOf[id]<=1?[x,autoOrder(x,leftOf[id])]:null}).filter(a=>a&&a[1]);
-  ids.forEach(id=>cmdDraftIds.delete(id));
-  if(fail){setStatus("Не сохранилось позиций: "+fail+". Они остались в черновике",true);openReview()}
-  else{closeDlg();setStatus("Подтверждено позиций: "+done.length);if(auto.length)toast("В заказ сами добавились: "+auto.map(a=>esc(nm(a[0]))+" — "+a[1]).join(", "))}
-  render();
+  busy=true;const ok=$("#dlg-ok");if(ok){ok.disabled=true;ok.textContent="Сохраняю…"}
+  try{
+    const result=await db.commitStockBatch(pending.id,pending.items);
+    if(!result||!result.applied)throw Error("Нет подтверждения сервера");
+    // Удаляем только те записи черновика, которые были отправлены.
+    for(const id of ids)if(JSON.stringify({id,delta:draft[id]?.d||0,expected_wh:wh(byId[id]),
+      ...(draft[id]?.bar===undefined?{}:{bar:draft[id].bar,expected_bar:onBar(byId[id])})})===
+      JSON.stringify(items.find(x=>x.id===id)))delete draft[id];
+    saveDraft();localStorage.removeItem("mixora-stock-pending");
+    const auto=(result.rows||[]).filter(x=>x.delta<0&&!cmdDraftIds.has(x.id)&&x.left<=1)
+      .map(x=>[byId[x.id],byId[x.id]&&autoOrder(byId[x.id],x.left)]).filter(x=>x[0]&&x[1]);
+    ids.forEach(id=>cmdDraftIds.delete(id));
+    closeDlg();setStatus("Подтверждено позиций: "+(result.rows||[]).length);
+    if(auto.length)toast("В заказ сами добавились: "+auto.map(a=>esc(nm(a[0]))+" — "+a[1]).join(", "));
+  }catch(e){
+    // При таймауте неизвестно, завершилась ли транзакция: сохраняем id для идемпотентного повтора.
+    setStatus("Не удалось подтвердить запись: "+(e&&e.message||"ошибка")+". Повторите с тем же черновиком.",true);
+  }finally{busy=false;render();if($("#dlg").open)openReview()}
 }
 function askUndo(id,one){
   const m=lastMove(id),x=byId[id];if(!m)return;
