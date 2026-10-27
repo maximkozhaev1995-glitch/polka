@@ -190,7 +190,7 @@
   const readLabels=async(images,signal)=>{
     const{texts}=await readPhotos(images,signal);
     const failed=texts.filter(t=>t&&t.failed).length;
-    return {text:texts.filter(t=>typeof t==="string").join("\n"),failed,total:texts.length}};
+    return {text:texts.map((t,i)=>typeof t==="string"?"Фото "+(i+1)+":\n"+t:"").filter(Boolean).join("\n"),failed,total:texts.length}};
   const sample=async(turns,opts)=>{
     opts=opts||{};
     const first=turns[0]&&turns[0].role==="user"?turns[0].content:"";
