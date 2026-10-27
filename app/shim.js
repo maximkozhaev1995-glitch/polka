@@ -129,6 +129,9 @@
   const bump=c=>setTimeout(()=>refresh(c),150);
   const listen=c=>({onSnapshot:(f,err)=>{const s=subs[c]||(subs[c]={fns:[],errs:[],hash:""});s.fns.push(f);if(err)s.errs.push(err);refresh(c)}});
   const db={
+    // Один PostgREST INSERT/UPSERT выполняется транзакционно для всех меток.
+    setStockBatch:async docs=>{const m=MAP.stock;const rows=Object.entries(docs).map(([id,o])=>m.fromDoc(id,o));
+      if(!rows.length)return;await rest("stock?on_conflict="+m.conflict,{method:"POST",headers:Object.assign(H(),{Prefer:"resolution=merge-duplicates,missing=default"}),body:JSON.stringify(rows)});bump("stock")},
     bulk:async(c,ids,o)=>{const m=MAP[c];await rest(m.table+"?"+m.key+"=in.("+ids.map(encodeURIComponent).join(",")+")",{method:"PATCH",body:JSON.stringify(m.fromDoc(null,o))});setTimeout(()=>refresh(c),150)},
     collection:c=>Object.assign(listen(c),{
       orderBy:()=>({limit:()=>listen(c)}),
@@ -238,3 +241,4 @@
     if(k==="sample"){await readyP;return sample}
     return null}};
 })();
+
