@@ -177,6 +177,17 @@ body.ai-mode{overflow:hidden;padding-bottom:0}
 body.ai-mode .wrap{overscroll-behavior:none}
 .ai-top .btn{flex:none}
 .ai-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.ai-tools{flex:none;position:relative;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+.ai-tools summary{cursor:pointer;list-style:none;padding:12px 14px;font-size:14px;font-weight:600}
+.ai-tools summary::-webkit-details-marker{display:none}
+.ai-tools summary::after{content:'＋';float:right;color:var(--muted)}
+.ai-tools[open] summary::after{content:'−'}
+.ai-tools-grid{display:flex;flex-wrap:wrap;gap:8px;padding:0 12px 12px}
+.ai-tools-grid .btn{flex:1 1 110px;min-height:44px}
+#chat .ai-in{padding:8px;border:1px solid var(--line);border-radius:16px;background:var(--surface);gap:8px}
+#chat .ai-in textarea{border:0;background:transparent;box-shadow:none;padding:10px 4px}
+#chat .ai-in:focus-within{border-color:var(--accent)}
+#chat .ai-top .small{font-size:12px}
 .ai-log{display:flex;flex-direction:column;gap:8px;flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding-bottom:4px}
 .ai-log>.msg:first-child{margin-top:8px}
 .msg{max-width:88%;padding:10px 12px;border-radius:14px;white-space:pre-wrap;font-size:15px;line-height:1.45;overflow-wrap:anywhere;user-select:text;-webkit-user-select:text;-webkit-touch-callout:default}
@@ -453,12 +464,19 @@ body{margin:0}
 <section class="omanual" id="omanual" hidden></section>
 <main id="list"></main>
 <section class="chat" id="chat" hidden>
-  <div class="ai-top"><span class="muted small">Отвечает ИИ. Склад меняется только после «Подтвердить». Команды: /перенос /пополнить /списать /заказать /найти</span><button class="btn sm" type="button" id="ai-new">Заново</button></div>
+  <div class="ai-top"><span class="muted small">Изменения — после подтверждения</span><button class="btn sm" type="button" id="ai-new" title="Очистить текущую переписку">Новый диалог</button></div>
   <div class="ai-log" id="ai-log" aria-live="polite"></div>
   <p class="small aioff" id="ai-off" hidden>Ассистент недоступен в этом окне. Открой страницу в claude.ai.</p>
   <button class="ai-imgs" id="ai-imgs" type="button" hidden></button>
+  <details class="ai-tools" id="ai-tools"><summary>Действия со складом</summary><div class="ai-tools-grid" role="group" aria-label="Вставить команду">
+    <button class="btn" type="button" data-ai-command="/перенос">Перенести</button>
+    <button class="btn" type="button" data-ai-command="/пополнить">Пополнить</button>
+    <button class="btn" type="button" data-ai-command="/списать">Списать</button>
+    <button class="btn" type="button" data-ai-command="/заказать">Заказать</button>
+    <button class="btn" type="button" data-ai-command="/найти">Найти</button>
+  </div></details>
   <div class="ai-in"><label class="btn ai-ph" id="ai-photo-l" hidden title="Фото банок" aria-label="Приложить фото">📷<input type="file" id="ai-photo" accept="image/*" multiple hidden></label>
-    <textarea id="ai-in" rows="1" placeholder="Например: микс…" enterkeyhint="send"></textarea>
+    <textarea id="ai-in" rows="1" placeholder="Сообщение…" aria-label="Сообщение ассистенту" enterkeyhint="send"></textarea>
     <button class="btn go" type="button" id="ai-send">Отправить</button><button class="btn" type="button" id="ai-stop" hidden>Стоп</button></div>
 </section>
 <section class="sup" id="sup" hidden></section>
@@ -1519,10 +1537,9 @@ $("#ai-stop").onclick=()=>aiCtl&&aiCtl.abort();
 $("#ai-in").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();aiSend()}});
 $("#ai-photo").addEventListener("change",e=>{aiImgs=[...e.target.files].slice(0,5);e.target.value="";renderAiImgs()});
 $("#ai-imgs").onclick=()=>{aiImgs=[];renderAiImgs()};
-$("#ai-new").onclick=()=>{if(aiCtl)aiCtl.abort();aiTurns=[];aiView=[];$("#ai-log").innerHTML="";aiBubble("assistant",AI_HELLO);try{localStorage.removeItem("polka-ai-chat")}catch(e){}};
-document.querySelectorAll(".ai-q").forEach(b=>b.onclick=()=>{$("#ai-in").value=b.textContent;aiSend()});
-const AI_HELLO="Я помогу со складом. Напиши, что перенёс за стойку или что пришло, пришли фото банок, спроси, что заказать, или попроси микс из того, что на стойке. Остатки меняю только черновиком: в склад они попадут после «Подтвердить».";
-aiBubble("assistant",AI_HELLO);aiRestore();
+$("#ai-new").onclick=()=>{if(aiCtl)aiCtl.abort();aiTurns=[];aiView=[];$("#ai-log").innerHTML="";aiImgs=[];renderAiImgs();$("#ai-in").value="";try{localStorage.removeItem("polka-ai-chat")}catch(e){}};
+document.querySelectorAll("[data-ai-command]").forEach(b=>b.onclick=()=>{const box=$("#ai-in");if(box.disabled)return;box.value=b.dataset.aiCommand+" "+box.value.replace(/^\/(перенос|пополнить|списать|заказать|найти)\s*/,"");$("#ai-tools").open=false;box.focus()});
+aiRestore();
 (async()=>{try{sampleFn=await window.claude?.use?.("sample")}catch(e){sampleFn=null}
   if(sampleFn){try{const l=await sampleFn.limits();aiCanImg=!!l.images;if(l.images)$("#ai-photo").accept=l.images.mediaTypes.join(",")}catch(e){}}
   aiUi();hlpUi()})();
