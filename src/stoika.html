@@ -906,7 +906,7 @@ $("#dlg-scrim").onclick=closeDlg;
 async function commit(){
   if(!db||busy)return;
   if(!db.commitStockBatch){setStatus("Складская транзакция недоступна. Ничего не записано.",true);return}
-  const ids=Object.keys(draft).filter(id=>byId[id]&&(draft[id].d||draft[id].bar!==undefined));
+  const ids=Object.keys(draft).filter(id=>byId[id]&&(draft[id].d||draft[id].bar!==undefined)).sort();
   if(!ids.length)return;
   const items=ids.map(id=>({id,delta:draft[id].d||0,expected_wh:wh(byId[id]),
     ...(draft[id].bar===undefined?{}:{bar:draft[id].bar,expected_bar:onBar(byId[id])})}));
@@ -915,7 +915,7 @@ async function commit(){
   let pending=null;
   try{pending=JSON.parse(localStorage.getItem("mixora-stock-pending")||"null")}catch(e){}
   if(!pending||pending.fingerprint!==fingerprint){
-    if(pending){setStatus("Есть незавершённая складская операция. Повторите её или обновите данные перед новой.",true);return}
+    if(pending){setStatus("Есть незавершённая складская операция. Восстановите прежний черновик или обратитесь к администратору для проверки записи.",true);return}
     if(!crypto||!crypto.randomUUID){setStatus("Для безопасной записи нужен защищённый браузер.",true);return}
     pending={id:crypto.randomUUID(),fingerprint,items};
     try{localStorage.setItem("mixora-stock-pending",JSON.stringify(pending))}
@@ -936,9 +936,17 @@ async function commit(){
     closeDlg();setStatus("Подтверждено позиций: "+(result.rows||[]).length);
     if(auto.length)toast("В заказ сами добавились: "+auto.map(a=>esc(nm(a[0]))+" — "+a[1]).join(", "));
   }catch(e){
-    // При таймауте неизвестно, завершилась ли транзакция: сохраняем id для идемпотентного повтора.
-    setStatus("Не удалось подтвердить запись: "+(e&&e.message||"ошибка")+". Повторите с тем же черновиком.",true);
-  }finally{busy=false;render();if($("#dlg").open)openReview()}
+    const msg=String(e&&e.message||"ошибка");
+    // Серверные 4xx и PostgreSQL errors означают явный откат; неопределённые сетевые сбои сохраняют ключ.
+    const rollback=(e&&typeof e.status==="number"&&e.status>=400&&e.status<500)||
+      /Stock changed|Insufficient stock|Invalid|Forbidden|Unauthorized|Missing stock|Empty change|Idempotency key reused/i.test(msg);
+    if(rollback){try{localStorage.removeItem("mixora-stock-pending")}catch(_){}}
+    setStatus("Не удалось подтвердить запись: "+msg+(rollback?". Обновите остатки и повторите.":". Повторите с тем же черновиком."),true);
+  }finally{
+    busy=false;render();
+    if($("#dlg").open)openReview();
+    const button=$("#dlg-ok");if(button){button.disabled=false;button.textContent="Подтвердить"}
+  }
 }
 function askUndo(id,one){
   const m=lastMove(id),x=byId[id];if(!m)return;
