@@ -472,8 +472,7 @@ body{margin:0}
   <details class="ai-tools" id="ai-tools"><summary>Действия со складом</summary><div class="ai-tools-grid" role="group" aria-label="Вставить команду">
     <button class="btn" type="button" data-ai-command="/перенос">Перенести</button>
     <button class="btn" type="button" data-ai-command="/пополнить">Пополнить</button>
-    <button class="btn" type="button" data-ai-command="/списать">Списать</button>
-    <button class="btn" type="button" data-ai-command="/заказать">Заказать</button>
+    <button class="btn" type="button" data-ai-command="/списать и заказать">Списать и заказать</button>
     <button class="btn" type="button" data-ai-command="/найти">Найти</button>
   </div></details>
   <div class="ai-in"><label class="btn ai-ph" id="ai-photo-l" hidden title="Фото банок" aria-label="Приложить фото">📷<input type="file" id="ai-photo" accept="image/*" multiple hidden></label>
@@ -1782,7 +1781,7 @@ $("#ai-in").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.pr
 $("#ai-photo").addEventListener("change",e=>{aiImgs=[...e.target.files].slice(0,5);e.target.value="";renderAiImgs()});
 $("#ai-imgs").onclick=()=>{aiImgs=[];renderAiImgs()};
 $("#ai-new").onclick=()=>{if(aiCtl)aiCtl.abort();aiTurns=[];aiView=[];$("#ai-log").innerHTML="";aiImgs=[];renderAiImgs();$("#ai-in").value="";try{localStorage.removeItem("polka-ai-chat")}catch(e){}};
-document.querySelectorAll("[data-ai-command]").forEach(b=>b.onclick=()=>{const box=$("#ai-in");if(box.disabled)return;box.value=b.dataset.aiCommand+" "+box.value.replace(/^\/(перенос|пополнить|списать|заказать|найти)\s*/,"");$("#ai-tools").open=false;box.focus()});
+document.querySelectorAll("[data-ai-command]").forEach(b=>b.onclick=()=>{const box=$("#ai-in");if(box.disabled)return;box.value=b.dataset.aiCommand+" "+box.value.replace(/^\/(списать и заказать|перенос|пополнить|списать|заказать|найти)\s*/,"");$("#ai-tools").open=false;box.focus()});
 aiRestore();
 (async()=>{try{sampleFn=await window.claude?.use?.("sample")}catch(e){sampleFn=null}
   if(sampleFn){try{const l=await sampleFn.limits();aiCanImg=!!l.images;if(l.images)$("#ai-photo").accept=l.images.mediaTypes.join(",")}catch(e){}}
