@@ -1,0 +1,398 @@
+[
+  {
+    "schemaname": "public",
+    "tablename": "codes",
+    "policyname": "codes_read",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "qual": "true",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "favorites",
+    "policyname": "fav_all",
+    "roles": "{public}",
+    "cmd": "ALL",
+    "qual": "true",
+    "with_check": "true"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flavors",
+    "policyname": "flavors_read",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "qual": "true",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flavors",
+    "policyname": "flavors_write",
+    "roles": "{public}",
+    "cmd": "ALL",
+    "qual": "(me_role() = 'manager'::text)",
+    "with_check": "(me_role() = 'manager'::text)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "guest_mixes",
+    "policyname": "guest_mixes_guest_read",
+    "roles": "{anon}",
+    "cmd": "SELECT",
+    "qual": "(taken = false)",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "guest_mixes",
+    "policyname": "guest_mixes_staff_insert",
+    "roles": "{authenticated}",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "(venue_id = me_venue())"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "guest_mixes",
+    "policyname": "guest_mixes_staff_read",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "(venue_id = me_venue())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "inv_log",
+    "policyname": "inv_log_read",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "qual": "(venue_id = me_venue())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "inv_log",
+    "policyname": "inv_log_write",
+    "roles": "{public}",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "(venue_id = me_venue())"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "invites",
+    "policyname": "invites_mgr",
+    "roles": "{public}",
+    "cmd": "ALL",
+    "qual": "((me_role() = 'manager'::text) AND (venue_id = me_venue()))",
+    "with_check": "((me_role() = 'manager'::text) AND (venue_id = me_venue()))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "knowledge",
+    "policyname": "knowledge_delete",
+    "roles": "{public}",
+    "cmd": "DELETE",
+    "qual": "((venue_id = me_venue()) AND (me_role() = 'manager'::text) AND (NOT (EXISTS ( SELECT 1\n   FROM knowledge_cat c\n  WHERE ((c.id = knowledge.cat_id) AND c.protected)))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "knowledge",
+    "policyname": "knowledge_read",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "qual": "(venue_id = me_venue())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "knowledge",
+    "policyname": "knowledge_write",
+    "roles": "{public}",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "((venue_id = me_venue()) AND (me_role() = 'manager'::text))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "knowledge_cat",
+    "policyname": "knowledge_cat_delete",
+    "roles": "{public}",
+    "cmd": "DELETE",
+    "qual": "((venue_id = me_venue()) AND (me_role() = 'manager'::text) AND (NOT protected))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "knowledge_cat",
+    "policyname": "knowledge_cat_read",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "qual": "(venue_id = me_venue())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "knowledge_cat",
+    "policyname": "knowledge_cat_write",
+    "roles": "{public}",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "((venue_id = me_venue()) AND (me_role() = 'manager'::text))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "mixes",
+    "policyname": "mixes_delete",
+    "roles": "{public}",
+    "cmd": "DELETE",
+    "qual": "((venue_id = me_venue()) AND ((me_role() = 'manager'::text) OR (by_tg = me_tg())))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "mixes",
+    "policyname": "mixes_insert",
+    "roles": "{public}",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "(venue_id = me_venue())"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "mixes",
+    "policyname": "mixes_read",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "qual": "((venue_id = me_venue()) OR (in_karta AND (NOT hidden)))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "mixes",
+    "policyname": "mixes_update",
+    "roles": "{public}",
+    "cmd": "UPDATE",
+    "qual": "((venue_id = me_venue()) AND ((me_role() = 'manager'::text) OR (by_tg = me_tg())))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "moves",
+    "policyname": "moves_delete",
+    "roles": "{public}",
+    "cmd": "DELETE",
+    "qual": "((venue_id = me_venue()) AND (me_role() = 'manager'::text))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "moves",
+    "policyname": "moves_read",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "qual": "(venue_id = me_venue())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "moves",
+    "policyname": "moves_write",
+    "roles": "{public}",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "(venue_id = me_venue())"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "orders",
+    "policyname": "orders_manager",
+    "roles": "{public}",
+    "cmd": "ALL",
+    "qual": "((me_role() = 'manager'::text) AND (venue_id = me_venue()))",
+    "with_check": "(venue_id = me_venue())"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "pack_sizes",
+    "policyname": "pack_sizes_read",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "true",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "stock",
+    "policyname": "stock_manager",
+    "roles": "{public}",
+    "cmd": "ALL",
+    "qual": "((me_role() = 'manager'::text) AND (venue_id = me_venue()))",
+    "with_check": "(venue_id = me_venue())"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "stock",
+    "policyname": "stock_master_insert",
+    "roles": "{public}",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "((me_role() = 'master'::text) AND (venue_id = me_venue()))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "stock",
+    "policyname": "stock_master_stop",
+    "roles": "{public}",
+    "cmd": "UPDATE",
+    "qual": "((me_role() = 'master'::text) AND (venue_id = me_venue()))",
+    "with_check": "(venue_id = me_venue())"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "stock",
+    "policyname": "stock_read",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "qual": "(venue_id = me_venue())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "suppliers",
+    "policyname": "suppliers_manager",
+    "roles": "{public}",
+    "cmd": "ALL",
+    "qual": "((me_role() = 'manager'::text) AND (venue_id = me_venue()))",
+    "with_check": "(venue_id = me_venue())"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "task_log",
+    "policyname": "task_log_delete",
+    "roles": "{public}",
+    "cmd": "DELETE",
+    "qual": "(venue_id = me_venue())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "task_log",
+    "policyname": "task_log_read",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "qual": "(venue_id = me_venue())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "task_log",
+    "policyname": "task_log_write",
+    "roles": "{public}",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "(venue_id = me_venue())"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "tasks",
+    "policyname": "tasks_delete",
+    "roles": "{public}",
+    "cmd": "DELETE",
+    "qual": "((venue_id = me_venue()) AND (me_role() = 'manager'::text))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "tasks",
+    "policyname": "tasks_insert",
+    "roles": "{public}",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "((venue_id = me_venue()) AND (me_role() = 'manager'::text))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "tasks",
+    "policyname": "tasks_read",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "qual": "(venue_id = me_venue())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "tasks",
+    "policyname": "tasks_update",
+    "roles": "{public}",
+    "cmd": "UPDATE",
+    "qual": "((venue_id = me_venue()) AND (me_role() = 'manager'::text))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "users",
+    "policyname": "users_manage",
+    "roles": "{public}",
+    "cmd": "ALL",
+    "qual": "((me_role() = 'manager'::text) AND (venue_id = me_venue()))",
+    "with_check": "(venue_id = me_venue())"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "users",
+    "policyname": "users_self",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "qual": "(venue_id = me_venue())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "venues",
+    "policyname": "venues_own_read",
+    "roles": "{authenticated}",
+    "cmd": "SELECT",
+    "qual": "(id = me_venue())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "wishes",
+    "policyname": "wishes_guest_add",
+    "roles": "{anon}",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "(state = 'new'::text)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "wishes",
+    "policyname": "wishes_mgr",
+    "roles": "{public}",
+    "cmd": "ALL",
+    "qual": "((me_role() = 'manager'::text) AND (venue_id = me_venue()))",
+    "with_check": "((me_role() = 'manager'::text) AND (venue_id = me_venue()))"
+  },
+  {
+    "schemaname": "storage",
+    "tablename": "objects",
+    "policyname": "files_manager",
+    "roles": "{public}",
+    "cmd": "ALL",
+    "qual": "((bucket_id = 'files'::text) AND ((storage.foldername(name))[1] = (me_venue())::text) AND (me_role() = 'manager'::text))",
+    "with_check": "((bucket_id = 'files'::text) AND ((storage.foldername(name))[1] = (me_venue())::text) AND (me_role() = 'manager'::text))"
+  },
+  {
+    "schemaname": "storage",
+    "tablename": "objects",
+    "policyname": "files_read_team",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "qual": "((bucket_id = 'files'::text) AND ((storage.foldername(name))[1] = (me_venue())::text) AND ((storage.foldername(name))[2] = 'knowledge'::text))",
+    "with_check": null
+  }
+]

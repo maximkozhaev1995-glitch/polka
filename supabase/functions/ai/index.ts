@@ -13,11 +13,21 @@ const out = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s
 const DAILY_LIMIT = 300; // запросов на человека в сутки (считаются только вопросы человека, не шаги инструментов — см. ниже)
 const MODELS = ["claude-haiku-5-5", "claude-sonnet-5-5"];
 
-function tgId(req: Request): number | null {
+async function tgId(req: Request): Promise<number | null> {
   try {
-    const t = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
-    const p = JSON.parse(atob(t.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
-    return p.tg_id ? Number(p.tg_id) : null;
+    const secret = Deno.env.get("APP_JWT_SECRET");
+    if (!secret) return null;
+    const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
+    const parts = token.split(".");if (parts.length !== 3) return null;
+    const decode = (part: string) => Uint8Array.from(atob(part.replace(/-/g,"+").replace(/_/g,"/")),c=>c.charCodeAt(0));
+    const header = JSON.parse(new TextDecoder().decode(decode(parts[0])));
+    if (header.alg !== "HS256") return null;
+    const key = await crypto.subtle.importKey("raw",new TextEncoder().encode(secret),{name:"HMAC",hash:"SHA-256"},false,["verify"]);
+    if (!await crypto.subtle.verify("HMAC",key,decode(parts[2]),new TextEncoder().encode(parts[0]+"."+parts[1]))) return null;
+    const claims = JSON.parse(new TextDecoder().decode(decode(parts[1]))), now = Math.floor(Date.now()/1000);
+    if (claims.role !== "authenticated" || claims.aud !== "authenticated" || !Number.isFinite(claims.exp) || claims.exp <= now || !Number.isFinite(claims.iat) || claims.iat > now+300) return null;
+    if (!/^[0-9]{1,15}$/.test(String(claims.sub)) || claims.tg_id !== undefined && String(claims.tg_id) !== String(claims.sub)) return null;
+    return Number(claims.sub);
   } catch { return null; }
 }
 
@@ -397,10 +407,13 @@ Deno.serve(async (req) => {
     const geminiKey = Deno.env.get("GEMINI_API_KEY");
     const useGemini = Deno.env.get("AI_PROVIDER") === "gemini" ? !!geminiKey : (!claudeKey && !!geminiKey);
     if (!claudeKey && !geminiKey) return out({ error: "not_configured" }, 503);
-    const tg = tgId(req);
+    const tg = await tgId(req);
     if (!tg) return out({ error: "session_expired" }, 401);
 
     const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const member = await db.from("users").select("tg_id,venue_id").eq("tg_id",tg).maybeSingle();
+    if (member.error) return out({error:"server_error"},500);
+    if (!member.data?.venue_id) return out({error:"session_expired"},401);
     const { system, messages, tools, ocr_only } = await req.json();
     const hasImg = messages.some((m: any) => Array.isArray(m.content) && m.content.some((b: any) => b.type === "image"));
     // Только распознавание, без вызова модели: приложение сверяет текст с каталогом само и присылает фото
