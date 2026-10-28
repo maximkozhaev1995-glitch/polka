@@ -31,7 +31,9 @@ jobs:
         with:
           node-version: '22'
       - name: B5 client recovery and write guards
-        run: node tests/b5-client.cjs
+        run: |
+          node tests/b5-client.cjs
+          node tests/b5-actions-client.cjs
       - name: Existing action and matching regressions
         run: |
           node tests/actions.cjs

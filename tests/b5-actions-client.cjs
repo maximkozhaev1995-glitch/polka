@@ -1,0 +1,21 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const source=fs.readFileSync('src/stoika.html','utf8');
+const code=source.slice(source.indexOf('function stockPendingKey()'),source.indexOf('function openReview(){'));
+function setup(){const ctx=vm.createContext({console});vm.runInContext(`
+const data=new Map(),localStorage={getItem:k=>data.get(k)||null,setItem:(k,v)=>data.set(k,v),removeItem:k=>data.delete(k)};
+let busy=false,scope='venue:1',sequence=0,calls=[],fail=null,lockAvailable=true,recoveries=0,stock={a:{revision:'12'}},invD={},invEd=new Set();
+const crypto={randomUUID:()=>String(++sequence)},render=()=>{},navigator={locks:{request:async(name,options,fn)=>{if(!options.ifAvailable)throw Error('queued lock');return fn(lockAvailable?{}:null)}}};
+const db={stockScope:()=>scope,stockAction:async(id,request)=>{calls.push({id,request:JSON.parse(JSON.stringify(request))});if(fail)throw fail;return{applied:true,operation_id:id}}};
+const openReview=()=>{recoveries++};
+`+code+`;recoverStockAction=()=>{recoveries++};`,ctx);return {run:s=>vm.runInContext(s,ctx)}}
+(async()=>{
+let groups=0;async function test(name,fn){await fn();console.log('PASS',name);groups++}
+await test('action unknown response replays exact UUID and request',async()=>{const {run}=setup();run(`req={action:'change',items:[stockActionItem({id:'a'},{bar:true})]};fail=Error('lost response')`);await assert.rejects(run('runStockAction(req)'));assert.equal(run('actionPending().version'),3);assert.equal(run('readStockPending().legacy'),true);run(`stock.a.revision='99';fail=null`);await run('runStockAction(null,true)');assert.equal(run('JSON.stringify(calls[0])===JSON.stringify(calls[1])'),true);assert.equal(run('actionPending()'),null)});
+await test('new request cannot replace unresolved action',async()=>{const {run}=setup();run(`req={action:'finish',items:[]};fail=Error('timeout')`);await assert.rejects(run('runStockAction(req)'));run('fail=null');await assert.rejects(run(`runStockAction({action:'create'})`));assert.equal(run('calls.length'),1);assert.equal(run('recoveries'),1)});
+await test('definite rejection clears key and permits correction',async()=>{for(const code of ['40001','42501','22023','23505']){const {run}=setup();run(`fail=Object.assign(Error('rollback'),{code:'${code}'})`);await assert.rejects(run(`runStockAction({action:'change'})`));assert.equal(run('actionPending()'),null);assert.equal(run('busy'),false)}});
+await test('old pending and legacy pending block new actions',async()=>{for(const key of ['mixora-stock-pending','mixora-stock-pending:venue:1']){const {run}=setup();run(`localStorage.setItem('${key}','{}')`);await assert.rejects(run(`runStockAction({action:'change'})`));assert.equal(run('calls.length'),0)}});
+await test('lock contention, missing Web Locks and corrupt storage fail before RPC',async()=>{for(const prep of ['lockAvailable=false','navigator.locks=null',`localStorage.setItem('mixora-stock-pending:venue:1','broken')`]){const {run}=setup();run(prep);await assert.rejects(run(`runStockAction({action:'change'})`));assert.equal(run('calls.length'),0)}});
+await test('actor scope and submitted inventory cleanup preserve newer edits',async()=>{const {run}=setup();run(`invD={a:5,b:8};invEd=new Set(['a','b']);req={action:'inventory',items:[{id:'a',state:{wh:5}},{id:'b',state:{wh:7}}]}`);await run('runStockAction(req)');assert.equal(run('invD.a'),undefined);assert.equal(run('invD.b'),8);assert.equal(run('invEd.has("b")'),true);run(`fail=Error('lost')`);await assert.rejects(run(`runStockAction({action:'change'})`));run(`scope='venue:2';fail=null`);await run(`runStockAction({action:'finish'})`);assert.equal(run('data.has("mixora-stock-pending:venue:1")'),true)});
+await test('movement consumption ignores originals compensated outside local window',()=>{const {run}=setup();const used=source.slice(source.indexOf('const used='),source.indexOf('\n',source.indexOf('const used=')));run(`const moves=[{item:'a',qty:-2,kind:'tobar',compensated:true,at:new Date().toISOString()},{item:'a',qty:-3,kind:'tobar',at:new Date().toISOString()}];`+used);assert.equal(run(`used('a',30)`),3)});
+console.log(groups+' restored client groups PASS');
+})().catch(e=>{console.error(e);process.exitCode=1});

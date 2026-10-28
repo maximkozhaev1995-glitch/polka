@@ -60,13 +60,13 @@
   const iso=x=>x?new Date(x).toISOString():undefined;
   const MAP={
     stock:{table:"stock",key:"flavor_id",
-      list:()=>"stock?select=flavor_id,wh,bar,stop,stop_auto,slow,retired&venue_id=eq."+V(),
-      toDoc:r=>{const d={wh:r.wh,bar:r.bar};if(r.stop)d.stop=true;if(r.stop_auto)d.stopAuto=true;if(r.slow)d.slow=true;if(r.retired)d.retired=true;return d},
+      list:()=>"stock?select=flavor_id,wh,bar,stop,stop_auto,slow,retired,revision&venue_id=eq."+V(),
+      toDoc:r=>{const d={wh:r.wh,bar:r.bar,revision:String(r.revision)};if(r.stop)d.stop=true;if(r.stop_auto)d.stopAuto=true;if(r.slow)d.slow=true;if(r.retired)d.retired=true;return d},
       fromDoc:(id,o)=>{const b={venue_id:V(),flavor_id:id,wh:o.wh||0,stop:!!o.stop,stop_auto:!!o.stopAuto,slow:!!o.slow,retired:!!o.retired};if(typeof o.bar==="boolean")b.bar=o.bar;return b},
       conflict:"venue_id,flavor_id"},
     moves:{table:"moves",key:"id",
-      list:()=>"moves?select=id,flavor_id,kind,qty,left_after,reason,prev,bar_to,at&venue_id=eq."+V()+"&order=at.desc&limit=400",
-      toDoc:r=>({item:r.flavor_id,kind:r.kind,qty:r.qty,left:r.left_after,reason:r.reason||undefined,prev:r.prev||undefined,barTo:r.bar_to===null?undefined:r.bar_to,at:r.at}),
+      list:()=>"mixora_stock_moves?select=id,flavor_id,kind,qty,left_after,reason,prev,bar_to,at,operation_id,reversal_of,compensated&venue_id=eq."+V()+"&order=at.desc&limit=400",
+      toDoc:r=>({compensated:r.compensated,operationId:r.operation_id,reversalOf:r.reversal_of,item:r.flavor_id,kind:r.kind,qty:r.qty,left:r.left_after,reason:r.reason||undefined,prev:r.prev||undefined,barTo:r.bar_to===null?undefined:r.bar_to,at:r.at}),
       fromDoc:(id,o)=>({venue_id:V(),flavor_id:o.item,kind:o.kind||"in",qty:o.qty||0,left_after:o.left,reason:o.reason||null,prev:o.prev||null,bar_to:typeof o.barTo==="boolean"?o.barTo:null,at:o.at||new Date().toISOString(),by_tg:session.user.tg_id})},
     suppliers:{table:"suppliers",key:"id",
       list:()=>"suppliers?select=id,name,contact,brands,ctype,legal_address,requisites,items,files&venue_id=eq."+V(),
@@ -99,8 +99,8 @@
       toDoc:r=>({b:r.brand,l:r.line||"",n:r.name,d:r.descr||"",s:"name",t:[],bar:false}),
       fromDoc:(id,o)=>({id,brand:o.b,line:o.l||"",name:o.n,descr:o.d||"",custom:true,venue_id:V()}),conflict:"id"},
     invlog:{table:"inv_log",key:"id",
-      list:()=>"inv_log?select=id,ig,items,shortage_units,shortage_g,price_per_g,shortage_rub,at&venue_id=eq."+V()+"&order=at.desc&limit=200",
-      toDoc:r=>({ig:r.ig,items:r.items,units:r.shortage_units,g:r.shortage_g,price:r.price_per_g,rub:r.shortage_rub,at:r.at}),
+      list:()=>"inv_log?select=id,ig,items,shortage_units,shortage_g,price_per_g,shortage_rub,at,unknown_weight_items&venue_id=eq."+V()+"&order=at.desc&limit=200",
+      toDoc:r=>({unknownWeights:r.unknown_weight_items,ig:r.ig,items:r.items,units:r.shortage_units,g:r.shortage_g,price:r.price_per_g,rub:r.shortage_rub,at:r.at}),
       fromDoc:(id,o)=>({venue_id:V(),ig:o.ig,items:o.items||0,shortage_units:o.units||0,shortage_g:o.g||0,price_per_g:o.price||null,shortage_rub:o.rub||null,by_tg:session.user.tg_id,at:o.at||new Date().toISOString()})},
     tasks:{table:"tasks",key:"id",patch:true,
       list:()=>"tasks?select=id,text,recur,weekday,created_at&venue_id=eq."+V()+"&order=created_at.desc&limit=200",
@@ -137,7 +137,11 @@
       const result=await rest("rpc/mixora_commit_stock_batch",{method:"POST",body:JSON.stringify({p_operation_id:operationId,p_items:items})});
       bump("stock");bump("moves");return result;
     },
-    // Legacy flags have no reviewed atomic RPC yet. Fail before any request.
+    stockAction:async(operationId,request)=>{
+      const result=await rest("rpc/mixora_stock_action",{method:"POST",body:JSON.stringify({p_operation_id:operationId,p_request:request})});
+      ["stock","moves","items","invlog"].forEach(bump);return result;
+    },
+    // Generic snapshots remain forbidden; explicit UI patches use stockAction.
     setStockBatch:async()=>{guardWrite("stock")},
     bulk:async(c,ids,o)=>{guardWrite(c);const m=MAP[c];await rest(m.table+"?"+m.key+"=in.("+ids.map(encodeURIComponent).join(",")+")",{method:"PATCH",body:JSON.stringify(m.fromDoc(null,o))});setTimeout(()=>refresh(c),150)},
     collection:c=>Object.assign(listen(c),{

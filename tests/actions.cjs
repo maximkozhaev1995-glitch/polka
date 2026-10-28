@@ -12,6 +12,7 @@ const wh=x=>stock[x.id]?.wh||0,onBar=x=>!!stock[x.id]?.bar,flag=(x,k)=>!!stock[x
 const nm=x=>x.b+' '+x.n,aiItem=x=>({id:x.id,brand:x.b,name:x.n}),ordGate=()=>null,can=()=>true;
 const saveDraft=()=>{},render=()=>{},saveOrder=()=>{throw Error('unexpected legacy save')},revertWish=()=>{},wishIdsFor=()=>[];
 const db={doc:path=>({set:async value=>{if(fail)throw Error('API failed');writes.push({path,value})}}),setStockBatch:async docs=>{if(fail)throw Error('API failed');writes.push({docs})}};
+const stockActionItem=(x,state)=>({id:x.id,revision:'0',state});const runStockAction=async request=>{if(fail)throw Error('API failed');writes.push({request})};
 const esc=s=>String(s);let boxes=[];const document={createElement:()=>{const buttons=[{},{}];const box={querySelectorAll:()=>buttons,buttons};boxes.push(box);return box}};
 `+tools+fixes+`
 let input={value:'поставь в заказ'},aiImgs=[],aiCtl=null,photoAcc=null,aiTurns=[],aiView=[],sampleFn;
@@ -26,7 +27,7 @@ await test('unknown product fails before persistence',()=>{assert.throws(()=>run
 await test('cancel does not write',()=>{run(`api.box({append(){}},p);boxes.at(-1).buttons[1].onclick()`);assert.equal(run('writes.length'),0)});
 await test('double confirmation saves once',async()=>{run(`api.box({append(){}},p)`);await run('boxes.at(-1).buttons[0].onclick()');await run('boxes.at(-1).buttons[0].onclick()');assert.equal(run('writes.length'),1);assert.equal(run('orderQ.a'),2)});
 await test('API failure leaves order unchanged and cannot replay',async()=>{run(`fail=true;p={list:[{t:'order',id:'a',qty:9,txt:'A 9'}]};api.box({append(){}},p)`);await run('boxes.at(-1).buttons[0].onclick()');await run('boxes.at(-1).buttons[0].onclick()');assert.equal(run('orderQ.a'),2);assert.equal(run('writes.length'),1);run('fail=false')});
-await test('flag proposal writes nothing',async()=>{run(`p={list:[],draft:{}};api.proposal(p).find(t=>t.name==='set_flag').execute({id:'a',flag:'stop',on:true})`);assert.equal(run('writes.length'),1);await run('api.commit(p.list)');assert.equal(run('writes.length'),2)});
+await test('flag proposal writes nothing',async()=>{run(`p={list:[],draft:{}};api.proposal(p).find(t=>t.name==='set_flag').execute({id:'a',flag:'stop',on:true})`);assert.equal(run('writes.length'),1);await run('api.commit(p.list)');assert.equal(run('writes.length'),2);assert.equal(run('writes.at(-1).request.items[0].state.stop'),true)});
 await test('mixed table batch is rejected before writes',async()=>{run(`p.list.push({t:'order',id:'a',qty:1})`);await assert.rejects(run('api.commit(p.list)'));assert.equal(run('writes.length'),2)});
 await test('stock tool is isolated until successful reply',()=>{run(`p={list:[],draft:{}};api.proposal(p).find(t=>t.name==='stage_stock').execute({id:'a',delta:-2,toBar:true})`);assert.equal(run('Object.keys(draft).length'),0);assert.equal(run('p.draft.a.d'),-2);assert.equal(run('writes.length'),2)});
 await test('model error after tools discards all changes',async()=>{run(`sampleFn=async(turns,o)=>{o.tools.find(t=>t.name==='stage_stock').execute({id:'a',delta:-1});o.tools.find(t=>t.name==='set_order').execute({id:'a',qty:7});throw Error('API down')};input.value='order';`);await run('aiSend()');assert.equal(run('Object.keys(draft).length'),0);assert.equal(run('orderQ.a'),2);assert.equal(run('writes.length'),2)});

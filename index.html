@@ -585,13 +585,13 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
   const iso=x=>x?new Date(x).toISOString():undefined;
   const MAP={
     stock:{table:"stock",key:"flavor_id",
-      list:()=>"stock?select=flavor_id,wh,bar,stop,stop_auto,slow,retired&venue_id=eq."+V(),
-      toDoc:r=>{const d={wh:r.wh,bar:r.bar};if(r.stop)d.stop=true;if(r.stop_auto)d.stopAuto=true;if(r.slow)d.slow=true;if(r.retired)d.retired=true;return d},
+      list:()=>"stock?select=flavor_id,wh,bar,stop,stop_auto,slow,retired,revision&venue_id=eq."+V(),
+      toDoc:r=>{const d={wh:r.wh,bar:r.bar,revision:String(r.revision)};if(r.stop)d.stop=true;if(r.stop_auto)d.stopAuto=true;if(r.slow)d.slow=true;if(r.retired)d.retired=true;return d},
       fromDoc:(id,o)=>{const b={venue_id:V(),flavor_id:id,wh:o.wh||0,stop:!!o.stop,stop_auto:!!o.stopAuto,slow:!!o.slow,retired:!!o.retired};if(typeof o.bar==="boolean")b.bar=o.bar;return b},
       conflict:"venue_id,flavor_id"},
     moves:{table:"moves",key:"id",
-      list:()=>"moves?select=id,flavor_id,kind,qty,left_after,reason,prev,bar_to,at&venue_id=eq."+V()+"&order=at.desc&limit=400",
-      toDoc:r=>({item:r.flavor_id,kind:r.kind,qty:r.qty,left:r.left_after,reason:r.reason||undefined,prev:r.prev||undefined,barTo:r.bar_to===null?undefined:r.bar_to,at:r.at}),
+      list:()=>"mixora_stock_moves?select=id,flavor_id,kind,qty,left_after,reason,prev,bar_to,at,operation_id,reversal_of,compensated&venue_id=eq."+V()+"&order=at.desc&limit=400",
+      toDoc:r=>({compensated:r.compensated,operationId:r.operation_id,reversalOf:r.reversal_of,item:r.flavor_id,kind:r.kind,qty:r.qty,left:r.left_after,reason:r.reason||undefined,prev:r.prev||undefined,barTo:r.bar_to===null?undefined:r.bar_to,at:r.at}),
       fromDoc:(id,o)=>({venue_id:V(),flavor_id:o.item,kind:o.kind||"in",qty:o.qty||0,left_after:o.left,reason:o.reason||null,prev:o.prev||null,bar_to:typeof o.barTo==="boolean"?o.barTo:null,at:o.at||new Date().toISOString(),by_tg:session.user.tg_id})},
     suppliers:{table:"suppliers",key:"id",
       list:()=>"suppliers?select=id,name,contact,brands,ctype,legal_address,requisites,items,files&venue_id=eq."+V(),
@@ -624,8 +624,8 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
       toDoc:r=>({b:r.brand,l:r.line||"",n:r.name,d:r.descr||"",s:"name",t:[],bar:false}),
       fromDoc:(id,o)=>({id,brand:o.b,line:o.l||"",name:o.n,descr:o.d||"",custom:true,venue_id:V()}),conflict:"id"},
     invlog:{table:"inv_log",key:"id",
-      list:()=>"inv_log?select=id,ig,items,shortage_units,shortage_g,price_per_g,shortage_rub,at&venue_id=eq."+V()+"&order=at.desc&limit=200",
-      toDoc:r=>({ig:r.ig,items:r.items,units:r.shortage_units,g:r.shortage_g,price:r.price_per_g,rub:r.shortage_rub,at:r.at}),
+      list:()=>"inv_log?select=id,ig,items,shortage_units,shortage_g,price_per_g,shortage_rub,at,unknown_weight_items&venue_id=eq."+V()+"&order=at.desc&limit=200",
+      toDoc:r=>({unknownWeights:r.unknown_weight_items,ig:r.ig,items:r.items,units:r.shortage_units,g:r.shortage_g,price:r.price_per_g,rub:r.shortage_rub,at:r.at}),
       fromDoc:(id,o)=>({venue_id:V(),ig:o.ig,items:o.items||0,shortage_units:o.units||0,shortage_g:o.g||0,price_per_g:o.price||null,shortage_rub:o.rub||null,by_tg:session.user.tg_id,at:o.at||new Date().toISOString()})},
     tasks:{table:"tasks",key:"id",patch:true,
       list:()=>"tasks?select=id,text,recur,weekday,created_at&venue_id=eq."+V()+"&order=created_at.desc&limit=200",
@@ -662,7 +662,11 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
       const result=await rest("rpc/mixora_commit_stock_batch",{method:"POST",body:JSON.stringify({p_operation_id:operationId,p_items:items})});
       bump("stock");bump("moves");return result;
     },
-    // Legacy flags have no reviewed atomic RPC yet. Fail before any request.
+    stockAction:async(operationId,request)=>{
+      const result=await rest("rpc/mixora_stock_action",{method:"POST",body:JSON.stringify({p_operation_id:operationId,p_request:request})});
+      ["stock","moves","items","invlog"].forEach(bump);return result;
+    },
+    // Generic snapshots remain forbidden; explicit UI patches use stockAction.
     setStockBatch:async()=>{guardWrite("stock")},
     bulk:async(c,ids,o)=>{guardWrite(c);const m=MAP[c];await rest(m.table+"?"+m.key+"=in.("+ids.map(encodeURIComponent).join(",")+")",{method:"PATCH",body:JSON.stringify(m.fromDoc(null,o))});setTimeout(()=>refresh(c),150)},
     collection:c=>Object.assign(listen(c),{
@@ -864,16 +868,16 @@ function match(x){
 }
 const lastMove=id=>moves.find(m=>m.item===id);
 // Расход: сколько банок ушло со склада за N дней (по журналу)
-const used=(id,days)=>{const t=Date.now()-days*864e5;return moves.reduce((a,m)=>a+(m.item===id&&m.qty<0&&m.kind!=="inv"&&m.kind!=="wo"&&Date.parse(m.at)>=t?-m.qty:0),0)};
+const used=(id,days)=>{const t=Date.now()-days*864e5;return moves.reduce((a,m)=>a+(!m.compensated&&!m.reversalOf&&m.item===id&&m.qty<0&&m.kind!=="inv"&&m.kind!=="wo"&&Date.parse(m.at)>=t?-m.qty:0),0)};
 const FREQ="★ Часто берёте";
-function freqList(){const t=Date.now()-14*864e5,c={};moves.forEach(m=>{if(m.qty<0&&m.kind!=="inv"&&m.kind!=="wo"&&Date.parse(m.at)>=t)c[m.item]=(c[m.item]||0)-m.qty});
+function freqList(){const t=Date.now()-14*864e5,c={};moves.forEach(m=>{if(!m.compensated&&!m.reversalOf&&m.qty<0&&m.kind!=="inv"&&m.kind!=="wo"&&Date.parse(m.at)>=t)c[m.item]=(c[m.item]||0)-m.qty});
   return Object.keys(c).filter(id=>byId[id]&&c[id]>=2).sort((a,b)=>c[b]-c[a]).slice(0,8).map(id=>byId[id])}
 // Ходовой вкус на исходе → сам в заказ: расход за 2 недели минус остаток, не меньше 1
 function autoOrder(x,left){if(left>1)return 0;const r=used(x.id,28);if(r<2&&left>0)return 0;const k=Math.max(1,Math.ceil(r/2)-left);if(oq(x)>=k)return 0;orderQ[x.id]=k;saveOrder();return k}
 let toastT=null;
 function toast(html,undo){const t=$("#toast");t.innerHTML='<span>'+html+'</span>'+(undo?'<button type="button" class="btn sm" id="t-undo">Отменить</button>':'');t.hidden=false;
   if(undo)$("#t-undo").onclick=()=>{t.hidden=true;undo()};clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},6000)}
-async function toBar(){setStatus("Эта операция временно закрыта. Изменяйте остатки через складской черновик.",true)}
+async function toBar(x,k){const n=wh(x);await putDoc(x,{...dcopy(x),wh:n-Math.min(k||1,n),bar:true},null,"Перенесено на стойку")}
 const IGROUPS=[["main","Обычные"],["cigar","Хука сигар"],["perfume","Парфюм"]];
 // Хука сигар — весь Kraken (включая Royal и Cigar), кроме Medium Seco и Strong Ligero —
 // эти два, хоть и звучат по-сигарному, у нас обычный табак. Jent Cigar, Bonche, Dogma — обычные.
@@ -891,13 +895,16 @@ function invSum(D,price){const{sh,ov,gs,go,nog}=invCalc(D),rub=(price&&gs)?Math.
 var invPriceByIg={};try{invPriceByIg=JSON.parse(localStorage.getItem("inv-price")||"{}")}catch(e){}
 function whWeight(){let n=0,g=0,no=0;DATA.forEach(x=>{const k=wh(x);if(!k||invSec(x)!==st.ig)return;n+=k;if(packMap[x.id])g+=k*packMap[x.id];else no+=k});return {n,g,no}}
 const invDiffG=()=>invDiff().filter(id=>invSec(byId[id])===st.ig);
-function openInv(){setStatus("Эта операция временно закрыта. Изменяйте остатки через складской черновик.",true)}
-async function finish(){setStatus("Эта операция временно закрыта. Изменяйте остатки через складской черновик.",true)}
+function openInv(){if(!isMgr)return;const ids=invDiffG(),ig=st.ig;
+ const items=ids.map(id=>stockActionItem(byId[id],{wh:invD[id]}));
+ showDlg('<h2>Инвентаризация: '+items.length+' поз.</h2><ul>'+items.map(i=>'<li>'+esc(nm(byId[i.id]))+': '+wh(byId[i.id])+' → '+i.state.wh+'</li>').join("")+'</ul><label class="f">Цена, ₽/г<input id="inv-price" type="number" min="0" step="0.01" value="0"></label><div class="dlg-btns"><button class="btn go" id="inv-ok">Сохранить всё</button><button class="btn" id="dlg-back">Назад</button></div>');
+ $("#dlg-back").onclick=closeDlg;$("#inv-ok").onclick=async()=>{try{await runStockAction({action:"inventory",ig,price:$("#inv-price").value||"0",items});closeDlg();toast("Инвентаризация сохранена")}catch(e){setStatus(e.message,true)}}}
+async function finish(x){try{await runStockAction({action:"finish",items:[stockActionItem(x,{})]});toast("Остаток обновлён")}catch(e){setStatus(e.message,true)}}
 let renderLater=false,lastOrderAt="";
 // ===== Стойка / Склад / Стоп-лист / Неликвид: нажал на вкус — появились нужные действия =====
 const V2=new Set(["bar","wh","stop","slow"]);
 let selId="",whLow=false,invNoSz=false,isMgr=false,realMgr=false;
-const idleDays=id=>{const m=moves.find(m=>m.item===id&&m.qty<0&&m.kind!=="inv"&&m.kind!=="wo");return m?Math.floor((Date.now()-Date.parse(m.at))/864e5):null};
+const idleDays=id=>{const m=moves.find(m=>!m.compensated&&!m.reversalOf&&m.item===id&&m.qty<0&&m.kind!=="inv"&&m.kind!=="wo");return m?Math.floor((Date.now()-Date.parse(m.at))/864e5):null};
 const journalDays=()=>moves.length?Math.floor((Date.now()-Date.parse(moves[moves.length-1].at))/864e5):0;
 const idleText=x=>{const d=idleDays(x.id);return d===null?(journalDays()>=7?"не брали с "+journalDays()+" дн.":""):d===0?"брали сегодня":"брали "+d+" дн. назад"};
 const slowCand=()=>journalDays()>=30?DATA.filter(x=>!flag(x,"slow")&&(wh(x)>0||onBar(x))&&(idleDays(x.id)===null||idleDays(x.id)>=30)):[];
@@ -907,7 +914,12 @@ function itemsV2(){const t=st.q?norm(st.q):"";const mq=x=>!t||norm([x.b,x.l,x.n,
   if(st.tab==="wh")return DATA.filter(x=>nr(x)&&mq(x)&&(t||wh(x)>0)&&(t||!whLow||(tracked(x)&&wh(x)<=1)));
   if(st.tab==="stop")return DATA.filter(x=>nr(x)&&mq(x)&&(t||flag(x,"stop")));
   return DATA.filter(x=>nr(x)&&mq(x)&&(t||flag(x,"slow")))}
-async function putDoc(){setStatus("Эта операция временно закрыта. Изменяйте остатки через складской черновик.",true)}
+async function putDoc(x,doc,mv,msg){try{
+  const state={};for(const k of ["wh","bar","stop","slow","retired"]){const value=k==="wh"?(doc.wh||0):!!doc[k];const old=k==="wh"?wh(x):!!(stock[x.id]||{})[k];if(value!==old)state[k]=value}
+  if(!Object.keys(state).length)return;
+  const item=stockActionItem(x,state);if(mv&&mv.kind==="wo"){item.kind="wo";item.reason=mv.reason}
+  const result=await runStockAction({action:"change",items:[item]});closeDlg();toast(msg,isMgr?()=>undoOperation(result.operation_id):null);render()
+}catch(e){setStatus("Не сохранено: "+e.message,true)}}
 const dcopy=x=>Object.assign({},stock[x.id]||{});
 function flagSet(x,k,on){const d=dcopy(x);if(on)d[k]=true;else{delete d[k];if(k==="stop")delete d.stopAuto}
   putDoc(x,d,null,'<b>'+esc(nm(x))+'</b>: '+(k==="stop"?(on?"в стоп-листе":"снят со стопа"):(on?"в неликвиде":"снят с неликвида")))}
@@ -921,7 +933,7 @@ function openTake(x){let q=Math.min(2,wh(x));const draw=()=>{const n=wh(x);showD
   $("#dlg-back").onclick=closeDlg;$("#dlg-body").querySelectorAll("[data-q]").forEach(b=>b.onclick=()=>{q=+b.dataset.q;draw()});
   const i=$("#tq");i.oninput=()=>{q=Math.max(1,Math.min(n,Math.round(Number(i.value)||1)));$("#t-ok").textContent="Взять "+q+" шт."};
   $("#t-ok").onclick=async()=>{closeDlg();await toBar(x,q)}};draw()}
-function takenHtml(){const t=Date.now()-30*60*1e3,by={};moves.forEach(m=>{if(m.kind==="tobar"&&m.qty<0&&Date.parse(m.at)>=t)by[m.item]=(by[m.item]||0)-m.qty});const ids=Object.keys(by).filter(id=>byId[id]);if(!ids.length)return"";
+function takenHtml(){const t=Date.now()-30*60*1e3,by={};moves.forEach(m=>{if(!m.compensated&&!m.reversalOf&&m.kind==="tobar"&&m.qty<0&&Date.parse(m.at)>=t)by[m.item]=(by[m.item]||0)-m.qty});const ids=Object.keys(by).filter(id=>byId[id]);if(!ids.length)return"";
   return '<div class="taken"><b>Взято со склада за 30 мин: '+ids.reduce((a,i)=>a+by[i],0)+'</b>'+ids.map(id=>'<button type="button" class="chip" data-v="undo" data-id="'+id+'">'+esc(nm(byId[id]))+' ×'+by[id]+' ✕</button>').join("")+'<small>✕ отменяет взятие</small></div>'}
 function offBar(x){const d=dcopy(x);d.bar=false;putDoc(x,d,{qty:0,left:wh(x),prev:{wh:wh(x),bar:true},barTo:false,kind:"off"},'<b>'+esc(nm(x))+'</b>: убран со стойки')}
 function openAdd(x){let q=1;const d=$("#dlg");
@@ -1079,6 +1091,8 @@ function renderLog(){
     return '<li>'+t.toLocaleDateString("ru-RU",{day:"numeric",month:"short"})+" "+t.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})+' — <b>'+esc(nm(x))+'</b> '+actText(m)+', на складе '+m.left+'</li>'}).join("");
 }
 function actText(m){
+  if(m.reversalOf)return "Компенсация операции: "+(m.qty>0?"+":"")+m.qty+" шт.";
+  if(m.compensated)return "Отменено компенсацией · "+actText({...m,compensated:false});
   if(m.kind==="in"&&!m.qty&&m.reason)return m.reason;
   if(m.kind==="wo")return "списано "+(-m.qty)+(m.reason?" ("+String(m.reason).toLowerCase()+")":"");
   if(typeof m.qty==="number"||m.barTo!==undefined){const p=[];
@@ -1124,7 +1138,26 @@ function readStockPending(){
   try{const p=JSON.parse(raw);if(p.version!==2||p.scope!==db.stockScope()||!p.drafts||!Array.isArray(p.items)||!p.items.length||typeof p.id!=="string")return {legacy:true};return p}catch(e){return {legacy:true}}
 }
 function clearStockPending(pending){const current=readStockPending();if(current&&!current.legacy&&current.id===pending.id)localStorage.removeItem(stockPendingKey())}
+function stockActionItem(x,state){return{id:x.id,revision:String((stock[x.id]||{}).revision??"0"),state}}
+function actionPendingKey(){return stockPendingKey()}
+function actionPending(){const raw=localStorage.getItem(actionPendingKey());if(!raw)return null;const p=JSON.parse(raw);if(p.version!==3)return null;if(p.scope!==db.stockScope()||typeof p.id!=="string"||!p.request)throw Error("Повреждена сохранённая операция; требуется сверка");return p}
+function recoverStockAction(){showDlg('<h2>Незавершённая складская операция</h2><p>Нужно проверить результат предыдущего запроса. Повтор использует тот же идентификатор и не дублирует запись.</p><div class="dlg-btns"><button class="btn go" id="action-retry">Проверить результат</button><button class="btn" id="dlg-back">Назад</button></div>');$("#dlg-back").onclick=closeDlg;$("#action-retry").onclick=async()=>{try{await runStockAction(null,true);closeDlg();toast("Результат подтверждён")}catch(e){setStatus(e.message,true)}}}
+async function runStockAction(request,recover=false){
+ if(!db||busy)throw Error("Дождитесь завершения операции");
+ if(!navigator.locks||!db.stockAction)throw Error("Безопасная запись недоступна в этом браузере");
+ return navigator.locks.request("mixora-stock:"+db.stockScope(),{ifAvailable:true},async lock=>{
+ if(!lock)throw Error("Склад изменяется в другой вкладке");
+ let pending=actionPending();if(!pending&&readStockPending()){openReview();throw Error("Сначала завершите складской черновик")}
+ if(pending&&!recover){recoverStockAction();throw Error("Сначала проверьте предыдущий запрос")}
+ if(!pending){if(recover)throw Error("Нет запроса для восстановления");pending={version:3,scope:db.stockScope(),id:crypto.randomUUID(),request};localStorage.setItem(actionPendingKey(),JSON.stringify(pending))}
+ busy=true;try{const r=await db.stockAction(pending.id,pending.request);if(!r||!r.applied)throw Error("Сервер не подтвердил запись");
+ if(pending.request.action==="inventory")for(const i of pending.request.items){if(invD[i.id]===i.state.wh){delete invD[i.id];invEd.delete(i.id)}}
+ if(actionPending()?.id===pending.id)localStorage.removeItem(actionPendingKey());render();return r;
+ }catch(e){if(["40001","40P01","P0001"].includes(e.code)||/^(22|23|42)[0-9A-Z]{3}$/.test(e.code||"")){if(actionPending()?.id===pending.id)localStorage.removeItem(actionPendingKey())}throw e}
+ finally{busy=false}
+ })}
 function openReview(){
+  if(typeof actionPending==="function"&&actionPending()){recoverStockAction();return}
   let pending;try{pending=readStockPending()}catch(e){setStatus("Нет доступа к локальному ключу операции. Запись закрыта.",true);return}
   if(pending?.legacy){setStatus("Найдена старая складская операция. Нужна сверка журнала и черновика управляющим; новый запрос закрыт.",true);return}
   if(pending){
@@ -1163,6 +1196,7 @@ async function commit(recover=false){
   });
 }
 async function commitLocked(recover=false){
+  if(typeof actionPending==="function"&&actionPending()){recoverStockAction();return}
   if(!db||busy)return;
   if(!db.commitStockBatch){setStatus("Складская транзакция недоступна. Ничего не записано.",true);return}
   let ids=Object.keys(draft).filter(id=>byId[id]&&(draft[id].d||draft[id].bar!==undefined)).sort();
@@ -1207,7 +1241,10 @@ async function commitLocked(recover=false){
     const button=$("#dlg-ok");if(button){button.disabled=false;button.textContent="Подтвердить"}
   }
 }
-function askUndo(){setStatus("Отмена временно закрыта: безопасная серверная компенсация ещё не проверена.",true)}
+function askUndo(id){const move=moves.find(m=>m.item===id&&!m.reversalOf&&m.operationId);if(!move){setStatus("Для старой записи нет безопасной отмены",true);return}undoOperation(move.operationId)}
+async function undoOperation(id){if(!isMgr){setStatus("Отмена доступна управляющему",true);return}
+ showDlg('<h2>Отменить операцию целиком?</h2><p>Все её позиции будут восстановлены, если после операции их никто не менял. Новый вкус будет выведен из палитры. История сохранится.</p><div class="dlg-btns"><button class="btn go" id="undo-safe">Отменить операцию</button><button class="btn" id="dlg-back">Назад</button></div>');
+ $("#dlg-back").onclick=closeDlg;$("#undo-safe").onclick=async()=>{try{await runStockAction({action:"undo",original_id:id});closeDlg();toast("Компенсация записана, история сохранена")}catch(e){setStatus(e.message,true)}}}
 let oTimer=null;
 function saveOrder(){clearTimeout(oTimer);oTimer=setTimeout(async()=>{
   try{lastOrderAt=new Date().toISOString();await db.doc("order/current").set({q:orderQ,m:orderM,at:lastOrderAt})}catch(e){setStatus("Заказ не сохранился: "+(e&&e.message||"нет доступа"),true)}oTimer=null},500)}
@@ -1348,7 +1385,7 @@ function edit(a,id){
   const x=byId[id];if(!x||!db||busy)return;
   if(a==="fin"){finish(x);return}
   if(a==="tobar"){toBar(x);return}
-  if(a==="flag"){setStatus("Эта операция временно закрыта. Изменяйте остатки через складской черновик.",true);return}
+  if(a==="flag"){flagSet(x,st.tab==="slow"?"slow":"stop",!flag(x,st.tab==="slow"?"slow":"stop"));return}
   if(a==="otoggle"){if(oq(x)){revertWish(wishIdsFor(id));delete orderQ[id]}else orderQ[id]=1;saveOrder();render();return}
   if(a==="iok"){invD[id]=wh(byId[id]);invEd.delete(id);render();return}
   if(a==="iundo"){delete invD[id];invEd.delete(id);render();return}
@@ -1390,7 +1427,7 @@ $("#t-bar").onclick=()=>go("bar");$("#t-mix").onclick=()=>go("mixes");$("#t-log"
   if(e.target.closest("#inv-nosz")){invNoSz=!invNoSz;render();return}
   if(e.target.closest("#inv-help")){showDlg('<h2>Как работает инвентаризация</h2><ul class="hl"><li>Выбери раздел: обычные, хука сигар или парфюм.</li><li>Пройди по полке. «✓» — сходится. «✕» — не сходится, впиши фактический остаток.</li><li>Внизу «Сверить» покажет расхождения в штуках, граммах и примерной сумме.</li><li>Нулевые остатки скрыты, нужный вкус найдёшь через поиск.</li></ul><div class="dlg-btns"><button class="btn go" type="button" id="dlg-back">Понятно</button></div>');$("#dlg-back").onclick=closeDlg;return}
   if(e.target.closest("#inv-log")){const L=invLog.slice(0,30),lbl=Object.fromEntries(IGROUPS);
-    showDlg('<h2>Журнал инвентаризаций</h2>'+(L.length?L.map(r=>'<div class="hfeed"><span><b>'+esc(lbl[r.ig]||r.ig)+'</b><br><small>'+r.items+' поз., недостача '+r.units+' шт.'+(r.g?' · '+(r.g/1000).toFixed(2).replace(/\.?0+$/,"")+' кг':"")+(r.rub?' · <b style="color:var(--pend)">≈'+Math.round(r.rub).toLocaleString("ru-RU")+' ₽</b>':"")+'</small></span><time>'+new Date(r.at).toLocaleDateString("ru-RU",{day:"numeric",month:"short"})+'</time></div>').join(""):'<p>Пока пусто — журнал заполнится после первой завершённой инвентаризации.</p>')
+    showDlg('<h2>Журнал инвентаризаций</h2>'+(L.length?L.map(r=>'<div class="hfeed"><span><b>'+esc(lbl[r.ig]||r.ig)+'</b><br><small>'+(r.unknownWeights?'Частичный расчёт веса: '+r.unknownWeights+' поз. без веса · ':'')+r.items+' поз., недостача '+r.units+' шт.'+(r.g?' · '+(r.g/1000).toFixed(2).replace(/\.?0+$/,"")+' кг':"")+(r.rub?' · <b style="color:var(--pend)">≈'+Math.round(r.rub).toLocaleString("ru-RU")+' ₽</b>':"")+'</small></span><time>'+new Date(r.at).toLocaleDateString("ru-RU",{day:"numeric",month:"short"})+'</time></div>').join(""):'<p>Пока пусто — журнал заполнится после первой завершённой инвентаризации.</p>')
       +'<div class="dlg-btns"><button class="btn" type="button" id="dlg-back">Закрыть</button></div>');$("#dlg-back").onclick=closeDlg}});
 $("#t-wish").onclick=()=>go("wish");$("#t-pack").onclick=()=>go("pack");
 $("#t-wh").onclick=()=>go("wh");
@@ -1576,7 +1613,8 @@ function photoNote(text){const m=matchText(text);
    +ambTxt(m)+(m.not_found_lines.length?"\nНЕ НАШЛОСЬ В КАТАЛОГЕ (строки с фото, могут быть рукописные или с ошибкой распознавания — добери через find_items или переспроси):\n"+m.not_found_lines.map(l=>"— "+l).join("\n"):"")}
 // Новый вкус с фото — в каталог (Склад, 0 шт.) и строка в Журнал «Новый вкус — внёс ассистент».
 // Kind "in" с нулём: отдельного вида движения в базе нет (moves_kind_check), текст строки берётся из reason
-async function addNewFlavor(){throw Error("Добавление нового вкуса временно закрыто: нет атомарного контракта каталог + склад.")}
+async function addNewFlavor(b,n,q=0,d=""){if(DATA.some(x=>norm(x.b)===norm(b)&&norm(x.n)===norm(n)))throw Error("Вкус уже существует");
+ return runStockAction({action:"create",flavor:{brand:b,line:"",name:n,descr:d},items:[{id:"c"+crypto.randomUUID(),revision:"0",state:{wh:q}}]})}
 // Свободный текст модели не используется для изменения заказа. Только структурированное предложение.
 let lastPhotoIds=[];
 function orderFixBox(){ /* Текст модели не является командой записи. */ }
@@ -1685,7 +1723,7 @@ async function aiCommitProposal(list){
   }else{
     const docs={};for(const a of list){if(a.k==="slow"&&!can("slow")||a.k==="stop"&&!a.on&&!can("unstop"))throw new Error("нет права менять метку");
       const doc=docs[a.id]||(docs[a.id]={wh:wh(byId[a.id]),bar:onBar(byId[a.id]),...stock[a.id]});if(a.on)doc[a.k]=true;else delete doc[a.k]}
-    if(!db.setStockBatch)throw new Error("атомарное сохранение меток недоступно");await db.setStockBatch(docs);
+    await runStockAction({action:"change",items:Object.keys(docs).sort().map(id=>stockActionItem(byId[id],Object.fromEntries(list.filter(a=>a.id===id).map(a=>[a.k,!!docs[id][a.k]]))))});
   }
 }
 function aiSnapshot(){
@@ -1999,7 +2037,8 @@ function hlpUi(){$("#hlp-btn").hidden=!sampleFn||st.tab==="ai"}
 /* Склад: удалить позицию и добавить новую */
 function askDelPos(x){if(!isMgr)return;const n=wh(x);showDlg('<h2>Удалить позицию?</h2><p><b>'+esc(nm(x))+'</b></p><p>'+(n?'На складе '+n+' шт. Они спишутся с причиной «Удаление позиции». ':'')+'Вкус пропадёт со стойки и склада. В базе он останется, вернуть можно через поиск.</p><div class="dlg-btns"><button class="btn danger" type="button" id="dp-ok">Удалить</button><button class="btn" type="button" id="dlg-back">Отмена</button></div>');
   $("#dlg-back").onclick=closeDlg;$("#dp-ok").onclick=()=>{const d=dcopy(x);d.retired=true;d.bar=false;d.wh=0;delete d.slow;delete d.stop;delete d.stopAuto;closeDlg();putDoc(x,d,n?{qty:-n,left:0,prev:{wh:n,bar:onBar(x)},kind:"wo",reason:"Удаление позиции"}:null,'<b>'+esc(nm(x))+'</b>: позиция удалена')}}
-function openNew(){setStatus("Эта операция временно закрыта. Изменяйте остатки через складской черновик.",true)}
+function openNew(){if(!isMgr)return;showDlg('<h2>Новая позиция</h2><label class="f">Бренд<input id="np-b" maxlength="120"></label><label class="f">Вкус<input id="np-n" maxlength="120"></label><label class="f">Описание<input id="np-d" maxlength="120"></label><label class="f">Количество<input id="np-q" type="number" min="0" max="999" value="0"></label><div class="dlg-btns"><button class="btn go" id="np-ok">Добавить</button><button class="btn" id="dlg-back">Назад</button></div>');
+ $("#dlg-back").onclick=closeDlg;$("#np-ok").onclick=async()=>{try{const b=$("#np-b").value.trim(),n=$("#np-n").value.trim(),q=Number($("#np-q").value);if(!b||!n||!Number.isInteger(q)||q<0||q>999)throw Error("Проверьте бренд, вкус и количество");await addNewFlavor(b,n,q,$("#np-d").value.trim());closeDlg();toast("Позиция добавлена")}catch(e){setStatus(e.message,true)}}}
 
 
 /* Крепость табаков: правка по бренду, линейке и вкусу */
@@ -2254,14 +2293,14 @@ function renderJournal(){
   const F=[["all","Все"],["tobar","Взяты на стойку"],["in","Пополнения"],["wo","Списания"],["inv","Инвентаризация"]];
   const L=moves.filter(m=>logF==="all"||m.kind===logF||(logF==="tobar"&&m.kind==="off"));
   let html='<div class="chips" style="margin:10px 0">'+F.map(([k,t])=>'<button type="button" class="chip" data-lf="'+k+'" aria-pressed="'+(logF===k)+'">'+t+'</button>').join("")+'</div>';
-  if(logF==="wo"){const t=L.reduce((a,m)=>a-m.qty,0);html+='<p class="hintline">Списано за всё время в журнале: '+t+' шт.</p>'}
+  if(logF==="wo"){const t=L.reduce((a,m)=>a+(!m.compensated&&!m.reversalOf?-m.qty:0),0);html+='<p class="hintline">Списано за всё время в журнале: '+t+' шт.</p>'}
   let last="";L.slice(0,200).forEach(m=>{const x=byId[m.item];if(!x)return;const d=new Date(m.at),dn=d.toLocaleDateString("ru-RU",{day:"numeric",month:"long"});if(dn!==last){html+='<h3 class="sub">'+dn+'</h3>';last=dn}
     html+='<div class="hfeed"><span><b>'+esc(nm(x))+'</b><br><small>'+esc(actText(m))+'</small></span><time>'+d.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})+'</time>'
      +(isMgr&&m.id?'<button type="button" class="btn sm" data-undo="'+esc(m.id)+'">Отменить</button>':'')+'</div>'});
   if(!L.length)html+='<p class="hintline">Записей нет.</p>';
   $("#list").innerHTML=html}
 // Legacy undo is closed until a version-checked server compensation exists.
-async function undoMove(){askUndo()}
+async function undoMove(id){const m=moves.find(m=>String(m.id)===String(id));if(m&&m.operationId&&!m.reversalOf)undoOperation(m.operationId);else setStatus("Эту запись нельзя безопасно отменить",true)}
 $("#list").addEventListener("click",e=>{if(st.tab!=="log")return;const b=e.target.closest("[data-lf]");if(b){logF=b.dataset.lf;render();return}
   const u=e.target.closest("[data-undo]");if(!u)return;
   if(!u.dataset.sure){u.dataset.sure="1";u.textContent="Точно отменить?";setTimeout(()=>{if(u.isConnected){delete u.dataset.sure;u.textContent="Отменить"}},3000);return}
