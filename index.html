@@ -884,7 +884,7 @@ const oq=x=>orderQ[x.id]||0;
 const hint=x=>tracked(x)&&wh(x)<=1&&(onBar(x)||wh(x)===0);
 const inOrder=x=>stockLoaded&&(oq(x)>0||hint(x)||!!st.q);
 const flag=(x,k)=>!!(stock[x.id]&&stock[x.id][k]);
-const inStop=x=>!flag(x,"retired")&&(!onBar(x)||flag(x,"stop"));
+const inStop=x=>!flag(x,"retired")&&flag(x,"stop");
 const inTab=x=>st.q&&(st.tab==="bar"||st.tab==="wh")?true:st.tab==="smena"?(onBar(x)||wh(x)>0||!!st.q):st.tab==="inv"?stockLoaded&&((tracked(x)&&wh(x)>0&&invSec(x)===st.ig&&(!invNoSz||!packMap[x.id]))||!!st.q):st.tab==="bar"?onBar(x):st.tab==="order"?(stockLoaded&&!flag(x,"retired")):(st.tab==="stop"||st.tab==="slow")?stockLoaded&&((st.tab==="stop"?inStop(x):flag(x,st.tab))||!!st.q||!!st.brand):(wh(x)>0||!!draft[x.id]||!!st.q);
 const NEWUI=!!window.__demoDB;let invD={};const invEd=new Set();
 const TABS={pack:"Граммовка",wish:"Пожелания гостей",str:"Крепость табаков",team:"Команда",log:"Журнал",mixes:"Альбом миксов",smena:"Смена",inv:"Инвентаризация",bar:"Стойка",wh:"Склад",order:"Заказ",stop:"Стоп-лист",slow:"Неликвид",ai:"ИИ-ассистент",sup:"Контрагенты",chk:"Чек-лист смены",know:"База знаний"};
@@ -1016,7 +1016,7 @@ function actsV2(x){const n=wh(x),ob=onBar(x),stp=flag(x,"stop"),sl=flag(x,"slow"
   if(st.tab==="bar"){A(stp?"stopoff":"stopon",stp?"Вернуть из стопа":"В стоп-лист",stp?"go":"");A(sl?"slowoff":"slowon",sl?"Снять неликвид":"В неликвид");if(ob)A("offbar","Убрать со стойки");return '<div class="acts2">'+b.join("")+'</div>'}
   if(st.tab==="slow"){take();A("slowoff","Снять неликвид");if(n<=0)A("retire","Вывести аромат","bad");else A("add","Пополнить склад");return top+'<div class="acts2">'+b.join("")+'</div>'}
   if(st.tab==="wh"){take();A("add","Пополнить");if(n>0)A("wo","Списать","bad");return top+'<div class="acts2">'+b.join("")+'</div><details class="more2"><summary>Ещё действия</summary><div class="acts2"><button type="button" class="ab bad" data-v="delpos" data-id="'+x.id+'">Удалить позицию</button></div></details>'}
-  if(st.tab==="stop"&&!ob){take();return top}if(st.tab==="stop"){A(stp?"stopoff":"stopon",stp?"Вернуть из стопа":"В стоп-лист",stp?"go":"")}
+  if(st.tab==="stop"){A(stp?"stopoff":"stopon",stp?"Вернуть из стопа":"В стоп-лист",stp?"go":"")}
   return '<div class="acts2">'+b.join("")+'</div>'}
 function rowV2(x){const n=wh(x),ob=onBar(x),stp=flag(x,"stop"),sl=flag(x,"slow"),sel=selId===x.id;
   const tags=x.t.length?'<span class="tags">'+x.t.map(t=>'<span class="tag">'+esc(t)+'</span>').join("")+'</span>':"";
@@ -1031,7 +1031,7 @@ function renderV2(){
   $("#totlabel").textContent=st.tab==="bar"?"на стойке"+(barRaw>barN?" · "+(barRaw-barN)+" в стопе":""):st.tab==="wh"?"шт., "+whI+" вкусов":st.tab==="stop"?"в стопе":"вкусов";
   $("#q").placeholder="Найти любой вкус";
   const items=itemsV2(),brands=[...new Set(items.map(x=>x.b))].sort(abc),list=$("#list");let html="";
-  if(st.tab==="stop")html+='<p class="hintline">Нет на стойке или отмечен стоп. Запас на складе не меняет доступность для гостя.</p>';
+  if(st.tab==="stop")html+='<p class="hintline">Только вкусы, отмеченные в стоп-лист. Наличие на стойке и запас на складе не добавляют сюда автоматически.</p>';
   if(st.tab==="wh")html+='<p class="hintline">Запечатанные упаковки. Выбери аромат, чтобы взять на стойку, пополнить или списать.</p>';
   if(!stockLoaded&&db)html+='<p class="empty">Склад загружается…</p>';
   if(st.tab==="wh"&&staffReady&&!st.q)html+='<button type="button" class="btn wide" data-v="newpos" style="margin:8px 0">＋ Добавить новую позицию</button>';
