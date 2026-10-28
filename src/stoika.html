@@ -859,9 +859,18 @@ function line(x){
   const d=dd(x),n=wh(x);
   return '<li><span>'+esc(nm(x))+'</span><span class="ch">'+(d?(d>0?"+":"−")+Math.abs(d)+' <small>('+n+' → '+(n+d)+')</small>':"")+'</span><button class="x" type="button" data-rm="'+x.id+'" aria-label="Убрать из списка">✕</button></li>';
 }
-function readStockPending(){try{return JSON.parse(localStorage.getItem("mixora-stock-pending")||"null")}catch(e){return null}}
+function stockPendingKey(){return "mixora-stock-pending:"+db.stockScope()}
+function readStockPending(){
+  // Unknown legacy payloads cannot be safely associated with actor/venue/draft.
+  const legacy=localStorage.getItem("mixora-stock-pending");
+  if(legacy)return {legacy:true};
+  const raw=localStorage.getItem(stockPendingKey());if(!raw)return null;
+  try{const p=JSON.parse(raw);if(p.version!==2||p.scope!==db.stockScope()||!p.drafts||!Array.isArray(p.items)||!p.items.length||typeof p.id!=="string")return {legacy:true};return p}catch(e){return {legacy:true}}
+}
+function clearStockPending(pending){const current=readStockPending();if(current&&!current.legacy&&current.id===pending.id)localStorage.removeItem(stockPendingKey())}
 function openReview(){
-  const pending=readStockPending();
+  let pending;try{pending=readStockPending()}catch(e){setStatus("Нет доступа к локальному ключу операции. Запись закрыта.",true);return}
+  if(pending?.legacy){setStatus("Найдена старая складская операция. Нужна сверка журнала и черновика управляющим; новый запрос закрыт.",true);return}
   if(pending){
     showDlg('<h2>Проверить результат операции</h2><p>Ответ сервера потерян. Повтор исходного запроса проверит результат без повторного списания.</p><ul>'+pending.items.map(i=>'<li>'+esc(i.id)+': '+esc(String(i.delta))+'</li>').join('')+'</ul><div class="dlg-btns"><button class="btn go" id="dlg-ok">Проверить исходную операцию</button><button class="btn" id="dlg-back">Вернуться</button></div>');
     $("#dlg-ok").onclick=()=>commit(true);$("#dlg-back").onclick=closeDlg;return;
@@ -891,9 +900,15 @@ function closeDlg(){const d=$("#dlg");try{d.close()}catch(e){d.removeAttribute("
 $("#dlg-scrim").onclick=closeDlg;
 async function commit(recover=false){
   if(!db||busy)return;
+  if(!globalThis.navigator?.locks||!db.stockScope){setStatus("Для безопасной записи нужен браузер с координацией вкладок.",true);return}
+  return navigator.locks.request("mixora-stock:"+db.stockScope(),()=>commitLocked(recover));
+}
+async function commitLocked(recover=false){
+  if(!db||busy)return;
   if(!db.commitStockBatch){setStatus("Складская транзакция недоступна. Ничего не записано.",true);return}
   let ids=Object.keys(draft).filter(id=>byId[id]&&(draft[id].d||draft[id].bar!==undefined)).sort();
-  let pending=readStockPending();
+  let pending;try{pending=readStockPending()}catch(e){setStatus("Нет доступа к локальному ключу операции. Запись закрыта.",true);return}
+  if(pending?.legacy){openReview();return}
   if(!ids.length&&!pending)return;
   let items=ids.map(id=>({id,delta:draft[id].d||0,expected_wh:wh(byId[id]),
     ...(draft[id].bar===undefined?{}:{bar:draft[id].bar,expected_bar:onBar(byId[id])})}));
@@ -903,8 +918,8 @@ async function commit(recover=false){
   if(pending){items=pending.items;ids=items.map(i=>i.id)}
   if(!pending){
     if(!crypto||!crypto.randomUUID){setStatus("Для безопасной записи нужен защищённый браузер.",true);return}
-    pending={id:crypto.randomUUID(),fingerprint,items,drafts:Object.fromEntries(ids.map(id=>[id,JSON.stringify(draft[id])]))};
-    try{localStorage.setItem("mixora-stock-pending",JSON.stringify(pending))}
+    pending={version:2,scope:db.stockScope(),id:crypto.randomUUID(),fingerprint,items,drafts:Object.fromEntries(ids.map(id=>[id,JSON.stringify(draft[id])]))};
+    try{localStorage.setItem(stockPendingKey(),JSON.stringify(pending))}
     catch(e){setStatus("Не удалось сохранить ключ операции. Ничего не записано.",true);return}
   }
   const sentDraft=pending.drafts||{};
@@ -914,7 +929,7 @@ async function commit(recover=false){
     if(!result||!result.applied)throw Error("Нет подтверждения сервера");
     // Удаляем только те записи черновика, которые были отправлены.
     for(const id of ids)if(sentDraft[id]!==undefined&&JSON.stringify(draft[id])===sentDraft[id])delete draft[id];
-    saveDraft();localStorage.removeItem("mixora-stock-pending");
+    saveDraft();clearStockPending(pending);
     const auto=(result.rows||[]).filter(x=>x.delta<0&&!cmdDraftIds.has(x.id)&&x.left<=1)
       .map(x=>[byId[x.id],byId[x.id]&&autoOrder(byId[x.id],x.left)]).filter(x=>x[0]&&x[1]);
     ids.forEach(id=>cmdDraftIds.delete(id));
@@ -924,7 +939,7 @@ async function commit(recover=false){
     const msg=String(e&&e.message||"ошибка");
     // Только распознанные SQLSTATE подтверждают откат; gateway 4xx сохраняют ключ.
     const rollback=["40001","23514","22023","42501","23505","22P02","22003","40P01"].includes(e&&e.code);
-    if(rollback){try{localStorage.removeItem("mixora-stock-pending")}catch(_){}}
+    if(rollback){try{clearStockPending(pending)}catch(_){}}
     setStatus("Не удалось подтвердить запись: "+msg+(rollback?". Обновите остатки и повторите.":". Повторите с тем же черновиком."),true);
   }finally{
     busy=false;render();

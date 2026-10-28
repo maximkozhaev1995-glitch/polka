@@ -22,7 +22,9 @@ python3 tests/b5-database.py
 The client runner executes the actual commit function and adapter in a VM with mocked
 DOM, storage and network; it is not a browser/PostgREST integration test.
 It checks mandatory audit #6 (UI half), #7, uncertain-response recovery,
-snapshot races, draft edits, and all nine legacy write entry points.
+snapshot races, draft edits, scoped pending, legacy pending rejection, UUID compare-delete,
+and all nine legacy write entry points. Web Locks is mocked; real multi-tab browser
+validation remains outstanding.
 
 The database runner requires **separate owner permission**, psycopg 3, and a disposable
 empty database named `mixora_b5_test*`. It exits 2 without permission/configuration;
