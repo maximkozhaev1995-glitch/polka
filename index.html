@@ -909,6 +909,7 @@ function match(x){
   return norm([x.b,x.l,x.n,x.d,x.t.join(" ")].join(" ")).includes(norm(st.q));
 }
 const lastMove=id=>moves.find(m=>m.item===id);
+const canUndoMove=m=>!!m.operationId&&!String(m.reason||"").startsWith("Отмена операции ")&&m.revision===stock[m.item]?.revision;
 // Расход: сколько банок ушло со склада за N дней (по журналу)
 const used=(id,days)=>{const t=Date.now()-days*864e5;return moves.reduce((a,m)=>a+(m.item===id&&m.qty<0&&m.kind!=="inv"&&m.kind!=="wo"&&Date.parse(m.at)>=t?-m.qty:0),0)};
 const FREQ="★ Часто берёте";
@@ -2432,11 +2433,12 @@ function renderJournal(){
   if(logF==="wo"){const t=L.reduce((a,m)=>a-m.qty,0);html+='<p class="hintline">Списано за всё время в журнале: '+t+' шт.</p>'}
   let last="";L.slice(0,200).forEach(m=>{const x=byId[m.item];if(!x)return;const d=new Date(m.at),dn=d.toLocaleDateString("ru-RU",{day:"numeric",month:"long"});if(dn!==last){html+='<h3 class="sub">'+dn+'</h3>';last=dn}
     html+='<div class="hfeed"><span><b>'+esc(nm(x))+'</b><br><small>'+esc(actText(m))+'</small></span><time>'+d.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})+'</time>'
-     +(staffReady&&m.id?'<button type="button" class="btn sm" data-undo="'+esc(m.id)+'">Отменить</button>':'')+'</div>'});
+     +(staffReady&&m.id&&canUndoMove(m)?'<button type="button" class="btn sm" data-undo="'+esc(m.id)+'">Отменить</button>':'')+'</div>'});
   if(!L.length)html+='<p class="hintline">Записей нет.</p>';
   $("#list").innerHTML=html}
 // Отмена последней версии позиции добавляет компенсацию, сохраняя исходный журнал.
 async function undoMove(id){if(!db||busy)return;const m=moves.find(x=>x.id===id);if(!m)return;
+  if(String(m.reason||"").startsWith("Отмена операции ")){setStatus("Это уже отмена. Повторная отмена запрещена",true);return}
   if(!m.operationId){setStatus("Старые движения нельзя безопасно отменить автоматически",true);return}
   busy=true;try{await stockWrite([{id:m.item,revision:stock[m.item]?.revision||0,undo:m.operationId}]);setStatus("Добавлено обратное движение")}
   catch(e){setStatus("Не получилось отменить: "+e.message,true)}finally{busy=false;render()}}
@@ -2627,7 +2629,7 @@ if(true){
     const att=(n,l,t)=>n?'<button type="button" class="hrow" data-go="'+t+'"><span>'+l+'</span><b>'+n+'</b><i>›</i></button>':"";
     const feed=[];let last="";moves.slice(0,14).forEach(m=>{const x=byId[m.item];if(!x)return;const d=new Date(m.at),dn=dayName(d);if(dn!==last){feed.push('<h3 class="sub">'+dn+'</h3>');last=dn}
       feed.push('<div class="hfeed"><span><b>'+esc(nm(x))+'</b><br><small>'+esc(actText(m))+'</small></span><time>'+d.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})+'</time>'
-       +(staffReady&&m.id?'<button type="button" class="btn sm" data-undo="'+esc(m.id)+'">Отменить</button>':'')+'</div>')});
+       +(staffReady&&m.id&&canUndoMove(m)?'<button type="button" class="btn sm" data-undo="'+esc(m.id)+'">Отменить</button>':'')+'</div>')});
     const wn=new Set(wishes.filter(w=>w.state==="new").map(w=>norm(w.b)+"|"+norm(w.f))).size;
     const li=moves.find(m=>m.kind==="inv"),invDays=li?Math.floor((Date.now()-new Date(li.at))/864e5):null;
     const whN=DATA.reduce((a,x)=>a+wh(x),0),ww=whWeight0();
