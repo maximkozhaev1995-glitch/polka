@@ -103,6 +103,31 @@ returns jsonb language sql security definer set search_path=''
 as $body$ select mixora_internal.commit_stock_batch(p_operation_id,p_items); $body$;
 revoke all on function public.mixora_commit_stock_batch(uuid,jsonb) from public,anon;
 grant execute on function public.mixora_commit_stock_batch(uuid,jsonb) to authenticated;
+-- Preserve the legacy trigger guard, but allow the RPC's automatic stop removal.
+-- Direct table DML remains revoked below. Manual stop removal still requires unstop.
+create or replace function public.enforce_master_stock()
+returns trigger language plpgsql security definer set search_path=''
+as $guard$
+declare r text; p text[];
+begin
+ select role,array_remove(coalesce(perms,'{}'::text[]),null) into r,p
+   from public.users where tg_id=public.me_tg();
+ if r is distinct from 'master' then return new; end if;
+ if new.wh is distinct from old.wh and not ('take'=any(p) or 'add'=any(p)) then
+   raise exception 'Stock forbidden' using errcode='42501'; end if;
+ if new.bar is distinct from old.bar and not ('take'=any(p) or 'offbar'=any(p)) then
+   raise exception 'Bar forbidden' using errcode='42501'; end if;
+ if new.slow is distinct from old.slow and not ('slow'=any(p)) then
+   raise exception 'Slow forbidden' using errcode='42501'; end if;
+ if new.retired is distinct from old.retired then
+   raise exception 'Retire forbidden' using errcode='42501'; end if;
+ if old.stop is true and new.stop is not true and not ('unstop'=any(p))
+    and not (old.stop_auto is true and new.wh>0 and new.stop_auto is false) then
+   raise exception 'Unstop forbidden' using errcode='42501'; end if;
+ return new;
+end;
+$guard$;
+revoke all on function public.enforce_master_stock() from public,anon,authenticated;
 -- Close Data API writes even when legacy permissive RLS policies exist.
 -- Preserve SELECT policies/grants; service_role is not changed.
 alter table public.stock enable row level security;

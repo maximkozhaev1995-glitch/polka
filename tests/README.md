@@ -34,3 +34,20 @@ then exercises mandatory #1–#6, direct write denial and venue isolation, inclu
 real concurrent sessions. Do not use any production connection or credentials.
 The synthetic fixture does not establish compatibility with the missing production
 baseline, old stock triggers, PostgREST grants, JWT identity or inherited roles.
+
+
+After owner approval on 2026-10-28, the GitHub workflow also runs a disposable
+PostgreSQL 16 service on runner loopback. It uses only synthetic fixture data,
+never Supabase credentials. The native suite installs the known legacy stock
+trigger before applying the proposal, and includes the automatic/manual stop case.
+
+Embedded SQL fallback (PostgreSQL 18 WASM; does NOT prove concurrent sessions):
+
+```
+npm ci --prefix tests/b5-wasm
+node tests/b5-wasm/run.mjs
+```
+
+Dependencies are pinned in that test directory. Nine embedded SQL groups cover
+serial behavior, grants and legacy trigger compatibility. Native concurrency
+must pass the separate PostgreSQL CI job; WASM results are not a substitute.

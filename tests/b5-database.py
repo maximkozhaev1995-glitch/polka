@@ -20,15 +20,9 @@ class Database(unittest.TestCase):
    name=c.execute('select current_database()').fetchone()[0]
    if not name.startswith('mixora_b5_test'): raise RuntimeError('Refusing non-test database')
    if c.execute("select count(*) from information_schema.tables where table_schema='public'").fetchone()[0]:raise RuntimeError('Refusing non-empty database')
-   c.execute("""do $$ begin if not exists(select from pg_roles where rolname='anon') then create role anon; end if; if not exists(select from pg_roles where rolname='authenticated') then create role authenticated; end if; end $$;
-create table public.users(tg_id bigint primary key,venue_id uuid,role text,perms text[]);
-create table public.flavors(id text primary key,venue_id uuid);
-create table public.stock(venue_id uuid,flavor_id text,wh integer,bar boolean,stop boolean,stop_auto boolean,primary key(venue_id,flavor_id));
-create table public.moves(id bigint generated always as identity primary key,venue_id uuid,flavor_id text,kind text,qty integer,left_after integer,prev jsonb,bar_to boolean,by_tg bigint,at timestamptz);
-create function public.me_tg() returns bigint language sql stable as $$ select nullif(current_setting('test.tg',true),'')::bigint $$;
-grant usage on schema public to authenticated,anon;
-grant all on public.stock,public.moves to authenticated,anon;
-""")
+   c.execute(pathlib.Path('tests/fixtures/b5-minimal.sql').read_text())
+   legacy=pathlib.Path('supabase/migrations_003.sql').read_text()
+   c.execute(legacy[legacy.index('create or replace function enforce_master_stock()'):])
    c.execute(pathlib.Path('supabase/b5_atomic_stock_PROPOSAL.sql').read_text())
  def setUp(self):
   with pg.connect(URL,autocommit=True) as c:
@@ -79,7 +73,20 @@ grant all on public.stock,public.moves to authenticated,anon;
    except pg.Error as e:return e.sqlstate
   with ThreadPoolExecutor(2) as ex:self.assertCountEqual(list(ex.map(work,[1,2])),['ok','40001'])
   self.assertEqual(self.state()[0][0][1],9);self.assertEqual(self.state()[1],1)
+ def test_legacy_trigger_automatic_stop(self):
+  with pg.connect(URL,autocommit=True) as c:
+   c.execute("update public.users set perms=ARRAY['add'] where tg_id=3")
+   c.execute("update public.stock set wh=0,stop=true,stop_auto=true where flavor_id='a'")
+  self.call(uuid.uuid4(),[dict(id='a',delta=1,expected_wh=0)],3)
+  with pg.connect(URL) as c:
+   self.assertEqual(c.execute("select wh,stop,stop_auto from public.stock where flavor_id='a'").fetchone(),(1,False,False))
+  with pg.connect(URL,autocommit=True) as c:c.execute("update public.stock set stop=true,stop_auto=false where flavor_id='a'")
+  self.call(uuid.uuid4(),[dict(id='a',delta=1,expected_wh=1)],3)
+  with pg.connect(URL) as c:self.assertEqual(c.execute("select stop from public.stock where flavor_id='a'").fetchone()[0],True)
  def test_access_and_isolation(self):
+  with pg.connect(URL) as c:
+   for table,column,priv in [('stock','wh','UPDATE'),('stock','flavor_id','INSERT'),('moves','qty','UPDATE'),('moves','flavor_id','INSERT')]:
+    self.assertFalse(c.execute('select has_column_privilege(%s,%s,%s,%s)',('authenticated','public.'+table,column,priv)).fetchone()[0])
   for sql in ["insert into public.stock values(null,'z',0,false,false,false)","update public.stock set wh=99","delete from public.moves","truncate public.stock"]:
    def direct():
     with pg.connect(URL) as c:c.execute('set local role authenticated');c.execute(sql)
