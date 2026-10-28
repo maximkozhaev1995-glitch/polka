@@ -22,8 +22,8 @@
   }
   // Токен живёт 12 часов: обновляем заранее, чтобы открытое на всю смену приложение не теряло доступ к базе
   let refreshT=0,refreshP=null;
-  const planRefresh=()=>{clearTimeout(refreshT);refreshT=setTimeout(()=>refresh().catch(()=>{}),11*3600e3)};
-  function refresh(){
+  const planRefresh=()=>{clearTimeout(refreshT);refreshT=setTimeout(()=>refreshAuth().catch(()=>{}),11*3600e3)};
+  function refreshAuth(){
     if(!refreshP)refreshP=call("").then(r=>{if(!r.ok)return false;session.token=r.body.token;session.user=r.body.user;planRefresh();return true}).finally(()=>{refreshP=null});
     return refreshP;
   }
@@ -56,7 +56,7 @@
   // ===== база =====
   const H=()=>({apikey:CFG.anon,Authorization:"Bearer "+session.token,"Content-Type":"application/json"});
   const V=()=>session.user.venue_id;
-  async function rest(path,opt,again){const r=await fetch(CFG.url+"/rest/v1/"+path,Object.assign({headers:H()},opt));if(r.status===401&&!again&&await refresh().catch(()=>false)){if(opt&&opt.headers&&opt.headers.Authorization)opt=Object.assign({},opt,{headers:Object.assign({},opt.headers,H())});return rest(path,opt,true)}if(!r.ok){let t="";try{t=(await r.json()).message}catch(e){}const error=new Error(t||("HTTP "+r.status));error.status=r.status;throw error}const t=await r.text();return t?JSON.parse(t):null}
+  async function rest(path,opt,again){const r=await fetch(CFG.url+"/rest/v1/"+path,Object.assign({headers:H()},opt));if(r.status===401&&!again&&await refreshAuth().catch(()=>false)){if(opt&&opt.headers&&opt.headers.Authorization)opt=Object.assign({},opt,{headers:Object.assign({},opt.headers,H())});return rest(path,opt,true)}if(!r.ok){let j={};try{j=await r.json()}catch(e){}const error=new Error(j.message||("HTTP "+r.status));error.status=r.status;error.code=j.code;throw error}const t=await r.text();return t?JSON.parse(t):null}
   const iso=x=>x?new Date(x).toISOString():undefined;
   const MAP={
     stock:{table:"stock",key:"flavor_id",
@@ -128,6 +128,7 @@
   document.addEventListener("visibilitychange",()=>{if(!document.hidden&&session)Object.keys(subs).forEach(refresh)});
   const bump=c=>setTimeout(()=>refresh(c),150);
   const listen=c=>({onSnapshot:(f,err)=>{const s=subs[c]||(subs[c]={fns:[],errs:[],hash:""});s.fns.push(f);if(err)s.errs.push(err);refresh(c)}});
+  const guardWrite=c=>{if(c==="stock"||c==="moves")throw Error("Прямая запись склада и журнала закрыта. Используйте подтверждение складского черновика.")};
   const db={
     // B5: одна серверная транзакция для остатков и журнала; повторный запрос идемпотентен.
     commitStockBatch:async(operationId,items)=>{
@@ -135,19 +136,19 @@
       const result=await rest("rpc/mixora_commit_stock_batch",{method:"POST",body:JSON.stringify({p_operation_id:operationId,p_items:items})});
       bump("stock");bump("moves");return result;
     },
-    // Один PostgREST INSERT/UPSERT выполняется транзакционно для всех меток.
-    setStockBatch:async docs=>{const m=MAP.stock;const rows=Object.entries(docs).map(([id,o])=>m.fromDoc(id,o));
-      if(!rows.length)return;await rest("stock?on_conflict="+m.conflict,{method:"POST",headers:Object.assign(H(),{Prefer:"resolution=merge-duplicates,missing=default"}),body:JSON.stringify(rows)});bump("stock")},
-    bulk:async(c,ids,o)=>{const m=MAP[c];await rest(m.table+"?"+m.key+"=in.("+ids.map(encodeURIComponent).join(",")+")",{method:"PATCH",body:JSON.stringify(m.fromDoc(null,o))});setTimeout(()=>refresh(c),150)},
+    // Legacy flags have no reviewed atomic RPC yet. Fail before any request.
+    setStockBatch:async()=>{guardWrite("stock")},
+    bulk:async(c,ids,o)=>{guardWrite(c);const m=MAP[c];await rest(m.table+"?"+m.key+"=in.("+ids.map(encodeURIComponent).join(",")+")",{method:"PATCH",body:JSON.stringify(m.fromDoc(null,o))});setTimeout(()=>refresh(c),150)},
     collection:c=>Object.assign(listen(c),{
       orderBy:()=>({limit:()=>listen(c)}),
-      add:async o=>{const m=MAP[c];const r=await rest(m.table,{method:"POST",headers:Object.assign(H(),{Prefer:"return=representation"}),body:JSON.stringify(m.fromDoc(null,o))});bump(c);return{id:String(r[0][m.key])}}}),
+      add:async o=>{guardWrite(c);const m=MAP[c];const r=await rest(m.table,{method:"POST",headers:Object.assign(H(),{Prefer:"return=representation"}),body:JSON.stringify(m.fromDoc(null,o))});bump(c);return{id:String(r[0][m.key])}}}),
     doc:p=>{const [c,id]=p.split("/");return{
       set:async o=>{
+        guardWrite(c);
         if(c==="order"){await rest("orders?on_conflict=venue_id",{method:"POST",headers:Object.assign(H(),{Prefer:"resolution=merge-duplicates"}),body:JSON.stringify({venue_id:V(),items:o,updated_at:new Date().toISOString()})});bump(c);return}
         const m=MAP[c];if(m.patch){await rest(m.table+"?"+m.key+"=eq."+encodeURIComponent(id)+(m.table==="flavors"?"":"&venue_id=eq."+V()),{method:"PATCH",body:JSON.stringify(m.fromDoc(id,o))});bump(c);return}
         await rest(m.table+"?on_conflict="+(m.conflict||m.key),{method:"POST",headers:Object.assign(H(),{Prefer:"resolution=merge-duplicates"}),body:JSON.stringify(m.fromDoc(id,o))});bump(c)},
-      delete:async()=>{const m=MAP[c];await rest(m.table+"?"+m.key+"=eq."+encodeURIComponent(id)+"&venue_id=eq."+V(),{method:"DELETE"});bump(c)}}},
+      delete:async()=>{guardWrite(c);const m=MAP[c];await rest(m.table+"?"+m.key+"=eq."+encodeURIComponent(id)+"&venue_id=eq."+V(),{method:"DELETE"});bump(c)}}},
     uploadFile:async(folder,file)=>{
       const safe=file.name.replace(/[^\w.\-]+/g,"_").slice(-80),path=V()+"/"+folder+"/"+Date.now().toString(36)+"_"+safe;
       const r=await fetch(CFG.url+"/storage/v1/object/files/"+path,{method:"POST",headers:{Authorization:"Bearer "+session.token,apikey:CFG.anon,"Content-Type":file.type||"application/octet-stream","x-upsert":"true"},body:file});

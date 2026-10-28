@@ -20,8 +20,8 @@ declare
 begin
  v_tg:=public.me_tg();
  if v_tg is null then raise exception 'Unauthorized' using errcode='42501'; end if;
- select venue_id,role,coalesce(perms,'{}'::text[]) into v_venue,v_role,v_perms from public.users where tg_id=v_tg;
- if v_venue is null or v_role not in ('manager','master') then raise exception 'Forbidden' using errcode='42501'; end if;
+ select venue_id,role,array_remove(coalesce(perms,'{}'::text[]),null) into v_venue,v_role,v_perms from public.users where tg_id=v_tg;
+ if v_venue is null or v_role is null or v_role not in ('manager','master') then raise exception 'Forbidden' using errcode='42501'; end if;
  if p_operation_id is null or p_items is null or jsonb_typeof(p_items)<>'array'
     or jsonb_array_length(p_items) not between 1 and 100 then
    raise exception 'Invalid batch' using errcode='22023';
@@ -31,6 +31,7 @@ begin
     or exists(select 1 from jsonb_array_elements(p_items) a group by a->>'id' having count(*)>1) then
    raise exception 'Invalid or duplicate flavor' using errcode='22023';
  end if;
+ select jsonb_agg(value order by value->>'id') into p_items from jsonb_array_elements(p_items);
  v_hash:=md5(p_items::text);
  insert into mixora_internal.stock_operations(operation_id,venue_id,tg_id,payload_hash)
  values(p_operation_id,v_venue,v_tg,v_hash) on conflict(operation_id) do nothing;
@@ -48,8 +49,8 @@ begin
    end if;
    v_delta:=(v_item->>'delta')::integer; v_expected:=(v_item->>'expected_wh')::integer;
    v_has_bar:=v_item ? 'bar';
-   if v_has_bar and (jsonb_typeof(v_item->'bar')<>'boolean'
-      or jsonb_typeof(v_item->'expected_bar')<>'boolean') then
+   if v_has_bar and (jsonb_typeof(v_item->'bar') is distinct from 'boolean'
+      or jsonb_typeof(v_item->'expected_bar') is distinct from 'boolean') then
      raise exception 'Invalid bar comparison' using errcode='22023';
    end if;
    v_bar:=case when v_has_bar then (v_item->>'bar')::boolean else null end;
@@ -65,7 +66,7 @@ begin
    select wh,coalesce(bar,false),coalesce(stop_auto,false) into v_wh,v_old_bar,v_auto from public.stock
      where venue_id=v_venue and flavor_id=v_id for update;
    if not found then raise exception 'Missing stock row' using errcode='22023'; end if;
-   if v_wh<>v_expected or (v_has_bar and v_old_bar is distinct from (v_item->>'expected_bar')::boolean) then
+   if v_wh is distinct from v_expected or (v_has_bar and v_old_bar is distinct from (v_item->>'expected_bar')::boolean) then
      raise exception 'Stock changed, refresh before retry' using errcode='40001';
    end if;
    if v_delta=0 and (not v_has_bar or v_bar is not distinct from v_old_bar) then
@@ -102,4 +103,21 @@ returns jsonb language sql security definer set search_path=''
 as $body$ select mixora_internal.commit_stock_batch(p_operation_id,p_items); $body$;
 revoke all on function public.mixora_commit_stock_batch(uuid,jsonb) from public,anon;
 grant execute on function public.mixora_commit_stock_batch(uuid,jsonb) to authenticated;
+-- Close Data API writes even when legacy permissive RLS policies exist.
+-- Preserve SELECT policies/grants; service_role is not changed.
+alter table public.stock enable row level security;
+alter table public.moves enable row level security;
+alter table mixora_internal.stock_operations enable row level security;
+revoke insert,update,delete,truncate,references,trigger on public.stock,public.moves from public,anon,authenticated;
+-- Column grants survive table-level REVOKE: remove them too.
+do $grants$
+declare t text; cols text;
+begin
+ foreach t in array array['stock','moves'] loop
+  select string_agg(quote_ident(column_name),',') into cols
+    from information_schema.columns where table_schema='public' and table_name=t;
+  execute format('revoke insert (%s), update (%s), references (%s) on public.%I from public,anon,authenticated',cols,cols,cols,t);
+ end loop;
+end;
+$grants$;
 commit;
