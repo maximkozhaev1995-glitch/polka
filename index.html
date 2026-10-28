@@ -1603,7 +1603,10 @@ function photoNameIn(T,n){
 function photoMatchChunk(text,label,photo=false){let T=cnTxt(text),fixed=[];if(photo)T=photoBrandText(T);else if(label)({T,fixed}=fixBrands(T));
    const photoBrand=photo?[...new Set(DATA.map(x=>x.b))].filter(b=>T.includes(cnTxt(b))).sort((a,b)=>T.indexOf(cnTxt(a))-T.indexOf(cnTxt(b))||b.length-a.length)[0]:null;
    const brands=new Set(DATA.map(x=>cnTxt(x.b).trim()));
-   if(photo&&/[?…]|\.{2,}/.test(text))return{hit:[],byN:{},T,brands,fixed};
+   // An unreadable word before a fully legible name does not obscure that name.
+   // A question mark attached to the name or after it still means uncertainty.
+   const uncertain=photo&&/[?…]|\.{2,}/.test(text);
+   if(uncertain&&!/^[^?…]*\s\?\s+[^?….]+$/.test(text))return{hit:[],byN:{},T,brands,fixed};
    // Название, совпадающее с брендом (Black Burn «Overdose» и бренд Overdose), засчитываем только рядом со своим брендом
    let hit=DATA.filter(x=>{const n=cnTxt(x.n);if(photo)return x.b===photoBrand&&n.length>4&&photoNameIn(T,n.trim());return n.length>4&&nameIn(T,n.trim())&&(!brands.has(n.trim())||T.includes(cnTxt(x.b+" "+x.n))||nameIn(T,cnTxt(x.b+" "+x.n).trim()))});
    // Одно название у разных брендов (Cola у Sebero, Palitra, Deus) — оставляем тех, чей бренд тоже есть в этом
@@ -1642,6 +1645,7 @@ function photoMatchChunk(text,label,photo=false){let T=cnTxt(text),fixed=[];if(p
    if(photo){
      // A photo match needs its own brand and complete name on the same label.
      hit=hit.filter(x=>T.includes(cnTxt(x.b)));
+     if(uncertain){const [before,after]=text.split('?');hit=hit.filter(x=>photoBrandText(cnTxt(before)).includes(cnTxt(x.b))&&photoNameIn(cnTxt(after),cnTxt(x.n).trim()));}
      if(hit.length!==1)hit=[];
    }
    return{hit,byN,T,brands,fixed}}

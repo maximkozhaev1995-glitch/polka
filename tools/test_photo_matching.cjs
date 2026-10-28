@@ -12,6 +12,11 @@ const match=(text,photo=true)=>JSON.parse(JSON.stringify(vm.runInContext(`matchT
 test('complete brand and name on one label match the catalog',()=>{
  assert.deepEqual(match('Этикетка 1: Darkside Supernova').found.map(x=>[x.brand,x.name]),[['Darkside','Supernova']]);
 });
+test('isolated unreadable word before a complete name preserves exact match',()=>{
+ const r=match('Фокус: BLACKBURN\nЭтикетка 1: BLACKBURN ? CURRANT SHOCK КИСЛАЯ ЧЕРНАЯ СМОРОДИНА');
+ assert.deepEqual(r.found.map(x=>x.name),['Currant Shock']);assert.deepEqual(r.not_found_lines,[]);
+ for(const label of ['BLACKBURN CURRANT SHOCK?', 'BLACKBURN ? CURRANT', 'BLACKBURN ? CURRANT SHOCK CHERRY SHOCK'])assert.equal(match('Фокус: BLACKBURN\nЭтикетка 1: '+label).found.length,0,label);
+});
 test('cropped, uncertain and misspelled labels do not become confident matches',()=>{
  for(const text of ['BONCHE COFF?','BONCHE COFF…','PALITRA Pear bate','Darkside Pearlescent','Darkside Supernova?']){
   const brand=text.startsWith('BONCHE')?'Bonche':text.startsWith('PALITRA')?'Palitra':'Darkside';
