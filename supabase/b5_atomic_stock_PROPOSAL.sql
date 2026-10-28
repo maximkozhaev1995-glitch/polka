@@ -116,7 +116,7 @@ begin
      where venue_id=v_venue and flavor_id=v_id;
    select revision into v_revision from public.stock where venue_id=v_venue and flavor_id=v_id;
    insert into mixora_internal.stock_effects values(p_operation_id,v_id,v_before,v_revision);
-   v_kind:=case when v_delta>0 then 'in' when v_delta<0 and v_bar is true then 'tobar'
+   v_kind:=case when v_delta>0 then 'in' when v_delta<0 and coalesce(v_bar,v_old_bar) then 'tobar'
      when v_delta<0 then 'wo' when v_bar is true then 'tobar' else 'off' end;
    insert into public.moves(venue_id,flavor_id,kind,qty,left_after,prev,bar_to,by_tg,at,operation_id)
      values(v_venue,v_id,v_kind,v_delta,v_next,
@@ -299,6 +299,8 @@ begin
  kind_name:=case when action_name='inventory' then 'inv' when action_name='finish' then 'fin'
  when delta>0 then 'in' when delta<0 and next_bar then 'tobar' when delta<0 then 'wo' when next_bar then 'tobar' else 'off' end;
  reason_text:=nullif(item->>'reason','');
+ if item ? 'kind' and (action_name<>'change' or item->>'kind' is distinct from 'wo' or delta>=0) then
+ raise exception 'Invalid movement kind' using errcode='22023';end if;
  if (item->>'kind'='wo' or kind_name='wo') and action_name<>'undo' then
  if role_name<>'manager' or (reason_text is null and action_name not in ('inventory','finish')) then raise exception 'Write-off needs manager and reason' using errcode='42501';end if;
  kind_name:='wo';end if;
@@ -314,6 +316,12 @@ begin
  raise exception 'Transition forbidden' using errcode='42501';end if;
  end if;
  if action_name<>'undo' and next_wh>0 and next_auto then next_stop:=false;next_auto:=false;end if;
+ if action_name not in ('create','undo') and
+ (next_wh,next_bar,next_stop,next_auto,next_slow,next_retired) is not distinct from
+ (coalesce(before_row.wh,0),coalesce(before_row.bar,false),coalesce(before_row.stop,false),coalesce(before_row.stop_auto,false),coalesce(before_row.slow,false),coalesce(before_row.retired,false)) then
+ raise exception 'Empty change' using errcode='22023';end if;
+ if action_name in ('inventory','create') and exists(select 1 from jsonb_object_keys(desired) k where k<>'wh') then
+ raise exception 'Quantity-only operation' using errcode='22023';end if;
  if action_name='inventory' and delta<0 then shortage:=shortage-delta;grams:=grams-delta*coalesce(flavor.pack_g,0);if flavor.pack_g is null then unknown_weights:=unknown_weights+1;end if;end if;
  update public.stock set wh=next_wh,bar=next_bar,stop=next_stop,stop_auto=next_auto,slow=next_slow,retired=next_retired
  where venue_id=venue and flavor_id=ident returning revision into rev;
@@ -344,6 +352,13 @@ do $acl$ declare cols text;begin
  execute format('revoke insert (%s),update (%s),references (%s) on public.inv_log from public,anon,authenticated',cols,cols,cols);
 end;$acl$;
 
+-- Prevent catalog deletes/key/venue changes from cascading into stock outside RPCs.
+revoke insert,update,delete,truncate,references,trigger on public.flavors from public,anon,authenticated;
+do $catalog_acl$ declare cols text;begin
+ select string_agg(quote_ident(column_name),',') into cols from information_schema.columns where table_schema='public' and table_name='flavors';
+ execute format('revoke insert (%s),update (%s),references (%s) on public.flavors from public,anon,authenticated',cols,cols,cols);
+end;$catalog_acl$;
+grant update(strength,pack_g) on public.flavors to authenticated;
 -- Invoker rights preserve the underlying movement RLS; no private ledger exposure.
 create or replace view public.mixora_stock_moves with (security_invoker=true) as
  select m.*,exists(select 1 from public.moves r where r.venue_id=m.venue_id and r.reversal_of=m.operation_id) as compensated

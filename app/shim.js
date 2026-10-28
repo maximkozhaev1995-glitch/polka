@@ -128,7 +128,7 @@
   document.addEventListener("visibilitychange",()=>{if(!document.hidden&&session)Object.keys(subs).forEach(refresh)});
   const bump=c=>setTimeout(()=>refresh(c),150);
   const listen=c=>({onSnapshot:(f,err)=>{const s=subs[c]||(subs[c]={fns:[],errs:[],hash:""});s.fns.push(f);if(err)s.errs.push(err);refresh(c)}});
-  const guardWrite=c=>{if(c==="stock"||c==="moves")throw Error("Прямая запись склада и журнала закрыта. Используйте подтверждение складского черновика.")};
+  const guardWrite=c=>{if(c==="stock"||c==="moves"||c==="items"||c==="invlog")throw Error("Прямая запись склада и журнала закрыта. Используйте подтверждение складского черновика.")};
   const db={
     stockScope:()=>V()+":"+session.user.tg_id,
     // B5: одна серверная транзакция для остатков и журнала; повторный запрос идемпотентен.

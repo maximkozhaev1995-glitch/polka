@@ -11,7 +11,7 @@ grant all on public.stock,public.moves to authenticated,anon;
 grant update(wh),insert(flavor_id) on public.stock to authenticated;
 grant update(qty),insert(flavor_id) on public.moves to authenticated;
 
-alter table public.flavors add column brand text,add column line text,add column name text,add column descr text,add column custom boolean,add column pack_g numeric;
+alter table public.flavors add column brand text,add column line text,add column name text,add column descr text,add column custom boolean,add column pack_g numeric,add column strength integer;
 alter table public.moves add column reason text;
 -- Журнал инвентаризаций: запись итогов каждой завершённой инвентаризации
 -- по категории (обычные/хука сигар/парфюм) — недостача в шт/г/₽.

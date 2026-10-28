@@ -208,6 +208,28 @@ class Database(unittest.TestCase):
    self.assertEqual(c.execute("select wh,retired from public.stock where flavor_id='undo-new'").fetchone(),(0,True))
    self.assertEqual(c.execute("select count(*) from public.flavors where id='undo-new'").fetchone()[0],1)
 
+ def test_noop_and_movement_semantics(self):
+  before=self.state()
+  with pg.connect(URL) as c:rev=c.execute("select revision from public.stock where flavor_id='a'").fetchone()[0]
+  for state in [{},dict(wh=10),dict(bar=False)]:
+   self.error('22023',lambda:self.action(uuid.uuid4(),dict(action='change',items=[self.patch('a',state)]),3))
+  self.assertEqual(before,self.state())
+  with pg.connect(URL) as c:self.assertEqual(c.execute("select revision from public.stock where flavor_id='a'").fetchone()[0],rev)
+  for name,wh in [('change',11),('inventory',9),('finish',9)]:
+   item=self.patch('a',dict(wh=wh));item['kind']='wo';item['reason']='Test'
+   self.error('22023',lambda:self.action(uuid.uuid4(),dict(action=name,ig='main',items=[item])))
+  with pg.connect(URL,autocommit=True) as c:
+   c.execute("update public.users set perms=ARRAY['take'] where tg_id=3;update public.stock set bar=true where flavor_id='a'")
+  self.call(uuid.uuid4(),[dict(id='a',delta=-1,expected_wh=10)],3)
+  with pg.connect(URL) as c:self.assertEqual(c.execute("select kind from public.moves where flavor_id='a'").fetchone()[0],'tobar')
+ def test_catalog_cascade_entry_points_closed(self):
+  with pg.connect(URL) as c:
+   for privilege in ['INSERT','UPDATE','DELETE','TRUNCATE']:
+    self.assertFalse(c.execute("select has_table_privilege('authenticated','public.flavors',%s)",(privilege,)).fetchone()[0])
+   for col in ['id','venue_id','custom','brand']:
+    self.assertFalse(c.execute("select has_column_privilege('authenticated','public.flavors',%s,'UPDATE')",(col,)).fetchone()[0])
+   self.assertTrue(c.execute("select has_column_privilege('authenticated','public.flavors','pack_g','UPDATE')").fetchone()[0])
+
 if __name__=='__main__':
  if not(URL and APPROVED):
   print('NOT RUN: explicit permission and disposable test database required')
