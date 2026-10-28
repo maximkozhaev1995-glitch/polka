@@ -7,6 +7,8 @@ on:
       - 'app/config.js'
       - 'build_app.py'
       - 'index.html'
+      - 'tests/**'
+      - 'supabase/b5_atomic_stock_PROPOSAL.sql'
       - '.github/workflows/mixora-build-consistency.yml'
   workflow_dispatch:
 jobs:
@@ -25,3 +27,12 @@ jobs:
         run: |
           git diff --exit-code -- index.html
           grep -q 'commitStockBatch' index.html
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: B5 client recovery and write guards
+        run: node tests/b5-client.cjs
+      - name: Existing action and matching regressions
+        run: |
+          node tests/actions.cjs
+          node tests/matching.cjs
