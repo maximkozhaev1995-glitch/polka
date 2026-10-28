@@ -22,4 +22,42 @@ await test('mismatched signed identity claims do not authorize RLS',async()=>{aw
 await test('anonymous and nonexistent users cannot call RPC',async()=>{await actor(999);await assert.rejects(call('b',0,1),/stock_forbidden/);await db.exec("set role anon;set request.jwt.claims='{}'");assert.equal((await db.query('select is_staff() ok')).rows[0].ok,false);await assert.rejects(call('b',0,1),/permission denied/)});
 await test('uniform RPC keeps idempotency, revisions and full rollback',async()=>{await actor(2);const key=crypto.randomUUID();await call('b',0,4,{},key);await call('b',0,4,{},key);await assert.rejects(call('b',0,4),/stale_revision/);await assert.rejects(db.query('select public.apply_stock($1,$2::jsonb)',[crypto.randomUUID(),JSON.stringify([{id:'a',revision:3,doc:{wh:8}},{id:'b',revision:1,doc:{wh:-2}}])]),/invalid_quantity/);assert.equal((await db.query("select wh from stock where flavor_id='a'")).rows[0].wh,5);assert.equal((await db.query("select count(*)::int n from moves where flavor_id='b'")).rows[0].n,1)});
 await test('no active policy still splits staff by legacy role',async()=>{await admin();const rows=(await db.query("select * from pg_policies where schemaname in ('public','storage') and (coalesce(qual,'')||coalesce(with_check,'')) like '%me_role(%'")).rows;assert.equal(rows.length,0)});
+await test('shared catalog cannot be changed, inserted or deleted by staff',async()=>{
+ for(const id of [1,2]){await actor(id);
+  assert.equal((await db.query("update flavors set name='hacked' where id='a' returning id")).rows.length,0);
+  assert.equal((await db.query("delete from flavors where id='a' returning id")).rows.length,0);
+  await assert.rejects(db.query("insert into flavors(id,brand,name) values('global-hack','X','X')"),/row-level security/);
+ }
+});
+await test('own custom flavor remains editable but cannot become global or move venues',async()=>{
+ await actor(2);await db.query("insert into flavors(id,brand,name,custom,venue_id) values('own-custom','X','Local',true,$1)",[v]);
+ assert.equal((await db.query("update flavors set name='Local edit' where id='own-custom' returning id")).rows.length,1);
+ await assert.rejects(db.query("update flavors set venue_id=null where id='own-custom'"),/row-level security/);
+ await assert.rejects(db.query("update flavors set venue_id=$1 where id='own-custom'",[other]),/row-level security/);
+ assert.equal((await db.query("select id from flavors where id='custom'")).rows.length,0);
+});
+await test('strength and pack overrides are local, validated and available to both roles',async()=>{
+ for(const id of [1,2]){await actor(id);
+  await db.query("insert into flavor_strengths values($1,'a',7) on conflict(venue_id,flavor_id) do update set strength=excluded.strength",[v]);
+  await db.query("insert into flavor_packs values($1,'a',100) on conflict(venue_id,flavor_id) do update set pack_g=excluded.pack_g",[v]);
+  await assert.rejects(db.query("insert into flavor_strengths values($1,'a',3)",[other]),/row-level security/);
+  await assert.rejects(db.query("insert into flavor_packs values($1,'custom',100)",[v]),/row-level security/);
+  await assert.rejects(db.query("update flavor_strengths set strength=11"),/check constraint/);
+  await assert.rejects(db.query("update flavor_packs set pack_g=-1"),/check constraint/);
+ }
+ await admin();assert.equal((await db.query("select strength from flavors where id='a'")).rows[0].strength,null);
+ await db.query("insert into users(tg_id,venue_id,name,role) values(4,$1,'Other','master')",[other]);await actor(4);
+ assert.equal((await db.query('select * from flavor_strengths')).rows.length,0);
+ assert.equal((await db.query('select * from flavor_packs')).rows.length,0);
+ await db.query("insert into flavor_strengths values($1,'a',3)",[other]);await actor(2);
+ assert.equal((await db.query("select strength from flavor_strengths where flavor_id='a'")).rows[0].strength,7);
+ await db.query("update flavor_packs set pack_g=null where flavor_id='a'");
+ assert.equal((await db.query("select pack_g from flavor_packs where flavor_id='a'")).rows[0].pack_g,null);
+});
+await test('guests may read shared flavor strength for guest cards but cannot write settings',async()=>{
+ await db.exec("set role anon;set request.jwt.claims='{}'");
+ assert.equal((await db.query("select * from flavor_strengths where flavor_id='a'")).rows.length,2);
+ await assert.rejects(db.query("update flavor_strengths set strength=1"),/permission denied/);
+ await assert.rejects(db.query('select * from flavor_packs'),/permission denied/);
+});
 console.log(`${count} uniform access/RLS/RPC tests passed (local PGlite, metadata fixture)`);await db.close();

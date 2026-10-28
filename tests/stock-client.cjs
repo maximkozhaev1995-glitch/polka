@@ -31,5 +31,18 @@ await test('review uses one batch and double click persists once',async()=>{awai
 await test('failed batch keeps every reviewed draft item',async()=>{vm.runInContext('draft={a:{d:-1},b:{d:1}};fail=true',ui);await vm.runInContext('commit()',ui);assert.equal(vm.runInContext('Object.keys(draft).length',ui),2);assert.equal(vm.runInContext('busy',ui),false)});
 await test('post-commit order error cannot leave a replayable draft',async()=>{vm.runInContext('draft={a:{d:-2}};fail=false',ui);await vm.runInContext('commit()',ui);assert.equal(vm.runInContext('Object.keys(draft).length',ui),0);assert.equal(vm.runInContext('stock.a.wh',ui),0)});
 await test('legacy direct stock/journal writes absent from app source',async()=>{assert(!/db\.doc\("(?:stock|moves)\//.test(source));assert(!/db\.collection\("moves"\)\.add/.test(source));assert(!/setStockBatch/.test(source));assert.match(shim,/if\(c==="stock"\|\|c==="moves"\)throw/)});
+await test('reviewed transfer preserves automatic stop and slow flag',async()=>{
+ vm.runInContext('stock.a={wh:3,revision:4,bar:false,stop:true,stopAuto:true,slow:true};draft={a:{d:-1,bar:true}};fail=false',ui);
+ await vm.runInContext('commit()',ui);
+ assert.equal(vm.runInContext('stock.a.stop',ui),true);assert.equal(vm.runInContext('stock.a.stopAuto',ui),true);
+ assert.equal(vm.runInContext('stock.a.slow',ui),true);assert.equal(vm.runInContext('stock.a.bar',ui),true);
+});
+await test('quick transfer preserves both manual and automatic stop',async()=>{
+ const quick=vm.createContext({console});
+ vm.runInContext(`let db={},busy=false,stock={},sent;const wh=()=>3,stockOne=async(id,doc)=>{sent=doc},autoOrder=()=>0,toast=()=>{},render=()=>{},setStatus=()=>{},nm=()=>'',esc=x=>x;`+source.slice(source.indexOf('async function toBar('),source.indexOf('const IGROUPS=')),quick);
+ for(const auto of [false,true]){vm.runInContext('stock={a:{wh:3,revision:0,bar:false,stop:true,stopAuto:'+auto+',slow:true}}',quick);await vm.runInContext('toBar({id:"a"},1)',quick);
+  assert.equal(vm.runInContext('sent.stop',quick),true);assert.equal(vm.runInContext('sent.stopAuto',quick),auto);assert.equal(vm.runInContext('sent.slow',quick),true);
+ }
+});
 console.log(`${count} stock client tests passed`);
 })().catch(e=>{console.error(e);process.exitCode=1});

@@ -1,0 +1,9 @@
+{
+  "src/stoika.html": "f507caf9ebb63e9f1a5bec400a6c5c8f69b2a958729b26c9596d080d44cd9096",
+  "app/shim.js": "bd5ac9dfc60a57ddf670541a867c57c7d3506c42c81a5c59db79b3c5aaf0eabf",
+  "index.html": "f48ebce208a8a9fa375d67c841166a71c419561f5e2a530505bbd3d27c4003dd",
+  "karta/template.html": "a1bcc1bf13947f5962a0e5aaf5163dbd4a3977412b700505cd91728d1405fee9",
+  "karta/index.html": "eee95e884fa7c27a81c30123a8fa6aabfe0dac283b3d19287957ee6ff5dea37b",
+  "supabase/functions/ai/index.ts": "6a3ba4ad8a7def1aeef21f75d8d549403577f13a21bdb7f07228704032d7cf88",
+  "supabase/migrations/20261028111110_venue_catalog_isolation.sql": "cb3effa7dceebd0e3b8d2d49b3ce5fd781c3ef02c71678ea6707f0d39f74a974"
+}

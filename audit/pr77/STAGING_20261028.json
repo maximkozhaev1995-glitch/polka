@@ -1,0 +1,160 @@
+{
+  "checked_at": "2026-10-28",
+  "base_commit": "5b0eccd6f3897cf8e44a7aebca6261b933fc325e",
+  "project": "qnohynnwasoyjakrrrhb",
+  "database": {
+    "tests": [
+      "master: full staff membership",
+      "master: atomic RPC, exact retry, stop and slow preserved",
+      "master: stale revision rejected",
+      "master: shared catalog update blocked",
+      "master: local overrides preserve catalog defaults",
+      "master: foreign venue and custom flavor rejected",
+      "manager: full staff membership",
+      "manager: atomic RPC, exact retry, stop and slow preserved",
+      "manager: stale revision rejected",
+      "manager: shared catalog update blocked",
+      "manager: local overrides preserve catalog defaults",
+      "manager: foreign venue and custom flavor rejected",
+      "foreign venue: private settings hidden and forged claim ignored",
+      "ACL: direct stock update, journal deletion and anonymous RPC denied",
+      "guest: public strength available and private custom flavor hidden"
+    ],
+    "engine": "PostgreSQL 17.11 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-bit",
+    "passed": 15,
+    "cleanup": "ROLLBACK",
+    "project": "qnohynnwasoyjakrrrhb"
+  },
+  "cleanup": {
+    "moves": 0,
+    "stock": 2,
+    "users": 3,
+    "venues": 2,
+    "flavors": 2,
+    "requests": 0,
+    "pack_overrides": 0,
+    "temporary_flavors": 0,
+    "strength_overrides": 0
+  },
+  "security_advisors": {
+    "lints": [
+      {
+        "name": "rls_enabled_no_policy",
+        "title": "RLS Enabled No Policy",
+        "level": "INFO",
+        "facing": "EXTERNAL",
+        "categories": [
+          "SECURITY"
+        ],
+        "description": "Detects cases where row level security (RLS) has been enabled on a table but no RLS policies have been created.",
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy",
+        "count": 1,
+        "findings": [
+          {
+            "detail": "Table \\`mixora_private.stock_requests\\` has RLS enabled, but no policies exist",
+            "metadata": {
+              "name": "stock_requests",
+              "type": "table",
+              "schema": "mixora_private"
+            },
+            "observed_at": "2026-10-28T11:37:57.277Z"
+          }
+        ]
+      },
+      {
+        "name": "anon_security_definer_function_executable",
+        "title": "Public Can Execute SECURITY DEFINER Function",
+        "level": "WARN",
+        "facing": "EXTERNAL",
+        "categories": [
+          "SECURITY"
+        ],
+        "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.",
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+        "count": 3,
+        "findings": [
+          {
+            "detail": "Function `public.is_staff()` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/is_staff`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+            "metadata": {
+              "name": "is_staff",
+              "schema": "public",
+              "language": "sql",
+              "arguments": "",
+              "security_definer": true
+            },
+            "observed_at": "2026-10-28T11:37:57.277Z"
+          },
+          {
+            "detail": "Function `public.me_role()` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/me_role`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+            "metadata": {
+              "name": "me_role",
+              "schema": "public",
+              "language": "sql",
+              "arguments": "",
+              "security_definer": true
+            },
+            "observed_at": "2026-10-28T11:37:57.277Z"
+          },
+          {
+            "detail": "Function `public.me_venue()` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/me_venue`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+            "metadata": {
+              "name": "me_venue",
+              "schema": "public",
+              "language": "sql",
+              "arguments": "",
+              "security_definer": true
+            },
+            "observed_at": "2026-10-28T11:37:57.277Z"
+          }
+        ]
+      },
+      {
+        "name": "authenticated_security_definer_function_executable",
+        "title": "Signed-In Users Can Execute SECURITY DEFINER Function",
+        "level": "WARN",
+        "facing": "EXTERNAL",
+        "categories": [
+          "SECURITY"
+        ],
+        "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.",
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+        "count": 3,
+        "findings": [
+          {
+            "detail": "Function `public.is_staff()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/is_staff`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+            "metadata": {
+              "name": "is_staff",
+              "schema": "public",
+              "language": "sql",
+              "arguments": "",
+              "security_definer": true
+            },
+            "observed_at": "2026-10-28T11:37:57.277Z"
+          },
+          {
+            "detail": "Function `public.me_role()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/me_role`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+            "metadata": {
+              "name": "me_role",
+              "schema": "public",
+              "language": "sql",
+              "arguments": "",
+              "security_definer": true
+            },
+            "observed_at": "2026-10-28T11:37:57.277Z"
+          },
+          {
+            "detail": "Function `public.me_venue()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/me_venue`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+            "metadata": {
+              "name": "me_venue",
+              "schema": "public",
+              "language": "sql",
+              "arguments": "",
+              "security_definer": true
+            },
+            "observed_at": "2026-10-28T11:37:57.277Z"
+          }
+        ]
+      }
+    ]
+  }
+}

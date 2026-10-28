@@ -13,9 +13,8 @@ const out = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s
 const DAILY_LIMIT = 300; // запросов на человека в сутки (считаются только вопросы человека, не шаги инструментов — см. ниже)
 const MODELS = ["claude-haiku-5-5", "claude-sonnet-5-5"];
 
-async function tgId(req: Request): Promise<number | null> {
+async function tgId(req: Request, secret = Deno.env.get("APP_JWT_SECRET")): Promise<number | null> {
   try {
-    const secret = Deno.env.get("APP_JWT_SECRET");
     if (!secret) return null;
     const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
     const parts = token.split(".");if (parts.length !== 3) return null;

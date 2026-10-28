@@ -648,7 +648,7 @@ async function stockWrite(entries){if(!db.applyStock)throw Error("Складск
 async function stockOne(id,doc,mv){return stockWrite([stockEntry(id,doc,mv)])}
 async function toBar(x,k){if(!db||busy)return;busy=true;const id=x.id,n=wh(x),at=new Date().toISOString(),take=k||1;
   const prev={wh:n,bar:(stock[id]&&typeof stock[id].bar==="boolean")?stock[id].bar:null};
-  try{const d0=Object.assign({},stock[id]||{},{wh:n-take,bar:true});if(d0.stop&&d0.stopAuto){delete d0.stop;delete d0.stopAuto}await stockOne(id,d0,{kind:"tobar"})}catch(e){busy=false;setStatus("Не сохранилось",true);return}
+  try{const d0=Object.assign({},stock[id]||{},{wh:n-take,bar:true});await stockOne(id,d0,{kind:"tobar"})}catch(e){busy=false;setStatus("Не сохранилось",true);return}
   busy=false;const ao=take?autoOrder(x,n-take):0;toast('<b>'+esc(nm(x))+'</b>: взято '+take+', на стойке. На складе осталось '+(n-take)+(ao?" · в заказ "+ao+" шт.":""),()=>{if(ao){delete orderQ[id];saveOrder()}askUndo(id)});render()}
 const IGROUPS=[["main","Обычные"],["cigar","Хука сигар"],["perfume","Парфюм"]];
 // Хука сигар — весь Kraken (включая Royal и Cigar), кроме Medium Seco и Strong Ligero —
@@ -943,7 +943,6 @@ async function commit(){
     if(saved&&saved.signature!==signature)throw Error("Сначала восстановите результат предыдущего подтверждения");
     if(!saved){saved={signature,entries:ids.map(id=>{const d=draft[id],n=wh(byId[id]),next=n+(d.d||0);
       const doc={...stock[id],wh:next};if(d.bar!==undefined)doc.bar=d.bar;
-      if(doc.stopAuto&&d.bar===true){delete doc.stop;delete doc.stopAuto}
       return stockEntry(id,doc,{kind:d.kind||(d.bar===true?"tobar":d.d<0?"wo":"in")})})};localStorage.setItem(key,JSON.stringify(saved))}
     const rows=await stockWrite(saved.entries);localStorage.removeItem(key);
     const candidates=rows.filter(r=>draft[r.id]?.d<0&&!cmdDraftIds.has(r.id)&&r.doc.wh<=1);
