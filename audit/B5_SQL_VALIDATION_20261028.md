@@ -54,3 +54,24 @@ remain closed. No claim of release readiness is made.
 
 The previous B5_AUDIT_20261028.md is historical evidence for head 709af0c; this
 follow-up supersedes its statement that no SQL was executed at all.
+
+
+## Final native evidence — 16fb2482146ea9ca818692fd7034bed5d8837d19
+
+https://github.com/maximkozhaev1995-glitch/polka/actions/runs/40760995002
+Both build-consistency and database-regressions succeeded. Native PostgreSQL
+16.15: **9 tests, OK**, including real parallel same-UUID idempotency, competing
+employees, row-lock waiting for permission revocation and flavor venue transfer,
+legacy auto-stop and NULL-bar compatibility, table/column grants and isolation.
+Test service was stopped and removed by the workflow. No Supabase was used.
+
+Client suite: 13 PASS groups; actions 20 PASS; matching 27/27 plus 1144 cases.
+The build job verified exact index.html rebuild equality. All seven mandatory
+audit checks now have passing evidence on the synthetic baseline (UI side uses VM).
+Complete production baseline, real PostgREST/JWT, native browser Web Locks and
+compensating undo remain outside this proof. Verdict: CHANGES REQUESTED.
+
+Native logs: test_1_null_permissions, test_2_first_receipt, test_3_null_bar,
+test_4_idempotency, test_5_atomic_rollback, test_6_concurrent_employees,
+test_access_and_isolation, test_concurrent_revocation_and_flavor_transfer,
+test_legacy_trigger_automatic_stop — all OK (9 tests in 1.067 s).

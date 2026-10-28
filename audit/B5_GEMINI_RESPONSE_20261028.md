@@ -24,3 +24,10 @@ Verdict remains CHANGES REQUESTED: compensation RPC and closed legacy features a
 not implemented; complete baseline, real JWT/PostgREST and native browser lock
 behavior remain unverified. SQL's fixed row order reduces lock-order inversions,
 but does not prove all deadlocks impossible across other database transactions.
+
+
+Final expanded native run: **9/9 PASS** at 16fb2482146ea9ca818692fd7034bed5d8837d19.
+Evidence: https://github.com/maximkozhaev1995-glitch/polka/actions/runs/40760995002
+The previously pending authorization/catalog races and NULL-bar trigger regression
+passed. The CI checkout's merge-preview tree was checked against the PR head tree
+and is identical. Native browser lock execution and full baseline remain untested.
