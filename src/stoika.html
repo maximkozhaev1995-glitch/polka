@@ -1610,10 +1610,20 @@ async function cmdNaiti(out,args,imgs){const{m}=await cmdFindIds(args,imgs,aiCtl
   if(!m.found.length){out.textContent="Не нашёл ничего на складе"+(args||(imgs&&imgs.length)?" по этому запросу":"")+". Пришли фото банок или напиши названия вкусов.";return}
   const lines=m.found.map(x=>{const it=byId[x.id];return "— "+x.brand+" "+x.name+(imgs&&imgs.length&&x.jars>1?" ×"+x.jars:"")+": на складе "+x.wh+(x.onBar?", на стойке":"")+(it&&flag(it,"slow")?" (неликвид)":"")+(it&&flag(it,"stop")?" (стоп)":"")});
   out.textContent=(imgs&&imgs.length?"Распознано по каталогу:\n":"Нашёл на складе и стойке:\n")+lines.join("\n")+(m.not_found_lines.length?"\n\nНе распознано уверенно:\n"+m.not_found_lines.map(l=>"— "+l).join("\n"):"")}
-async function cmdPerenos(out,args,imgs){const{m}=await cmdFindIds(args,imgs,aiCtl.signal);
+function transferQuantity(args){
+ const text=String(args||"").trim();
+ const matches=[...text.matchAll(/(?:^|\s)(\d+)\s*(?:шт\.?|штук[аи]?|упаков(?:ка|ки|ок))(?=\s|$)/gi)];
+ const bare=text.match(/^\d+$/);
+ if(matches.length>1)throw Error("Укажи одно количество для одного вкуса.");
+ const value=matches.length?Number(matches[0][1]):bare?Number(text):null;
+ if(value!==null&&(!Number.isSafeInteger(value)||value<1||value>999))throw Error("Количество должно быть от 1 до 999.");
+ return value;
+}
+async function cmdPerenos(out,args,imgs){const requested=transferQuantity(args);const{m}=await cmdFindIds(args,imgs,aiCtl.signal);
+  if(requested!==null){if(m.found.length!==1||m.not_found_lines.length){out.textContent="Укажи количество отдельно для каждого вкуса. Ничего не добавлено в черновик.";return}const it=byId[m.found[0].id];const avail=it?wh(it)+((draft[it.id]||{}).d||0):0;if(avail<requested){out.textContent="Нужно "+requested+" шт., доступно на складе "+avail+". Ничего не добавлено в черновик.";return}}
   const st=AI_TOOLS.find(f=>f.name==="stage_stock"),done=[],none=[];
   m.found.forEach(x=>{const it=byId[x.id];if(!it)return;const avail=wh(it)+((draft[it.id]||{}).d||0);
-    const n=(imgs&&imgs.length&&x.jars)?Math.min(x.jars,avail):avail;
+    const n=requested!==null?requested:(imgs&&imgs.length&&x.jars)?Math.min(x.jars,avail):avail;
     if(n<1){none.push(it);return}try{st.execute({id:it.id,delta:-n,toBar:true});done.push([it,n])}catch(e){none.push(it)}});
   if(!done.length&&!none.length){out.textContent="Не нашёл на складе подходящих вкусов. Пришли фото банок или напиши названия.";return}
   render();
