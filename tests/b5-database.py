@@ -222,6 +222,16 @@ class Database(unittest.TestCase):
    c.execute("update public.users set perms=ARRAY['take'] where tg_id=3;update public.stock set bar=true where flavor_id='a'")
   self.call(uuid.uuid4(),[dict(id='a',delta=-1,expected_wh=10)],3)
   with pg.connect(URL) as c:self.assertEqual(c.execute("select kind from public.moves where flavor_id='a'").fetchone()[0],'tobar')
+ def test_empty_patch_cannot_clear_inconsistent_auto_stop(self):
+  with pg.connect(URL,autocommit=True) as c:c.execute("update public.stock set stop=true,stop_auto=true where flavor_id='a'")
+  with pg.connect(URL) as c:before=c.execute("select * from public.stock where flavor_id='a'").fetchone()
+  self.error('22023',lambda:self.action(uuid.uuid4(),dict(action='change',items=[self.patch('a',{})]),3))
+  self.error('42501',lambda:self.action(uuid.uuid4(),dict(action='change',items=[self.patch('a',dict(stop=False))]),3))
+  with pg.connect(URL) as c:self.assertEqual(c.execute("select * from public.stock where flavor_id='a'").fetchone(),before)
+  self.assertEqual(self.state()[1],0)
+  with pg.connect(URL,autocommit=True) as c:c.execute("update public.users set perms=ARRAY['add'] where tg_id=3")
+  self.action(uuid.uuid4(),dict(action='change',items=[self.patch('a',dict(wh=11))]),3)
+  with pg.connect(URL) as c:self.assertEqual(c.execute("select wh,stop,stop_auto from public.stock where flavor_id='a'").fetchone(),(11,False,False))
  def test_catalog_cascade_entry_points_closed(self):
   with pg.connect(URL) as c:
    for privilege in ['INSERT','UPDATE','DELETE','TRUNCATE']:

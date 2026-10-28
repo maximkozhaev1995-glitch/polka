@@ -312,10 +312,10 @@ begin
  or next_slow is distinct from coalesce(before_row.slow,false) and not ('slow'=any(permissions))
  or next_retired is distinct from coalesce(before_row.retired,false)
  or coalesce(before_row.stop,false) and not next_stop and not ('unstop'=any(permissions))
- and not (before_row.stop_auto is true and next_wh>0) then
+ and not (before_row.stop_auto is true and delta>0 and next_wh>0) then
  raise exception 'Transition forbidden' using errcode='42501';end if;
  end if;
- if action_name<>'undo' and next_wh>0 and next_auto then next_stop:=false;next_auto:=false;end if;
+ if action_name<>'undo' and delta>0 and next_wh>0 and next_auto then next_stop:=false;next_auto:=false;end if;
  if action_name not in ('create','undo') and
  (next_wh,next_bar,next_stop,next_auto,next_slow,next_retired) is not distinct from
  (coalesce(before_row.wh,0),coalesce(before_row.bar,false),coalesce(before_row.stop,false),coalesce(before_row.stop_auto,false),coalesce(before_row.slow,false),coalesce(before_row.retired,false)) then

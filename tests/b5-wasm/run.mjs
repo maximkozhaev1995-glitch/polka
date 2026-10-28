@@ -89,5 +89,12 @@ await test('catalog and initial stock atomic creation, replay and foreign denial
  await error('22023',()=>action({action:'change',items:[{id:'foreign',revision:'0',state:{wh:1}}]}));
 });
 
+await test('empty patch cannot exploit automatic stop clearing',async()=>{
+ await db.exec("update public.stock set stop=true,stop_auto=true where flavor_id='a'");const before=await state();
+ const empty={action:'change',items:[await patch('a',{})]};await error('22023',()=>action(empty,3));
+ const unstop={action:'change',items:[await patch('a',{stop:false})]};await error('42501',()=>action(unstop,3));assert.deepEqual(await state(),before);
+ await db.exec("update public.users set perms=ARRAY['add'] where tg_id=3");await action({action:'change',items:[await patch('a',{wh:11})]},3);
+ const row=(await state()).stock[0];assert.equal(row.stop,false);assert.equal(row.stop_auto,false);
+});
 console.log(`${passed} embedded SQL groups PASS. Native concurrent-session tests NOT RUN.`);
 await db.close();
