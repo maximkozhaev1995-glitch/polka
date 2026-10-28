@@ -75,3 +75,13 @@ Native logs: test_1_null_permissions, test_2_first_receipt, test_3_null_bar,
 test_4_idempotency, test_5_atomic_rollback, test_6_concurrent_employees,
 test_access_and_isolation, test_concurrent_revocation_and_flavor_transfer,
 test_legacy_trigger_automatic_stop — all OK (9 tests in 1.067 s).
+
+
+## Superseding restored-operations validation
+
+The remaining disabled-operation and missing-compensation findings above were
+addressed in ac7e557, b8a9f1d and 4c0fd4d. See
+[B5_RESTORED_OPERATIONS_20261028.md](B5_RESTORED_OPERATIONS_20261028.md) for the
+implementation, independent audit corrections, final native 19/19 and client CI,
+rollback boundary and remaining integration gates. This file's earlier verdict
+records the earlier code state, not missing RPCs in the current HEAD.
