@@ -20,7 +20,7 @@ declare
 begin
  v_tg:=public.me_tg();
  if v_tg is null then raise exception 'Unauthorized' using errcode='42501'; end if;
- select venue_id,role,array_remove(coalesce(perms,'{}'::text[]),null) into v_venue,v_role,v_perms from public.users where tg_id=v_tg;
+ select venue_id,role,array_remove(coalesce(perms,'{}'::text[]),null) into v_venue,v_role,v_perms from public.users where tg_id=v_tg for share;
  if v_venue is null or v_role is null or v_role not in ('manager','master') then raise exception 'Forbidden' using errcode='42501'; end if;
  if p_operation_id is null or p_items is null or jsonb_typeof(p_items)<>'array'
     or jsonb_array_length(p_items) not between 1 and 100 then
@@ -48,6 +48,11 @@ begin
      raise exception 'Invalid quantity' using errcode='22023';
    end if;
    v_delta:=(v_item->>'delta')::integer; v_expected:=(v_item->>'expected_wh')::integer;
+   if (v_item ? 'bar') <> (v_item ? 'expected_bar') then
+     raise exception 'Invalid bar comparison' using errcode='22023'; end if;
+   if exists(select 1 from jsonb_object_keys(v_item) k
+       where k not in ('id','delta','expected_wh','bar','expected_bar')) then
+     raise exception 'Invalid item payload' using errcode='22023'; end if;
    v_has_bar:=v_item ? 'bar';
    if v_has_bar and (jsonb_typeof(v_item->'bar') is distinct from 'boolean'
       or jsonb_typeof(v_item->'expected_bar') is distinct from 'boolean') then
@@ -58,8 +63,9 @@ begin
      raise exception 'Take forbidden' using errcode='42501'; end if;
    if v_delta>0 and v_role<>'manager' and not ('add'=any(v_perms)) then
      raise exception 'Add forbidden' using errcode='42501'; end if;
-   if not exists(select 1 from public.flavors where id=v_id and (venue_id=v_venue or venue_id is null)) then
-     raise exception 'Flavor forbidden' using errcode='22023'; end if;
+   -- SHARE also blocks non-key venue_id updates, unlike KEY SHARE alone.
+   perform 1 from public.flavors where id=v_id and (venue_id=v_venue or venue_id is null) for share;
+   if not found then raise exception 'Flavor forbidden' using errcode='22023'; end if;
    insert into public.stock(venue_id,flavor_id,wh,bar,stop,stop_auto)
      values(v_venue,v_id,0,false,false,false)
      on conflict(venue_id,flavor_id) do nothing;
@@ -115,7 +121,7 @@ begin
  if r is distinct from 'master' then return new; end if;
  if new.wh is distinct from old.wh and not ('take'=any(p) or 'add'=any(p)) then
    raise exception 'Stock forbidden' using errcode='42501'; end if;
- if new.bar is distinct from old.bar and not ('take'=any(p) or 'offbar'=any(p)) then
+ if coalesce(new.bar,false) is distinct from coalesce(old.bar,false) and not ('take'=any(p) or 'offbar'=any(p)) then
    raise exception 'Bar forbidden' using errcode='42501'; end if;
  if new.slow is distinct from old.slow and not ('slow'=any(p)) then
    raise exception 'Slow forbidden' using errcode='42501'; end if;

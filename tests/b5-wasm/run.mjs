@@ -25,7 +25,7 @@ await test('#1 NULL/NULL-element permissions and NULL role fail closed',async()=
  await db.exec('update public.users set role=null where tg_id=3');await error('42501',()=>call([item()],3));assert.equal((await state()).moves.length,0);
 });
 await test('#2 first receipt creates stock and movement',async()=>{await db.exec("delete from public.stock where flavor_id='a'");await call([item('a',5,0)]);let s=await state();assert.equal(s.stock[0].wh,5);assert.equal(s.moves.length,1);assert.equal(s.moves[0].qty,5)});
-await test('#3 NULL bar and required expected_bar',async()=>{await db.exec("update public.stock set bar=null where flavor_id='a'");await call([{...item(),bar:false,expected_bar:false}]);assert.equal((await state()).stock[0].wh,9);await error('22023',()=>call([{...item('a',-1,9),bar:true}]))});
+await test('#3 NULL bar and required expected_bar',async()=>{await db.exec("update public.stock set bar=null where flavor_id='a'");await call([{...item(),bar:false,expected_bar:false}]);assert.equal((await state()).stock[0].wh,9);await error('22023',()=>call([{...item('a',-1,9),bar:true}]));await error('22023',()=>call([{...item('a',-1,9),expected_bar:true}]));await error('22023',()=>call([{...item('a',-1,9),unknown:true}]))});
 await test('#4 SERIAL replay, payload/actor/venue mismatch, canonical order',async()=>{const key=randomUUID(),payload=[item('b'),item('a')];const result=await call(payload,1,key);assert.deepEqual(await call([...payload].reverse(),1,key),result);assert.equal((await state()).moves.length,2);await error('23505',()=>call([item('a',-2)],1,key));await error('23505',()=>call(payload,2,key));await error('23505',()=>call(payload,4,key))});
 await test('#5 entire batch and operation key roll back; failed UUID can retry',async()=>{const before=await state(),key=randomUUID();await error('23514',()=>call([item('a',-2),item('b',-2),item('c',-2,1)],1,key));assert.deepEqual(await state(),before);await call([item()],1,key);assert.equal((await state()).moves.length,1)});
 await test('#6 SERIAL stale employee receives 40001 and fresh retry succeeds',async()=>{await call([item()],1);const before=await state();await error('40001',()=>call([item()],2));assert.deepEqual(await state(),before);await call([item('a',-1,9)],2);assert.equal((await state()).stock[0].wh,8)});
@@ -45,9 +45,12 @@ await test('legacy stock trigger permits automatic stop removal on authorized re
  await db.exec("update public.users set perms=ARRAY['add'] where tg_id=3;update public.stock set wh=0,stop=true,stop_auto=true where flavor_id='a'");
  await call([item('a',1,0)],3);
  const a=(await state()).stock[0];assert.equal(a.wh,1);assert.equal(a.stop,false);assert.equal(a.stop_auto,false);
+ await db.exec("update public.stock set bar=null where flavor_id='a'");
+ await call([{...item('a',1,1),bar:false,expected_bar:false}],3);
+
  // A manual stop remains manual after receipt.
  await db.exec("update public.stock set stop=true,stop_auto=false where flavor_id='a'");
- await call([item('a',1,1)],3);assert.equal((await state()).stock[0].stop,true);
+ await call([item('a',1,2)],3);assert.equal((await state()).stock[0].stop,true);
  await error('42501',()=>db.transaction(async tx=>{await tx.query("select set_config('test.tg','3',true)");await tx.exec("update public.stock set stop=false where flavor_id='a'")}));
 
 });

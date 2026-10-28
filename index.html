@@ -1157,7 +1157,10 @@ $("#dlg-scrim").onclick=closeDlg;
 async function commit(recover=false){
   if(!db||busy)return;
   if(!globalThis.navigator?.locks||!db.stockScope){setStatus("Для безопасной записи нужен браузер с координацией вкладок.",true);return}
-  return navigator.locks.request("mixora-stock:"+db.stockScope(),()=>commitLocked(recover));
+  return navigator.locks.request("mixora-stock:"+db.stockScope(),{ifAvailable:true},lock=>{
+    if(!lock){setStatus("Операция со складом уже выполняется в другой вкладке.",true);return}
+    return commitLocked(recover);
+  });
 }
 async function commitLocked(recover=false){
   if(!db||busy)return;
@@ -1194,7 +1197,8 @@ async function commitLocked(recover=false){
   }catch(e){
     const msg=String(e&&e.message||"ошибка");
     // Только распознанные SQLSTATE подтверждают откат; gateway 4xx сохраняют ключ.
-    const rollback=["40001","23514","22023","42501","23505","22P02","22003","40P01"].includes(e&&e.code);
+    const code=String(e&&e.code||"");
+    const rollback=["40001","40P01","P0001"].includes(code)||/^(22|23|42)[0-9A-Z]{3}$/.test(code);
     if(rollback){try{clearStockPending(pending)}catch(_){}}
     setStatus("Не удалось подтвердить запись: "+msg+(rollback?". Обновите остатки и повторите.":". Повторите с тем же черновиком."),true);
   }finally{

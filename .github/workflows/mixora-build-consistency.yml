@@ -37,12 +37,13 @@ jobs:
           node tests/actions.cjs
           node tests/matching.cjs
   database-regressions:
+    timeout-minutes: 10
     runs-on: ubuntu-latest
     permissions:
       contents: read
     services:
       postgres:
-        image: postgres:16
+        image: postgres:16@sha256:1beaa3084eee2676f20a9cd9928f0bf2c5bf674f8e49f81017912183d377c61c
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: b5-disposable-only
@@ -50,7 +51,7 @@ jobs:
         ports:
           - 127.0.0.1:55475:5432
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U postgres -d mixora_b5_test_ci"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10

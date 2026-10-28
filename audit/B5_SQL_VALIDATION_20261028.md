@@ -21,7 +21,10 @@ and compatibility with the known legacy stock trigger.
 WASM is single-connection. Its serial checks are not proof of concurrency.
 Native PostgreSQL 16 tests are added as a separate GitHub Actions job with an
 isolated disposable service bound to runner loopback. The fixture is shared with
-the WASM runner. Native result must be checked after this commit; not claimed here.
+the WASM runner. Initial native run for `d5f5c9093154cefe933b4e375b934c9fff5ebcf4` passed all 8 tests:
+https://github.com/maximkozhaev1995-glitch/polka/actions/runs/40760566844
+It used PostgreSQL 16.15 and real independent connections. The subsequent NULL-bar
+trigger regression below is an additional change; its native run must also pass.
 
 ## Reproduced and fixed defect
 
@@ -33,6 +36,13 @@ The proposal now updates that trigger function: authorized automatic transition
 manual stop removal still needs `unstop`. NULL permission elements are removed,
 errors use SQLSTATE 42501, search_path is empty and trigger EXECUTE is revoked.
 The proposal does not disable the trigger or grant direct table DML.
+
+An added master-with-add-only regression also reproduced a false Bar forbidden:
+legacy raw NULL -> false normalization was treated as an actual bar transition.
+The updated trigger compares coalesce(new.bar,false) with coalesce(old.bar,false),
+aligning its semantic comparison with the RPC. The WASM regression now passes;
+the same regression is included in the native suite. SQL/lock/job timeouts bound
+CI hangs; the container image is pinned to the digest observed in the successful run.
 
 ## Limits and verdict
 

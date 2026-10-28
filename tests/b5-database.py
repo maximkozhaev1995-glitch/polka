@@ -5,7 +5,8 @@ This fixture does not establish compatibility with production triggers/RLS/basel
 """
 import os, unittest, uuid, pathlib
 from concurrent.futures import ThreadPoolExecutor
-from threading import Barrier
+from threading import Barrier, Event
+from time import monotonic
 URL=os.environ.get('B5_TEST_DATABASE_URL')
 APPROVED=os.environ.get('B5_ALLOW_TEST_DATABASE')=='YES'
 V='00000000-0000-4000-8000-000000000001'
@@ -32,7 +33,8 @@ class Database(unittest.TestCase):
    c.execute("insert into public.stock values(%s,'a',10,false,false,false),(%s,'b',10,false,false,false),(%s,'c',1,false,false,false)",(V,V,V))
  def call(self,key,items,tg=1,barrier=None):
   from psycopg.types.json import Jsonb
-  with pg.connect(URL) as c:
+  with pg.connect(URL,application_name="mixora-b5-test-rpc") as c:
+   c.execute("set local statement_timeout='10s'");c.execute("set local lock_timeout='5s'")
    c.execute('set local role authenticated');c.execute("select set_config('test.tg',%s,true)",(str(tg),))
    if barrier:barrier.wait(timeout=10)
    return c.execute('select public.mixora_commit_stock_batch(%s,%s)',(key,Jsonb(items))).fetchone()[0]
@@ -54,6 +56,8 @@ class Database(unittest.TestCase):
   self.call(uuid.uuid4(),[dict(id='a',delta=-1,expected_wh=10,bar=False,expected_bar=False)])
   self.assertEqual(self.state()[0][0][1],9)
   self.error('22023',lambda:self.call(uuid.uuid4(),[dict(id='a',delta=-1,expected_wh=9,bar=True)]))
+  self.error('22023',lambda:self.call(uuid.uuid4(),[dict(id='a',delta=-1,expected_wh=9,expected_bar=True)]))
+  self.error('22023',lambda:self.call(uuid.uuid4(),[dict(id='a',delta=-1,expected_wh=9,extra=True)]))
  def test_4_idempotency(self):
   key=uuid.uuid4();items=[dict(id='a',delta=-1,expected_wh=10)];barrier=Barrier(2)
   with ThreadPoolExecutor(2) as ex:
@@ -73,6 +77,25 @@ class Database(unittest.TestCase):
    except pg.Error as e:return e.sqlstate
   with ThreadPoolExecutor(2) as ex:self.assertCountEqual(list(ex.map(work,[1,2])),['ok','40001'])
   self.assertEqual(self.state()[0][0][1],9);self.assertEqual(self.state()[1],1)
+ def test_concurrent_revocation_and_flavor_transfer(self):
+  for change,expected in [("update public.users set perms='{}' where tg_id=3",'42501'),("update public.flavors set venue_id='"+W+"' where id='a'",'22023')]:
+   with pg.connect(URL,autocommit=True) as c:c.execute("update public.users set perms=ARRAY['take'] where tg_id=3")
+   before=self.state()
+   with pg.connect(URL) as blocker, ThreadPoolExecutor(1) as ex:
+    blocker.execute(change)
+    future=ex.submit(self.call,uuid.uuid4(),[dict(id='a',delta=-1,expected_wh=10)],3)
+    try:
+     deadline=monotonic()+5;blocked=False
+     with pg.connect(URL,autocommit=True) as monitor:
+      while monotonic()<deadline:
+       blocked=monitor.execute("select exists(select 1 from pg_stat_activity where application_name='mixora-b5-test-rpc' and wait_event_type='Lock')").fetchone()[0]
+       if blocked or future.done():break
+       Event().wait(0.02)
+     self.assertTrue(blocked,'RPC did not wait for authorization/catalog row lock')
+     blocker.commit()
+     self.error(expected,lambda:future.result(timeout=15))
+    finally:blocker.rollback()
+   self.assertEqual(self.state(),before)
  def test_legacy_trigger_automatic_stop(self):
   with pg.connect(URL,autocommit=True) as c:
    c.execute("update public.users set perms=ARRAY['add'] where tg_id=3")
@@ -80,8 +103,10 @@ class Database(unittest.TestCase):
   self.call(uuid.uuid4(),[dict(id='a',delta=1,expected_wh=0)],3)
   with pg.connect(URL) as c:
    self.assertEqual(c.execute("select wh,stop,stop_auto from public.stock where flavor_id='a'").fetchone(),(1,False,False))
+  with pg.connect(URL,autocommit=True) as c:c.execute("update public.stock set bar=null where flavor_id='a'")
+  self.call(uuid.uuid4(),[dict(id='a',delta=1,expected_wh=1,bar=False,expected_bar=False)],3)
   with pg.connect(URL,autocommit=True) as c:c.execute("update public.stock set stop=true,stop_auto=false where flavor_id='a'")
-  self.call(uuid.uuid4(),[dict(id='a',delta=1,expected_wh=1)],3)
+  self.call(uuid.uuid4(),[dict(id='a',delta=1,expected_wh=2)],3)
   with pg.connect(URL) as c:self.assertEqual(c.execute("select stop from public.stock where flavor_id='a'").fetchone()[0],True)
  def test_access_and_isolation(self):
   with pg.connect(URL) as c:
