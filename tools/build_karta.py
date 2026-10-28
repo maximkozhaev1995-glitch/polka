@@ -4,11 +4,21 @@
 import json,os,re,sys,urllib.request
 sys.path.insert(0,os.path.dirname(__file__))
 from classify import classify
-T=os.environ['SUPABASE_ACCESS_TOKEN'];REF='wwcgvwfmlkegaqkksujo';VENUE='e58bb6aa-8a0e-4697-9ef6-0bc001f0e21e'
+REF='wwcgvwfmlkegaqkksujo';VENUE='e58bb6aa-8a0e-4697-9ef6-0bc001f0e21e'
+root=os.path.join(os.path.dirname(__file__),'..')
+if '--reuse-data' in sys.argv:
+    # Offline UI rebuild: retain the exact previously committed catalog snapshot.
+    old=open(root+'/karta/index.html').read()
+    data=re.search(r'const DATA=(\[.*?\]);const ALL=',old).group(1)
+    json.loads(data)
+    s=open(root+'/karta/template.html').read().replace('__DATA__',data)
+    open(root+'/karta/index.html','w').write(s)
+    print('karta/index.html rebuilt using existing snapshot (no network)')
+    sys.exit(0)
+T=os.environ['SUPABASE_ACCESS_TOKEN']
 def sql(q):
     req=urllib.request.Request(f'https://api.supabase.com/v1/projects/{REF}/database/query',data=json.dumps({'query':q}).encode(),headers={'Authorization':'Bearer '+T,'Content-Type':'application/json','User-Agent':'polka'},method='POST')
     return json.loads(urllib.request.urlopen(req,timeout=90).read())
-root=os.path.join(os.path.dirname(__file__),'..')
 st=json.loads(re.search(r'const DATA=(\[.*?\]);\n',open(root+'/src/stoika.html').read()).group(1))
 status={x['id']:x.get('s') for x in st}
 rows=sql(f"select f.id,f.brand b,f.line l,f.name n,f.descr d,f.tags t,f.strength st,coalesce(s.bar and not s.stop and not s.retired,false) ob,coalesce(s.slow,false) sl from flavors f left join stock s on s.flavor_id=f.id and s.venue_id='{VENUE}' where not f.custom")

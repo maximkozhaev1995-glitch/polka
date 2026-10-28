@@ -6,3 +6,6 @@ supabase/.temp/
 .env.*
 supabase/.env
 supabase/functions/.env
+
+node_modules/
+.local-tests/

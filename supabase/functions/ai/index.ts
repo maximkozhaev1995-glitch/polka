@@ -13,11 +13,20 @@ const out = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s
 const DAILY_LIMIT = 300; // запросов на человека в сутки (считаются только вопросы человека, не шаги инструментов — см. ниже)
 const MODELS = ["claude-haiku-5-5", "claude-sonnet-5-5"];
 
-function tgId(req: Request): number | null {
+async function tgId(req: Request, secret = Deno.env.get("APP_JWT_SECRET")): Promise<number | null> {
   try {
-    const t = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
-    const p = JSON.parse(atob(t.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
-    return p.tg_id ? Number(p.tg_id) : null;
+    if (!secret) return null;
+    const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
+    const parts = token.split(".");if (parts.length !== 3) return null;
+    const decode = (part: string) => Uint8Array.from(atob(part.replace(/-/g,"+").replace(/_/g,"/")),c=>c.charCodeAt(0));
+    const header = JSON.parse(new TextDecoder().decode(decode(parts[0])));
+    if (header.alg !== "HS256") return null;
+    const key = await crypto.subtle.importKey("raw",new TextEncoder().encode(secret),{name:"HMAC",hash:"SHA-256"},false,["verify"]);
+    if (!await crypto.subtle.verify("HMAC",key,decode(parts[2]),new TextEncoder().encode(parts[0]+"."+parts[1]))) return null;
+    const claims = JSON.parse(new TextDecoder().decode(decode(parts[1]))), now = Math.floor(Date.now()/1000);
+    if (claims.role !== "authenticated" || claims.aud !== "authenticated" || !Number.isFinite(claims.exp) || claims.exp <= now || !Number.isFinite(claims.iat) || claims.iat > now+300) return null;
+    if (!/^[0-9]{1,15}$/.test(String(claims.sub)) || claims.tg_id !== undefined && String(claims.tg_id) !== String(claims.sub)) return null;
+    return Number(claims.sub);
   } catch { return null; }
 }
 
@@ -221,12 +230,12 @@ function ocrBox(o: any) {
 // более узкого) и почти вплотную (зазор не больше полутора строк). Две соседние банки в ряд так не склеятся —
 // они стоят рядом, а не друг под другом; ряды банок разделены крышками и стенками, это обычно больше полутора строк.
 // Этикетки возвращаются по порядку на фото: рядами сверху вниз, в ряду слева направо.
-function labelGroups(blocks: any[]): string[] {
+function labelGroups(blocks: any[], focus = false, width = 0, height = 0): string[] {
   const items = blocks.map((blk) => ({
     text: (blk.lines || []).map((l: any) => l.text).join(" ").trim(),
     box: ocrBox(blk),
   })).filter((b) => b.text);
-  if (items.some((b) => !b.box)) return items.map((b) => b.text); // без координат склеивать не по чему
+  if (items.some((b) => !b.box)) return focus ? ["Фокус: ?"] : items.map((b) => b.text); // без координат склеивать не по чему
   const lineH = (blocks.flatMap((blk) => (blk.lines || []).map((l: any) => ocrBox(l)))
     .filter(Boolean).map((b: any) => b.y1 - b.y0).sort((a: number, b: number) => a - b));
   const unit = lineH.length ? lineH[lineH.length >> 1] : 0;
@@ -258,7 +267,18 @@ function labelGroups(blocks: any[]): string[] {
     const row = rows.find((r) => inside(mid(g), r[0]) || inside(mid(r[0]), g));
     if (row) row.push(g); else rows.push([g]);
   }
-  return rows.flatMap((r) => r.sort((a, b) => a.x0 - b.x0)).map((g) => g.texts.join(" "));
+  const ordered = rows.flatMap((r) => r.sort((a, b) => a.x0 - b.x0));
+  if (!focus) return ordered.map((g) => g.texts.join(" "));
+  if (!ordered.length) return ["Фокус: ?"];
+  const area = (g: any) => Math.max(0, g.x1 - g.x0) * Math.max(0, g.y1 - g.y0);
+  const maxArea = Math.max(...ordered.map(area));
+  const x0 = width > 0 ? 0 : Math.min(...ordered.map((g) => g.x0)), x1 = width > 0 ? width : Math.max(...ordered.map((g) => g.x1));
+  const y0 = height > 0 ? 0 : Math.min(...ordered.map((g) => g.y0)), y1 = height > 0 ? height : Math.max(...ordered.map((g) => g.y1));
+  const distance = (g: any) => ((g.x0 + g.x1 - x0 - x1) / Math.max(1, x1 - x0)) ** 2 + ((g.y0 + g.y1 - y0 - y1) / Math.max(1, y1 - y0)) ** 2;
+  // Small distant labels cannot win simply because there are more of them.
+  const foreground = ordered.filter((g) => area(g) >= maxArea * 0.25);
+  const anchor = foreground.sort((a, b) => distance(a) - distance(b) || area(b) - area(a))[0];
+  return ["Фокус: " + (anchor ? anchor.texts.join(" ") : "?"), ...ordered.filter((g) => area(g) >= maxArea * 0.25).map((g) => g.texts.join(" "))];
 }
 async function yandexOcr(messages: any[]) {
   const key = Deno.env.get("YANDEX_API_KEY"), folder = Deno.env.get("YANDEX_FOLDER_ID");
@@ -286,10 +306,11 @@ async function yandexOcr(messages: any[]) {
       // этикетки отдельно пронумерованными: иначе бренд с одной банки и вкус с соседней, прочитанные подряд,
       // модель (и наш собственный разбор на клиенте) может принять за одну позицию.
       const blocks = (j?.result?.textAnnotation?.blocks || []) as any[];
-      const labels = labelGroups(blocks);
+      const annotation = j?.result?.textAnnotation;
+      const labels = labelGroups(blocks, true, Number(annotation?.width) || 0, Number(annotation?.height) || 0);
       const text = labels.length
-        ? labels.map((t, i) => "Этикетка " + (i + 1) + ": " + t).join("\n")
-        : String(j?.result?.textAnnotation?.fullText || "").trim();
+        ? labels[0] + "\n" + labels.slice(1).map((t, i) => "Этикетка " + (i + 1) + ": " + t).join("\n")
+        : "Фокус: ?";
       texts.push(text);
       return { type: "text", text: "[Фото, текст распознан Yandex Vision. Каждая строка «Этикетка N: …» — отдельная банка; бренд и вкус с разных этикеток не смешивай]\n" + (text || "(текста на фото не нашлось)") };
     }));
@@ -301,10 +322,12 @@ async function yandexOcr(messages: any[]) {
 // Yandex Vision на наших фото (тест 25.10: 55 банок из 55 против ошибок вида «шипучна вичневая», «СНАВАССО»).
 // Отдаёт тот же формат «Этикетка N: …», что и yandexOcr, — сверка с каталогом на клиенте не меняется.
 // Фото читается один раз отдельным запросом и дальше в переписку идёт только текст, а не картинка на каждом шаге.
-const PHOTO_PROMPT = `Перепиши текст с фото. Ничего не додумывай: если часть надписи не читается, поставь «?» вместо неё.
+const PHOTO_PROMPT = `Один снимок — один основной бренд. Сначала определи бренд крупных банок на переднем плане в центре кадра. Не выбирай бренд по числу мелких банок на фоне. Первая строка строго «Фокус: БРЕНД»; если основной бренд не читается или неоднозначен — «Фокус: ?».
+Читай только банки этого бренда в основной группе. Другие бренды, дальние полки, мелкие и обрезанные банки по краям исключи полностью; их названия не перечисляй. Не подставляй бренд центральных банок для этикеток другого бренда на фоне.
+Перепиши текст с фото. Ничего не додумывай: если часть надписи не читается, поставь «?» вместо неё.
 Если на фото банки с табаком для кальяна (этикетки с брендом и вкусом, печатные или от руки) — по одной строке на каждую банку в формате «Этикетка N: БРЕНД ВКУС», ровно как написано на этикетке (N — номер по порядку: слева направо, сверху вниз). Банку, срезанную краем кадра так, что надпись не видна, пропусти. Две одинаковые этикетки на разных банках — две строки.
 Если на фото накладная, чек или другой документ — перепиши весь текст построчно, как есть, без строк «Этикетка».
-Без пояснений, только текст.`;
+Сохрани строку «Фокус: …» первой. Без пояснений, только текст.`;
 async function claudeReadPhotos(client: Anthropic, messages: any[]) {
   const model = Deno.env.get("PHOTO_MODEL") || "claude-sonnet-5-5";
   const texts: string[] = [];
@@ -383,10 +406,13 @@ Deno.serve(async (req) => {
     const geminiKey = Deno.env.get("GEMINI_API_KEY");
     const useGemini = Deno.env.get("AI_PROVIDER") === "gemini" ? !!geminiKey : (!claudeKey && !!geminiKey);
     if (!claudeKey && !geminiKey) return out({ error: "not_configured" }, 503);
-    const tg = tgId(req);
+    const tg = await tgId(req);
     if (!tg) return out({ error: "session_expired" }, 401);
 
     const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const member = await db.from("users").select("tg_id,venue_id").eq("tg_id",tg).maybeSingle();
+    if (member.error) return out({error:"server_error"},500);
+    if (!member.data?.venue_id) return out({error:"session_expired"},401);
     const { system, messages, tools, ocr_only } = await req.json();
     const hasImg = messages.some((m: any) => Array.isArray(m.content) && m.content.some((b: any) => b.type === "image"));
     // Только распознавание, без вызова модели: приложение сверяет текст с каталогом само и присылает фото

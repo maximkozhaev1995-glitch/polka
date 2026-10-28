@@ -1,0 +1,42 @@
+[
+  {
+    "nspname": "public",
+    "proname": "enforce_master_stock",
+    "args": "",
+    "prosecdef": true,
+    "proacl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+    "definition": "CREATE OR REPLACE FUNCTION public.enforce_master_stock()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\ndeclare r text; p text[];\nbegin\n  select role, perms into r, p from users where tg_id = me_tg();\n  if r is distinct from 'master' then return new; end if;\n  if new.wh is distinct from old.wh and not ('take' = any(p) or 'add' = any(p)) then raise exception 'нет права менять склад'; end if;\n  if new.bar is distinct from old.bar and not ('take' = any(p) or 'offbar' = any(p)) then raise exception 'нет права менять стойку'; end if;\n  if new.slow is distinct from old.slow and not ('slow' = any(p)) then raise exception 'нет права менять неликвид'; end if;\n  if new.retired is distinct from old.retired then raise exception 'нет права выводить вкус'; end if;\n  if old.stop and not new.stop and not ('unstop' = any(p)) then raise exception 'нет права снимать стоп'; end if;\n  return new;\nend $function$\n"
+  },
+  {
+    "nspname": "public",
+    "proname": "me_role",
+    "args": "",
+    "prosecdef": true,
+    "proacl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+    "definition": "CREATE OR REPLACE FUNCTION public.me_role()\n RETURNS text\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$ select role from users where tg_id = me_tg() $function$\n"
+  },
+  {
+    "nspname": "public",
+    "proname": "me_tg",
+    "args": "",
+    "prosecdef": false,
+    "proacl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+    "definition": "CREATE OR REPLACE FUNCTION public.me_tg()\n RETURNS bigint\n LANGUAGE sql\n STABLE\nAS $function$ select nullif(current_setting('request.jwt.claims', true)::json->>'tg_id','')::bigint $function$\n"
+  },
+  {
+    "nspname": "public",
+    "proname": "me_venue",
+    "args": "",
+    "prosecdef": true,
+    "proacl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+    "definition": "CREATE OR REPLACE FUNCTION public.me_venue()\n RETURNS uuid\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$ select venue_id from users where tg_id = me_tg() $function$\n"
+  },
+  {
+    "nspname": "public",
+    "proname": "users_default_manager",
+    "args": "",
+    "prosecdef": false,
+    "proacl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+    "definition": "CREATE OR REPLACE FUNCTION public.users_default_manager()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nbegin\n  new.role := 'manager';\n  return new;\nend $function$\n"
+  }
+]

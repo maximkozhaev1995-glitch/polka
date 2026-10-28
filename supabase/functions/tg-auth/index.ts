@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
         .eq("code", String(invite).trim()).is("used_by", null).select().maybeSingle();
       if (!inv) return json({ error: "bad_invite" }, 403);
       const name = [tg.first_name, tg.last_name].filter(Boolean).join(" ") || tg.username || String(tg.id);
-      const ins = await db.from("users").insert({ tg_id: tg.id, venue_id: inv.venue_id, name, role: inv.role }).select().single();
+      const ins = await db.from("users").insert({ tg_id: tg.id, venue_id: inv.venue_id, name, role: "manager" }).select().single();
       if (ins.error) {
         await db.from("invites").update({ used_by: null }).eq("code", inv.code).eq("used_by", tg.id);
         return json({ error: "cannot_create_user" }, 500);
@@ -108,7 +108,7 @@ Deno.serve(async (req) => {
       aud: "authenticated", role: "authenticated", sub: String(tg.id), tg_id: tg.id,
       iat: now, exp: now + 12 * 3600,
     }, jwtSecret);
-    return json({ token, user });
+    return json({ token, user: { tg_id: user.tg_id, venue_id: user.venue_id, name: user.name } });
   } catch (e) {
     console.error("tg-auth", e);
     return json({ error: "server_error" }, 500);

@@ -22,8 +22,8 @@
   }
   // Токен живёт 12 часов: обновляем заранее, чтобы открытое на всю смену приложение не теряло доступ к базе
   let refreshT=0,refreshP=null;
-  const planRefresh=()=>{clearTimeout(refreshT);refreshT=setTimeout(()=>refresh().catch(()=>{}),11*3600e3)};
-  function refresh(){
+  const planRefresh=()=>{clearTimeout(refreshT);refreshT=setTimeout(()=>refreshSession().catch(()=>{}),11*3600e3)};
+  function refreshSession(){
     if(!refreshP)refreshP=call("").then(r=>{if(!r.ok)return false;session.token=r.body.token;session.user=r.body.user;planRefresh();return true}).finally(()=>{refreshP=null});
     return refreshP;
   }
@@ -56,17 +56,17 @@
   // ===== база =====
   const H=()=>({apikey:CFG.anon,Authorization:"Bearer "+session.token,"Content-Type":"application/json"});
   const V=()=>session.user.venue_id;
-  async function rest(path,opt,again){const r=await fetch(CFG.url+"/rest/v1/"+path,Object.assign({headers:H()},opt));if(r.status===401&&!again&&await refresh().catch(()=>false)){if(opt&&opt.headers&&opt.headers.Authorization)opt=Object.assign({},opt,{headers:Object.assign({},opt.headers,H())});return rest(path,opt,true)}if(!r.ok){let t="";try{t=(await r.json()).message}catch(e){}throw new Error(t||("HTTP "+r.status))}const t=await r.text();return t?JSON.parse(t):null}
+  async function rest(path,opt,again){const r=await fetch(CFG.url+"/rest/v1/"+path,Object.assign({headers:H()},opt));if(r.status===401&&!again&&await refreshSession().catch(()=>false)){if(opt&&opt.headers&&opt.headers.Authorization)opt=Object.assign({},opt,{headers:Object.assign({},opt.headers,H())});return rest(path,opt,true)}if(!r.ok){let t="";try{t=(await r.json()).message}catch(e){}throw new Error(t||("HTTP "+r.status))}const t=await r.text();return t?JSON.parse(t):null}
   const iso=x=>x?new Date(x).toISOString():undefined;
   const MAP={
     stock:{table:"stock",key:"flavor_id",
-      list:()=>"stock?select=flavor_id,wh,bar,stop,stop_auto,slow,retired&venue_id=eq."+V(),
-      toDoc:r=>{const d={wh:r.wh,bar:r.bar};if(r.stop)d.stop=true;if(r.stop_auto)d.stopAuto=true;if(r.slow)d.slow=true;if(r.retired)d.retired=true;return d},
+      list:()=>"stock?select=flavor_id,wh,bar,stop,stop_auto,slow,retired,revision&venue_id=eq."+V(),
+      toDoc:r=>{const d={wh:r.wh,bar:r.bar,revision:r.revision};if(r.stop)d.stop=true;if(r.stop_auto)d.stopAuto=true;if(r.slow)d.slow=true;if(r.retired)d.retired=true;return d},
       fromDoc:(id,o)=>{const b={venue_id:V(),flavor_id:id,wh:o.wh||0,stop:!!o.stop,stop_auto:!!o.stopAuto,slow:!!o.slow,retired:!!o.retired};if(typeof o.bar==="boolean")b.bar=o.bar;return b},
       conflict:"venue_id,flavor_id"},
     moves:{table:"moves",key:"id",
-      list:()=>"moves?select=id,flavor_id,kind,qty,left_after,reason,prev,bar_to,at&venue_id=eq."+V()+"&order=at.desc&limit=400",
-      toDoc:r=>({item:r.flavor_id,kind:r.kind,qty:r.qty,left:r.left_after,reason:r.reason||undefined,prev:r.prev||undefined,barTo:r.bar_to===null?undefined:r.bar_to,at:r.at}),
+      list:()=>"moves?select=id,flavor_id,kind,qty,left_after,reason,prev,bar_to,at,operation_id,stock_revision&venue_id=eq."+V()+"&order=at.desc&limit=400",
+      toDoc:r=>({item:r.flavor_id,kind:r.kind,qty:r.qty,left:r.left_after,reason:r.reason||undefined,prev:r.prev||undefined,barTo:r.bar_to===null?undefined:r.bar_to,at:r.at,operationId:r.operation_id,revision:r.stock_revision}),
       fromDoc:(id,o)=>({venue_id:V(),flavor_id:o.item,kind:o.kind||"in",qty:o.qty||0,left_after:o.left,reason:o.reason||null,prev:o.prev||null,bar_to:typeof o.barTo==="boolean"?o.barTo:null,at:o.at||new Date().toISOString(),by_tg:session.user.tg_id})},
     suppliers:{table:"suppliers",key:"id",
       list:()=>"suppliers?select=id,name,contact,brands,ctype,legal_address,requisites,items,files&venue_id=eq."+V(),
@@ -76,12 +76,12 @@
       list:()=>"mixes?select=id,title,kind,note,tags,parts,by_name,created_at,hidden,in_karta&venue_id=eq."+V(),
       toDoc:r=>{const d={title:r.title,kind:r.kind,note:r.note,tags:r.tags||[],parts:r.parts||[],by:r.by_name,at:r.created_at};if(r.hidden)d.hidden=true;if(r.in_karta)d.inKarta=true;return d},
       fromDoc:(id,o)=>{const b={venue_id:V(),title:o.title,kind:o.kind||"master",note:o.note||"",tags:o.tags||[],parts:o.parts||[],by_name:o.by||null,by_tg:session.user.tg_id,hidden:!!o.hidden,in_karta:!!o.inKarta};if(o.at)b.created_at=o.at;if(id)b.id=id;return b},conflict:"id"},
-    strength:{table:"flavors",key:"id",patch:true,
-      list:()=>"flavors?select=id,strength&strength=not.is.null&limit=1000",
-      toDoc:r=>({s:r.strength}),fromDoc:(id,o)=>({strength:o.s})},
-    pack:{table:"flavors",key:"id",patch:true,
-      list:()=>"flavors?select=id,pack_g&pack_g=not.is.null&limit=1500",
-      toDoc:r=>({g:r.pack_g}),fromDoc:(id,o)=>({pack_g:o.g||null})},
+    strength:{table:"flavor_strengths",key:"flavor_id",conflict:"venue_id,flavor_id",
+      list:()=>"flavor_strengths?select=flavor_id,strength&venue_id=eq."+V()+"&limit=1500",
+      toDoc:r=>({s:r.strength}),fromDoc:(id,o)=>({venue_id:V(),flavor_id:id,strength:o.s})},
+    pack:{table:"flavor_packs",key:"flavor_id",conflict:"venue_id,flavor_id",
+      list:()=>"flavor_packs?select=flavor_id,pack_g&venue_id=eq."+V()+"&limit=1500",
+      toDoc:r=>({g:r.pack_g}),fromDoc:(id,o)=>({venue_id:V(),flavor_id:id,pack_g:o.g||null})},
     packsizes:{table:"pack_sizes",key:"brand",list:()=>"pack_sizes?select=brand,sizes",toDoc:r=>({sizes:r.sizes||[]}),fromDoc:()=>({})},
     guestmix:{table:"guest_mixes",key:"id",
       fromDoc:(id,o)=>({venue_id:V(),gid:o.gid,name:o.name||null,parts:o.parts||[],note:o.note||null,by_name:o.by||null})},
@@ -89,11 +89,11 @@
       list:()=>"wishes?select=id,flavor_id,brand,flavor,state,created_at&venue_id=eq."+V()+"&order=created_at.desc&limit=2000",
       toDoc:r=>({fid:r.flavor_id||"",b:r.brand,f:r.flavor,state:r.state,at:r.created_at}),fromDoc:(id,o)=>({state:o.state})},
     team:{table:"users",key:"tg_id",patch:true,
-      list:()=>"users?select=tg_id,name,role,perms&venue_id=eq."+V(),
-      toDoc:r=>({name:r.name,role:r.role,perms:r.perms||[]}),fromDoc:(id,o)=>({perms:o.perms||[]})},
+      list:()=>"users?select=tg_id,name&venue_id=eq."+V(),
+      toDoc:r=>({name:r.name}),fromDoc:()=>({})},
     invites:{table:"invites",key:"code",
-      list:()=>"invites?select=code,role,created_at&used_by=is.null&venue_id=eq."+V(),
-      toDoc:r=>({role:r.role,at:r.created_at}),fromDoc:(id,o)=>({code:id,venue_id:V(),role:o.role||"master"}),conflict:"code"},
+      list:()=>"invites?select=code,created_at&used_by=is.null&venue_id=eq."+V(),
+      toDoc:r=>({at:r.created_at}),fromDoc:(id,o)=>({code:id,venue_id:V(),role:"manager"}),conflict:"code"},
     items:{table:"flavors",key:"id",
       list:()=>"flavors?select=id,brand,line,name,descr&custom=eq.true&venue_id=eq."+V(),
       toDoc:r=>({b:r.brand,l:r.line||"",n:r.name,d:r.descr||"",s:"name",t:[],bar:false}),
@@ -122,6 +122,15 @@
   const subs={};
   const snapDocs=async c=>{
     if(c==="order"){const rows=await rest("orders?select=items&venue_id=eq."+V());return rows.length?[{id:"current",data:()=>rows[0].items}]:[]}
+    if(c==="strength"||c==="pack"){
+      const m=MAP[c],field=c==="strength"?"strength":"pack_g";
+      // Shared values remain defaults. A venue override never edits the catalog.
+      // Null overrides intentionally clear a default; deleting one restores it.
+      const [base,own]=await Promise.all([rest("flavors?select=id,"+field+"&"+field+"=not.is.null&limit=1500"),rest(m.list())]);
+      const rows=new Map(base.map(r=>[r.id,{flavor_id:r.id,[field]:r[field]}]));
+      own.forEach(r=>rows.set(r.flavor_id,r));
+      return [...rows.values()].map(r=>({id:r.flavor_id,data:()=>m.toDoc(r)}));
+    }
     const m=MAP[c];if(!m)return[];const rows=await rest(m.list());return rows.map(r=>({id:String(r[m.key]),data:()=>m.toDoc(r)}))};
   async function refresh(c){const s=subs[c];if(!s)return;try{const docs=await snapDocs(c);const h=JSON.stringify(docs.map(d=>[d.id,d.data()]));if(h!==s.hash){s.hash=h;s.fns.forEach(f=>f({docs}))}}catch(e){s.errs.forEach(f=>f(e))}}
   setInterval(()=>{if(!document.hidden&&session)Object.keys(subs).forEach(refresh)},6000);
@@ -129,16 +138,41 @@
   const bump=c=>setTimeout(()=>refresh(c),150);
   const listen=c=>({onSnapshot:(f,err)=>{const s=subs[c]||(subs[c]={fns:[],errs:[],hash:""});s.fns.push(f);if(err)s.errs.push(err);refresh(c)}});
   const db={
-    bulk:async(c,ids,o)=>{const m=MAP[c];await rest(m.table+"?"+m.key+"=in.("+ids.map(encodeURIComponent).join(",")+")",{method:"PATCH",body:JSON.stringify(m.fromDoc(null,o))});setTimeout(()=>refresh(c),150)},
+    stockScope:()=>V()+":"+session.user.tg_id,
+    hasPendingStock:()=>!!localStorage.getItem("mixora-stock-pending:"+V()+":"+session.user.tg_id),
+    // Persist request identity BEFORE sending. Unknown outcomes can only replay the
+    // exact original request; a different intent is blocked until it is resolved.
+    applyStock:async items=>{
+      const key="mixora-stock-pending:"+V()+":"+session.user.tg_id;
+      const signature=JSON.stringify(items);let saved=localStorage.getItem(key),pending=saved?JSON.parse(saved):null;
+      if(pending&&pending.signature!==signature)throw new Error("Есть неподтверждённый результат склада. Повторите прежнее действие или восстановите его через журнал.");
+      if(!pending){pending={signature,body:{p_request_id:crypto.randomUUID(),p_items:items}};localStorage.setItem(key,JSON.stringify(pending))}
+      try{const result=await rest("rpc/apply_stock",{method:"POST",body:JSON.stringify(pending.body)});
+        localStorage.removeItem(key);bump("stock");bump("moves");return result;
+      }catch(e){if(/stock_/.test(e.message)){localStorage.removeItem(key)}throw e}
+    },
+    recoverStock:async()=>{
+      const key="mixora-stock-pending:"+V()+":"+session.user.tg_id,saved=localStorage.getItem(key);if(!saved)return null;
+      const pending=JSON.parse(saved);
+      try{const result=await rest("rpc/apply_stock",{method:"POST",body:JSON.stringify(pending.body)});localStorage.removeItem(key);bump("stock");bump("moves");return {rows:result,items:pending.body.p_items}}
+      catch(e){if(/stock_/.test(e.message))localStorage.removeItem(key);throw e}
+    },
+    bulk:async(c,ids,o)=>{if(c==="stock"||c==="moves")throw new Error("Используйте складскую операцию");const m=MAP[c];
+      if(c==="strength"||c==="pack"){
+        if(!ids.length)return;
+        await rest(m.table+"?on_conflict="+m.conflict,{method:"POST",headers:Object.assign(H(),{Prefer:"resolution=merge-duplicates"}),body:JSON.stringify([...new Set(ids)].map(id=>m.fromDoc(id,o)))});
+      }else await rest(m.table+"?"+m.key+"=in.("+ids.map(encodeURIComponent).join(",")+")",{method:"PATCH",body:JSON.stringify(m.fromDoc(null,o))});
+      setTimeout(()=>refresh(c),150)},
     collection:c=>Object.assign(listen(c),{
       orderBy:()=>({limit:()=>listen(c)}),
-      add:async o=>{const m=MAP[c];const r=await rest(m.table,{method:"POST",headers:Object.assign(H(),{Prefer:"return=representation"}),body:JSON.stringify(m.fromDoc(null,o))});bump(c);return{id:String(r[0][m.key])}}}),
+      add:async o=>{if(c==="moves"||c==="stock")throw new Error("Используйте складскую операцию");const m=MAP[c];const r=await rest(m.table,{method:"POST",headers:Object.assign(H(),{Prefer:"return=representation"}),body:JSON.stringify(m.fromDoc(null,o))});bump(c);return{id:String(r[0][m.key])}}}),
     doc:p=>{const [c,id]=p.split("/");return{
       set:async o=>{
+        if(c==="stock"||c==="moves")throw new Error("Используйте складскую операцию");
         if(c==="order"){await rest("orders?on_conflict=venue_id",{method:"POST",headers:Object.assign(H(),{Prefer:"resolution=merge-duplicates"}),body:JSON.stringify({venue_id:V(),items:o,updated_at:new Date().toISOString()})});bump(c);return}
         const m=MAP[c];if(m.patch){await rest(m.table+"?"+m.key+"=eq."+encodeURIComponent(id)+(m.table==="flavors"?"":"&venue_id=eq."+V()),{method:"PATCH",body:JSON.stringify(m.fromDoc(id,o))});bump(c);return}
         await rest(m.table+"?on_conflict="+(m.conflict||m.key),{method:"POST",headers:Object.assign(H(),{Prefer:"resolution=merge-duplicates"}),body:JSON.stringify(m.fromDoc(id,o))});bump(c)},
-      delete:async()=>{const m=MAP[c];await rest(m.table+"?"+m.key+"=eq."+encodeURIComponent(id)+"&venue_id=eq."+V(),{method:"DELETE"});bump(c)}}},
+      delete:async()=>{if(c==="stock"||c==="moves")throw new Error("Журнал нельзя удалять");const m=MAP[c];await rest(m.table+"?"+m.key+"=eq."+encodeURIComponent(id)+"&venue_id=eq."+V(),{method:"DELETE"});bump(c)}}},
     uploadFile:async(folder,file)=>{
       const safe=file.name.replace(/[^\w.\-]+/g,"_").slice(-80),path=V()+"/"+folder+"/"+Date.now().toString(36)+"_"+safe;
       const r=await fetch(CFG.url+"/storage/v1/object/files/"+path,{method:"POST",headers:{Authorization:"Bearer "+session.token,apikey:CFG.anon,"Content-Type":file.type||"application/octet-stream","x-upsert":"true"},body:file});
@@ -190,7 +224,7 @@
   const readLabels=async(images,signal)=>{
     const{texts}=await readPhotos(images,signal);
     const failed=texts.filter(t=>t&&t.failed).length;
-    return {text:texts.filter(t=>typeof t==="string").join("\n"),failed,total:texts.length}};
+    return {text:texts.map((t,i)=>typeof t==="string"?"Фото "+(i+1)+":\n"+t:"").filter(Boolean).join("\n"),failed,total:texts.length}};
   const sample=async(turns,opts)=>{
     opts=opts||{};
     const first=turns[0]&&turns[0].role==="user"?turns[0].content:"";
@@ -233,7 +267,7 @@
   sample.readLabels=readLabels;
   window.claude={use:async k=>{
     if(k==="db"){await readyP;return db}
-    if(k==="user"){await readyP;window.__me=String(session.user.tg_id);return{canEdit:async()=>session.user.role==="manager",name:session.user.name,role:session.user.role,perms:session.user.perms||[]}}
+    if(k==="user"){await readyP;window.__me=String(session.user.tg_id);return{isStaff:async()=>!!(session&&session.user&&session.user.venue_id),canEdit:async()=>!!(session&&session.user&&session.user.venue_id),name:session.user.name}}
     if(k==="downloads")return downloads;
     if(k==="sample"){await readyP;return sample}
     return null}};

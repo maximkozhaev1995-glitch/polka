@@ -1,0 +1,44 @@
+[
+  {
+    "proname": "ai_hit",
+    "arguments": "p bigint",
+    "proacl": "{postgres=X/postgres,service_role=X/postgres}",
+    "prosecdef": true,
+    "touches_stock": false
+  },
+  {
+    "proname": "claim_guest_mix",
+    "arguments": "p_id uuid",
+    "proacl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+    "prosecdef": true,
+    "touches_stock": false
+  },
+  {
+    "proname": "enforce_master_stock",
+    "arguments": "",
+    "proacl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+    "prosecdef": true,
+    "touches_stock": false
+  },
+  {
+    "proname": "me_role",
+    "arguments": "",
+    "proacl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+    "prosecdef": true,
+    "touches_stock": false
+  },
+  {
+    "proname": "me_venue",
+    "arguments": "",
+    "proacl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+    "prosecdef": true,
+    "touches_stock": false
+  },
+  {
+    "proname": "wishes_limit",
+    "arguments": "",
+    "proacl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+    "prosecdef": true,
+    "touches_stock": false
+  }
+]

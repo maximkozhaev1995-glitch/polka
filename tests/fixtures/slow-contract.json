@@ -1,0 +1,11 @@
+{
+  "baseline": "2b9c8fc3a2380af66d068fcb2aeea4ea7dc41d4b",
+  "definitions": {
+    "idleDays": "const idleDays=id=>{const m=moves.find(m=>m.item===id&&m.qty<0&&m.kind!==\"inv\"&&m.kind!==\"wo\");return m?Math.floor((Date.now()-Date.parse(m.at))/864e5):null};",
+    "journalDays": "const journalDays=()=>moves.length?Math.floor((Date.now()-Date.parse(moves[moves.length-1].at))/864e5):0;",
+    "idleText": "const idleText=x=>{const d=idleDays(x.id);return d===null?(journalDays()>=7?\"не брали с \"+journalDays()+\" дн.\":\"\"):d===0?\"брали сегодня\":\"брали \"+d+\" дн. назад\"};",
+    "slowCand": "const slowCand=()=>journalDays()>=30?DATA.filter(x=>!flag(x,\"slow\")&&(wh(x)>0||onBar(x))&&(idleDays(x.id)===null||idleDays(x.id)>=30)):[];",
+    "gone": "const gone=x=>flag(x,\"slow\")&&!flag(x,\"retired\")&&wh(x)<=0&&!onBar(x);"
+  },
+  "actions": "if(st.tab===\"slow\"){take();A(\"slowoff\",\"Снять неликвид\");if(n<=0)A(\"retire\",\"Вывести аромат\",\"bad\");else A(\"add\",\"Пополнить склад\");return top+'<div class=\"acts2\">'+b.join(\"\")+'</div>'}\n  "
+}
