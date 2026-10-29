@@ -13,7 +13,8 @@ for (const word of [
   'Palitra', 'Pear Date', 'Kraken Magnum', 'S = Seco', 'L = Ligero',
   'S07', 'L07', 'Wild Strawberry', 'Raspberry', 'Peanut',
   'Наш — Бренди', 'Endorphin — Бельгийские вафли',
-  'Амбровый банан', 'Maas Dam', 'не угадывай'
+  'Амбровый банан', 'Maas Dam', 'не угадывай',
+  'антитабачные предупреждения', 'СЛЕПОЙ', 'ГАНГРЕНА', 'ИМПОТЕНЦИЯ', 'НЕДОНОШЕННОСТЬ', 'ИНФАРКТ', 'ИНСУЛЬТ', 'МЕРТВОРОЖДЕНИЕ', 'НОВООБРАЗОВАНИЯ', 'СЛЕПОТА', 'РАК ЛЁГКОГО', 'Подробнее о последствиях', 'по контексту оформления', 'НЕ бренд'
 ]) assert(prompt.includes(word), 'missing server guidance: ' + word);
 assert(server.includes('content: [b, { type: "text", text: PHOTO_PROMPT }]'), 'Claude reader must receive PHOTO_PROMPT');
 assert(server.includes('if (ocr_only) { const r = hasImg ? await readPhotos(claude, messages)'), 'OCR-only endpoint must use reader');
