@@ -1,0 +1,1486 @@
+{
+  "captured_at": "2026-10-28T20:43:00Z (approximate; catalog capture)",
+  "server_version": "17.11",
+  "scope": "Catalog metadata only; no production table rows or credentials",
+  "tables": [
+    {
+      "acl": [
+        "postgres=arwdDxtm/postgres",
+        "anon=arwdDxtm/postgres",
+        "authenticated=arwdDxtm/postgres",
+        "service_role=arwdDxtm/postgres"
+      ],
+      "rls": true,
+      "kind": "r",
+      "name": "inv_log",
+      "owner": "postgres",
+      "schema": "public",
+      "force_rls": false
+    },
+    {
+      "acl": [
+        "postgres=arwdDxtm/postgres",
+        "anon=rxtm/postgres",
+        "authenticated=rxtm/postgres",
+        "service_role=arwdDxtm/postgres"
+      ],
+      "rls": true,
+      "kind": "r",
+      "name": "stock",
+      "owner": "postgres",
+      "schema": "public",
+      "force_rls": false
+    },
+    {
+      "acl": [
+        "postgres=arwdDxtm/postgres",
+        "anon=rxtm/postgres",
+        "authenticated=rxtm/postgres",
+        "service_role=arwdDxtm/postgres"
+      ],
+      "rls": true,
+      "kind": "r",
+      "name": "moves",
+      "owner": "postgres",
+      "schema": "public",
+      "force_rls": false
+    },
+    {
+      "acl": [
+        "postgres=arwdDxtm/postgres",
+        "anon=rxtm/postgres",
+        "authenticated=rxtm/postgres",
+        "service_role=arwdDxtm/postgres"
+      ],
+      "rls": true,
+      "kind": "r",
+      "name": "venues",
+      "owner": "postgres",
+      "schema": "public",
+      "force_rls": false
+    },
+    {
+      "acl": [
+        "postgres=arwdDxtm/postgres",
+        "service_role=arwdDxtm/postgres",
+        "authenticated=arwd/postgres"
+      ],
+      "rls": true,
+      "kind": "r",
+      "name": "flavor_packs",
+      "owner": "postgres",
+      "schema": "public",
+      "force_rls": false
+    },
+    {
+      "acl": [
+        "postgres=arwdDxtm/postgres",
+        "anon=arwdDxtm/postgres",
+        "authenticated=arwdDxtm/postgres",
+        "service_role=arwdDxtm/postgres"
+      ],
+      "rls": true,
+      "kind": "r",
+      "name": "users",
+      "owner": "postgres",
+      "schema": "public",
+      "force_rls": false
+    },
+    {
+      "acl": [
+        "postgres=arwdDxtm/postgres",
+        "service_role=arwdDxtm/postgres",
+        "authenticated=arwd/postgres",
+        "anon=r/postgres"
+      ],
+      "rls": true,
+      "kind": "r",
+      "name": "flavor_strengths",
+      "owner": "postgres",
+      "schema": "public",
+      "force_rls": false
+    },
+    {
+      "acl": [
+        "postgres=arwdDxtm/postgres",
+        "anon=arwdDxtm/postgres",
+        "authenticated=arwdDxtm/postgres",
+        "service_role=arwdDxtm/postgres"
+      ],
+      "rls": true,
+      "kind": "r",
+      "name": "flavors",
+      "owner": "postgres",
+      "schema": "public",
+      "force_rls": false
+    }
+  ],
+  "columns": [
+    {
+      "acl": null,
+      "type": "text",
+      "table": "flavors",
+      "column": "id",
+      "default": null,
+      "identity": "",
+      "not_null": true
+    },
+    {
+      "acl": null,
+      "type": "text",
+      "table": "flavors",
+      "column": "brand",
+      "default": null,
+      "identity": "",
+      "not_null": true
+    },
+    {
+      "acl": null,
+      "type": "text",
+      "table": "flavors",
+      "column": "line",
+      "default": "''::text",
+      "identity": "",
+      "not_null": false
+    },
+    {
+      "acl": null,
+      "type": "text",
+      "table": "flavors",
+      "column": "name",
+      "default": null,
+      "identity": "",
+      "not_null": true
+    },
+    {
+      "acl": null,
+      "type": "text",
+      "table": "flavors",
+      "column": "descr",
+      "default": "''::text",
+      "identity": "",
+      "not_null": false
+    },
+    {
+      "acl": null,
+      "type": "smallint",
+      "table": "flavors",
+      "column": "strength",
+      "default": null,
+      "identity": "",
+      "not_null": false
+    },
+    {
+      "acl": null,
+      "type": "text[]",
+      "table": "flavors",
+      "column": "sectors",
+      "default": "'{}'::text[]",
+      "identity": "",
+      "not_null": false
+    },
+    {
+      "acl": null,
+      "type": "text[]",
+      "table": "flavors",
+      "column": "tags",
+      "default": "'{}'::text[]",
+      "identity": "",
+      "not_null": false
+    },
+    {
+      "acl": null,
+      "type": "text[]",
+      "table": "flavors",
+      "column": "cats",
+      "default": "'{}'::text[]",
+      "identity": "",
+      "not_null": false
+    },
+    {
+      "acl": null,
+      "type": "boolean",
+      "table": "flavors",
+      "column": "custom",
+      "default": "false",
+      "identity": "",
+      "not_null": false
+    },
+    {
+      "acl": null,
+      "type": "uuid",
+      "table": "flavors",
+      "column": "venue_id",
+      "default": null,
+      "identity": "",
+      "not_null": false
+    },
+    {
+      "acl": null,
+      "type": "integer",
+      "table": "flavors",
+      "column": "pack_g",
+      "default": null,
+      "identity": "",
+      "not_null": false
+    },
+    {
+      "acl": null,
+      "type": "bigint",
+      "table": "inv_log",
+      "column": "id",
+      "default": null,
+      "identity": "d",
+      "not_null": true
+    },
+    {
+      "acl": null,
+      "type": "uuid",
+      "table": "inv_log",
+      "column": "venue_id",
+      "default": null,
+      "identity": "",
+      "not_null": true
+    },
+    {
+      "acl": null,
+      "type": "text",
+      "table": "inv_log",
+      "column": "ig",
+      "default": null,
+      "identity": "",
+      "not_null": true
+    },
+    {
+      "acl": null,
+      "type": "integer",
+      "table": "inv_log",
+      "column": "items",
+      "default": "0",
+      "identity": "",
+      "not_null": true
+    },
+    {
+      "acl": null,
+      "type": "integer",
+      "table": "inv_log",
+      "column": "shortage_units",
+      "default": "0",
+      "identity": "",
+      "not_null": true
+    },
+    {
+      "acl": null,
+      "type": "numeric",
+      "table": "inv_log",
+      "column": "shortage_g",
+      "default": "0",
+      "identity": "",
+      "not_null": true
+    },
+    {
+      "acl": null,
+      "type": "numeric",
+      "table": "inv_log",
+      "column": "price_per_g",
+      "default": null,
+      "identity": "",
+      "not_null": false
+    },
+    {
+      "acl": null,
+      "type": "numeric",
+      "table": "inv_log",
+      "column": "shortage_rub",
+      "default": null,
+      "identity": "",
+      "not_null": false
+    },
+    {
+      "acl": null,
+      "type": "bigint",
+      "table": "inv_log",
+      "column": "by_tg",
+      "default": null,
+      "identity": "",
+      "not_null": false
+    },
+    {
+      "acl": null,
+      "type": "timestamp with time zone",
+      "table": "inv_log",
+      "column": "at",
+      "default": "now()",
+      "identity": "",
+      "not_null": true
+    },
+    {
+      "acl": null,
+      "type": "bigint",
+      "table": "moves",
+      "column": "id",
+      "default": null,
+      "identity": "a",
+      "not_null": true
+    },
+    {
+      "acl": null,
+      "type": "uuid",
+      "table": "moves",
+      "column": "venue_id",
+      "default": null,
+      "identity": "",
+      "not_null": false
+    },
+    {
+      "acl": null,
+      "type": "text",
+      "table": "moves",
+      "column": "flavor_id",
+      "default": null,
+      "identity": "",
+      "not_null": false
+    },
+    {
+      "acl": null,
+      "type": "text",
+      "table": "moves",
+      "column": "kind",
+      "default": null,
+      "identity": "",
+      "not_null": true
+    },
+    {
+      "acl": null,
+      "type": "integer",
+      "table": "moves",
+      "column": "qty",
+      "default": "0",
+      "identity": "",
+      "not_null": true
+    },
+    {
+      "acl": null,
+      "type": "integer",
+      "table": "moves",
+      "column": "left_after",
+      "default": null,
+      "identity": "",
+      "not_null": false
+    },
+    {
+      "acl": null,
+      "type": "text",
+      "table": "moves",
+      "column": "reason",
+      "default": null,
+      "identity": "",
+      "not_null": false
+    },
+    {
+      "acl": null,
+      "type": "bigint",
+      "table": "moves",
+      "column": "by_tg",
+      "default": null,
+      "identity": "",
+      "not_null": false
+    },
+    {
+      "acl": null,
+      "type": "timestamp with time zone",
+      "table": "moves",
+      "column": "at",
+      "default": "now()",
+      "identity": "",
+      "not_null": false
+    },
+    {
+      "acl": null,
+      "type": "jsonb",
+      "table": "moves",
+      "column": "prev",
+      "default": null,
+      "identity": "",
+      "not_null": false
+    },
+    {
+      "acl": null,
+      "type": "boolean",
+      "table": "moves",
+      "column": "bar_to",
+      "default": null,
+      "identity": "",
+      "not_null": false
+    },
+    {
+      "acl": null,
+      "type": "uuid",
+      "table": "moves",
+      "column": "operation_id",
+      "default": null,
+      "identity": "",
+      "not_null": false
+    },
+    {
+      "acl": null,
+      "type": "integer",
+      "table": "moves",
+      "column": "stock_revision",
+      "default": null,
+      "identity": "",
+      "not_null": false
+    },
+    {
+      "acl": null,
+      "type": "jsonb",
+      "table": "moves",
+      "column": "next_state",
+      "default": null,
+      "identity": "",
+      "not_null": false
+    },
+    {
+      "acl": null,
+      "type": "uuid",
+      "table": "stock",
+      "column": "venue_id",
+      "default": null,
+      "identity": "",
+      "not_null": true
+    },
+    {
+      "acl": null,
+      "type": "text",
+      "table": "stock",
+      "column": "flavor_id",
+      "default": null,
+      "identity": "",
+      "not_null": true
+    },
+    {
+      "acl": null,
+      "type": "integer",
+      "table": "stock",
+      "column": "wh",
+      "default": "0",
+      "identity": "",
+      "not_null": true
+    },
+    {
+      "acl": null,
+      "type": "boolean",
+      "table": "stock",
+      "column": "bar",
+      "default": "false",
+      "identity": "",
+      "not_null": true
+    },
+    {
+      "acl": null,
+      "type": "boolean",
+      "table": "stock",
+      "column": "stop",
+      "default": "false",
+      "identity": "",
+      "not_null": true
+    },
+    {
+      "acl": null,
+      "type": "boolean",
+      "table": "stock",
+      "column": "stop_auto",
+      "default": "false",
+      "identity": "",
+      "not_null": true
+    },
+    {
+      "acl": null,
+      "type": "boolean",
+      "table": "stock",
+      "column": "slow",
+      "default": "false",
+      "identity": "",
+      "not_null": true
+    },
+    {
+      "acl": null,
+      "type": "boolean",
+      "table": "stock",
+      "column": "retired",
+      "default": "false",
+      "identity": "",
+      "not_null": true
+    },
+    {
+      "acl": null,
+      "type": "integer",
+      "table": "stock",
+      "column": "revision",
+      "default": "0",
+      "identity": "",
+      "not_null": true
+    },
+    {
+      "acl": null,
+      "type": "bigint",
+      "table": "users",
+      "column": "tg_id",
+      "default": null,
+      "identity": "",
+      "not_null": true
+    },
+    {
+      "acl": null,
+      "type": "uuid",
+      "table": "users",
+      "column": "venue_id",
+      "default": null,
+      "identity": "",
+      "not_null": false
+    },
+    {
+      "acl": null,
+      "type": "text",
+      "table": "users",
+      "column": "name",
+      "default": null,
+      "identity": "",
+      "not_null": true
+    },
+    {
+      "acl": null,
+      "type": "text",
+      "table": "users",
+      "column": "role",
+      "default": null,
+      "identity": "",
+      "not_null": true
+    },
+    {
+      "acl": null,
+      "type": "text[]",
+      "table": "users",
+      "column": "perms",
+      "default": "'{}'::text[]",
+      "identity": "",
+      "not_null": true
+    },
+    {
+      "acl": null,
+      "type": "timestamp with time zone",
+      "table": "users",
+      "column": "created_at",
+      "default": "now()",
+      "identity": "",
+      "not_null": false
+    },
+    {
+      "type": "uuid",
+      "table": "flavor_packs",
+      "column": "venue_id",
+      "default": null,
+      "identity": "",
+      "not_null": true
+    },
+    {
+      "type": "text",
+      "table": "flavor_packs",
+      "column": "flavor_id",
+      "default": null,
+      "identity": "",
+      "not_null": true
+    },
+    {
+      "type": "integer",
+      "table": "flavor_packs",
+      "column": "pack_g",
+      "default": null,
+      "identity": "",
+      "not_null": false
+    },
+    {
+      "type": "uuid",
+      "table": "flavor_strengths",
+      "column": "venue_id",
+      "default": null,
+      "identity": "",
+      "not_null": true
+    },
+    {
+      "type": "text",
+      "table": "flavor_strengths",
+      "column": "flavor_id",
+      "default": null,
+      "identity": "",
+      "not_null": true
+    },
+    {
+      "type": "smallint",
+      "table": "flavor_strengths",
+      "column": "strength",
+      "default": null,
+      "identity": "",
+      "not_null": false
+    },
+    {
+      "type": "uuid",
+      "table": "venues",
+      "column": "id",
+      "default": "gen_random_uuid()",
+      "identity": "",
+      "not_null": true
+    },
+    {
+      "type": "text",
+      "table": "venues",
+      "column": "name",
+      "default": null,
+      "identity": "",
+      "not_null": true
+    },
+    {
+      "type": "timestamp with time zone",
+      "table": "venues",
+      "column": "created_at",
+      "default": "now()",
+      "identity": "",
+      "not_null": false
+    }
+  ],
+  "constraints": [
+    {
+      "name": "venues_pkey",
+      "table": "venues",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "users_role_check",
+      "table": "users",
+      "definition": "CHECK ((role = ANY (ARRAY['master'::text, 'manager'::text])))"
+    },
+    {
+      "name": "users_pkey",
+      "table": "users",
+      "definition": "PRIMARY KEY (tg_id)"
+    },
+    {
+      "name": "users_venue_id_fkey",
+      "table": "users",
+      "definition": "FOREIGN KEY (venue_id) REFERENCES venues(id) ON DELETE CASCADE"
+    },
+    {
+      "name": "flavors_strength_check",
+      "table": "flavors",
+      "definition": "CHECK (((strength >= 1) AND (strength <= 10)))"
+    },
+    {
+      "name": "flavors_pkey",
+      "table": "flavors",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "flavors_venue_id_fkey",
+      "table": "flavors",
+      "definition": "FOREIGN KEY (venue_id) REFERENCES venues(id)"
+    },
+    {
+      "name": "stock_wh_check",
+      "table": "stock",
+      "definition": "CHECK ((wh >= 0))"
+    },
+    {
+      "name": "stock_pkey",
+      "table": "stock",
+      "definition": "PRIMARY KEY (venue_id, flavor_id)"
+    },
+    {
+      "name": "stock_venue_id_fkey",
+      "table": "stock",
+      "definition": "FOREIGN KEY (venue_id) REFERENCES venues(id) ON DELETE CASCADE"
+    },
+    {
+      "name": "stock_flavor_id_fkey",
+      "table": "stock",
+      "definition": "FOREIGN KEY (flavor_id) REFERENCES flavors(id) ON DELETE CASCADE"
+    },
+    {
+      "name": "moves_pkey",
+      "table": "moves",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "moves_venue_id_fkey",
+      "table": "moves",
+      "definition": "FOREIGN KEY (venue_id) REFERENCES venues(id) ON DELETE CASCADE"
+    },
+    {
+      "name": "moves_flavor_id_fkey",
+      "table": "moves",
+      "definition": "FOREIGN KEY (flavor_id) REFERENCES flavors(id)"
+    },
+    {
+      "name": "moves_by_tg_fkey",
+      "table": "moves",
+      "definition": "FOREIGN KEY (by_tg) REFERENCES users(tg_id)"
+    },
+    {
+      "name": "flavors_pack_g_check",
+      "table": "flavors",
+      "definition": "CHECK (((pack_g IS NULL) OR ((pack_g >= 5) AND (pack_g <= 2000))))"
+    },
+    {
+      "name": "inv_log_pkey",
+      "table": "inv_log",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "name": "stock_nonnegative_b5",
+      "table": "stock",
+      "definition": "CHECK ((wh >= 0))"
+    },
+    {
+      "name": "moves_kind_check",
+      "table": "moves",
+      "definition": "CHECK ((kind = ANY (ARRAY['in'::text, 'tobar'::text, 'fin'::text, 'off'::text, 'wo'::text, 'inv'::text])))"
+    },
+    {
+      "name": "flavor_strengths_strength_check",
+      "table": "flavor_strengths",
+      "definition": "CHECK (((strength >= 1) AND (strength <= 10)))"
+    },
+    {
+      "name": "flavor_strengths_pkey",
+      "table": "flavor_strengths",
+      "definition": "PRIMARY KEY (venue_id, flavor_id)"
+    },
+    {
+      "name": "flavor_strengths_venue_id_fkey",
+      "table": "flavor_strengths",
+      "definition": "FOREIGN KEY (venue_id) REFERENCES venues(id) ON DELETE CASCADE"
+    },
+    {
+      "name": "flavor_strengths_flavor_id_fkey",
+      "table": "flavor_strengths",
+      "definition": "FOREIGN KEY (flavor_id) REFERENCES flavors(id) ON DELETE CASCADE"
+    },
+    {
+      "name": "flavor_packs_pack_g_check",
+      "table": "flavor_packs",
+      "definition": "CHECK (((pack_g >= 5) AND (pack_g <= 2000)))"
+    },
+    {
+      "name": "flavor_packs_pkey",
+      "table": "flavor_packs",
+      "definition": "PRIMARY KEY (venue_id, flavor_id)"
+    },
+    {
+      "name": "flavor_packs_venue_id_fkey",
+      "table": "flavor_packs",
+      "definition": "FOREIGN KEY (venue_id) REFERENCES venues(id) ON DELETE CASCADE"
+    },
+    {
+      "name": "flavor_packs_flavor_id_fkey",
+      "table": "flavor_packs",
+      "definition": "FOREIGN KEY (flavor_id) REFERENCES flavors(id) ON DELETE CASCADE"
+    }
+  ],
+  "policies": [
+    {
+      "cmd": "SELECT",
+      "qual": "true",
+      "roles": [
+        "public"
+      ],
+      "tablename": "flavors",
+      "permissive": "PERMISSIVE",
+      "policyname": "flavors_read",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(venue_id = me_venue())",
+      "roles": [
+        "public"
+      ],
+      "tablename": "users",
+      "permissive": "PERMISSIVE",
+      "policyname": "users_self",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(venue_id = me_venue())",
+      "roles": [
+        "public"
+      ],
+      "tablename": "stock",
+      "permissive": "PERMISSIVE",
+      "policyname": "stock_read",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(venue_id = me_venue())",
+      "roles": [
+        "public"
+      ],
+      "tablename": "moves",
+      "permissive": "PERMISSIVE",
+      "policyname": "moves_read",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "qual": null,
+      "roles": [
+        "public"
+      ],
+      "tablename": "moves",
+      "permissive": "PERMISSIVE",
+      "policyname": "moves_write",
+      "schemaname": "public",
+      "with_check": "(venue_id = me_venue())"
+    },
+    {
+      "cmd": "DELETE",
+      "qual": "((venue_id = me_venue()) AND is_staff())",
+      "roles": [
+        "public"
+      ],
+      "tablename": "moves",
+      "permissive": "PERMISSIVE",
+      "policyname": "moves_delete",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(venue_id = me_venue())",
+      "roles": [
+        "public"
+      ],
+      "tablename": "inv_log",
+      "permissive": "PERMISSIVE",
+      "policyname": "inv_log_read",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "qual": null,
+      "roles": [
+        "public"
+      ],
+      "tablename": "inv_log",
+      "permissive": "PERMISSIVE",
+      "policyname": "inv_log_write",
+      "schemaname": "public",
+      "with_check": "(venue_id = me_venue())"
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(id = me_venue())",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "venues",
+      "permissive": "PERMISSIVE",
+      "policyname": "venues_own_read",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "ALL",
+      "qual": "(is_staff() AND (venue_id = me_venue()))",
+      "roles": [
+        "public"
+      ],
+      "tablename": "users",
+      "permissive": "PERMISSIVE",
+      "policyname": "users_manage",
+      "schemaname": "public",
+      "with_check": "(venue_id = me_venue())"
+    },
+    {
+      "cmd": "ALL",
+      "qual": "(is_staff() AND (venue_id = me_venue()))",
+      "roles": [
+        "public"
+      ],
+      "tablename": "stock",
+      "permissive": "PERMISSIVE",
+      "policyname": "stock_manager",
+      "schemaname": "public",
+      "with_check": "(venue_id = me_venue())"
+    },
+    {
+      "cmd": "UPDATE",
+      "qual": "(false AND (venue_id = me_venue()))",
+      "roles": [
+        "public"
+      ],
+      "tablename": "stock",
+      "permissive": "PERMISSIVE",
+      "policyname": "stock_master_stop",
+      "schemaname": "public",
+      "with_check": "(venue_id = me_venue())"
+    },
+    {
+      "cmd": "INSERT",
+      "qual": null,
+      "roles": [
+        "public"
+      ],
+      "tablename": "stock",
+      "permissive": "PERMISSIVE",
+      "policyname": "stock_master_insert",
+      "schemaname": "public",
+      "with_check": "(false AND (venue_id = me_venue()))"
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(EXISTS ( SELECT 1\n   FROM flavors f\n  WHERE ((f.id = flavor_strengths.flavor_id) AND (f.venue_id IS NULL))))",
+      "roles": [
+        "anon"
+      ],
+      "tablename": "flavor_strengths",
+      "permissive": "PERMISSIVE",
+      "policyname": "flavor_strengths_guest",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "ALL",
+      "qual": "(is_staff() AND (venue_id = ( SELECT me_venue() AS me_venue)))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "flavor_strengths",
+      "permissive": "PERMISSIVE",
+      "policyname": "flavor_strengths_staff",
+      "schemaname": "public",
+      "with_check": "(is_staff() AND (venue_id = ( SELECT me_venue() AS me_venue)) AND (EXISTS ( SELECT 1\n   FROM flavors f\n  WHERE ((f.id = flavor_strengths.flavor_id) AND ((f.venue_id IS NULL) OR (f.venue_id = ( SELECT me_venue() AS me_venue)))))))"
+    },
+    {
+      "cmd": "ALL",
+      "qual": "(is_staff() AND (venue_id = ( SELECT me_venue() AS me_venue)))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "flavor_packs",
+      "permissive": "PERMISSIVE",
+      "policyname": "flavor_packs_staff",
+      "schemaname": "public",
+      "with_check": "(is_staff() AND (venue_id = ( SELECT me_venue() AS me_venue)) AND (EXISTS ( SELECT 1\n   FROM flavors f\n  WHERE ((f.id = flavor_packs.flavor_id) AND ((f.venue_id IS NULL) OR (f.venue_id = ( SELECT me_venue() AS me_venue)))))))"
+    },
+    {
+      "cmd": "ALL",
+      "qual": "(is_staff() AND (custom IS TRUE) AND (venue_id = ( SELECT me_venue() AS me_venue)))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "flavors",
+      "permissive": "PERMISSIVE",
+      "policyname": "flavors_staff_write",
+      "schemaname": "public",
+      "with_check": "(is_staff() AND (custom IS TRUE) AND (venue_id = ( SELECT me_venue() AS me_venue)))"
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "((venue_id IS NULL) OR (is_staff() AND (venue_id = ( SELECT me_venue() AS me_venue))))",
+      "roles": [
+        "public"
+      ],
+      "tablename": "flavors",
+      "permissive": "RESTRICTIVE",
+      "policyname": "flavors_venue_read_guard",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "qual": null,
+      "roles": [
+        "public"
+      ],
+      "tablename": "flavors",
+      "permissive": "RESTRICTIVE",
+      "policyname": "flavors_venue_insert_guard",
+      "schemaname": "public",
+      "with_check": "(is_staff() AND (custom IS TRUE) AND (venue_id = ( SELECT me_venue() AS me_venue)))"
+    },
+    {
+      "cmd": "UPDATE",
+      "qual": "(is_staff() AND (custom IS TRUE) AND (venue_id = ( SELECT me_venue() AS me_venue)))",
+      "roles": [
+        "public"
+      ],
+      "tablename": "flavors",
+      "permissive": "RESTRICTIVE",
+      "policyname": "flavors_venue_update_guard",
+      "schemaname": "public",
+      "with_check": "(is_staff() AND (custom IS TRUE) AND (venue_id = ( SELECT me_venue() AS me_venue)))"
+    },
+    {
+      "cmd": "DELETE",
+      "qual": "(is_staff() AND (custom IS TRUE) AND (venue_id = ( SELECT me_venue() AS me_venue)))",
+      "roles": [
+        "public"
+      ],
+      "tablename": "flavors",
+      "permissive": "RESTRICTIVE",
+      "policyname": "flavors_venue_delete_guard",
+      "schemaname": "public",
+      "with_check": null
+    }
+  ],
+  "triggers": [
+    {
+      "table": "users",
+      "function": "users_default_manager()",
+      "definition": "CREATE TRIGGER users_default_manager BEFORE INSERT ON public.users FOR EACH ROW EXECUTE FUNCTION users_default_manager()"
+    }
+  ],
+  "functions": [
+    {
+      "acl": [
+        "=X/postgres",
+        "postgres=X/postgres",
+        "anon=X/postgres",
+        "authenticated=X/postgres",
+        "service_role=X/postgres"
+      ],
+      "owner": "postgres",
+      "signature": "me_role()",
+      "definition": "CREATE OR REPLACE FUNCTION public.me_role()\n RETURNS text\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\n select case when public.is_staff() then 'staff'::text end\n$function$\n"
+    },
+    {
+      "acl": [
+        "=X/postgres",
+        "postgres=X/postgres",
+        "anon=X/postgres",
+        "authenticated=X/postgres",
+        "service_role=X/postgres"
+      ],
+      "owner": "postgres",
+      "signature": "is_staff()",
+      "definition": "CREATE OR REPLACE FUNCTION public.is_staff()\n RETURNS boolean\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\n select exists(select 1 from public.users where tg_id=public.me_tg() and venue_id is not null)\n$function$\n"
+    },
+    {
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres"
+      ],
+      "owner": "postgres",
+      "signature": "mixora_private.apply_stock(uuid,jsonb)",
+      "definition": "CREATE OR REPLACE FUNCTION mixora_private.apply_stock(p_request_id uuid, p_items jsonb)\n RETURNS jsonb\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\ndeclare\n  actor public.users%rowtype;\n  req mixora_private.stock_requests%rowtype;\n  cur public.stock%rowtype;\n  entry jsonb; desired jsonb; before_doc jsonb; after_doc jsonb;\n  fid text; kind text; reason text; qty integer; next_wh integer;\n  next_bar boolean; next_stop boolean; next_auto boolean; next_slow boolean; next_retired boolean;\n  v_result jsonb := '[]'::jsonb;\n  prior public.moves%rowtype;\nbegin\n  -- tg-auth signs sub as the Telegram numeric id (NOT a Supabase Auth UUID).\n  -- Never use JWT venue/role/perms or user_metadata to authorize writes.\n  if coalesce(nullif(current_setting('request.jwt.claims',true),'')::jsonb->>'role','') <> 'authenticated' then raise exception 'stock_forbidden' using errcode='42501'; end if;\n  select * into actor from public.users\n    where tg_id = public.me_tg()\n    for share;\n  if actor.tg_id is null or actor.venue_id is null then\n    raise exception 'stock_forbidden' using errcode = '42501';\n  end if;\n  if p_request_id is null or jsonb_typeof(p_items) is distinct from 'array' then\n    raise exception 'stock_invalid_request';\n  end if;\n  if jsonb_array_length(p_items) not between 1 and 200 then raise exception 'stock_invalid_batch_size'; end if;\n  if exists(select 1 from jsonb_array_elements(p_items) e\n    where jsonb_typeof(e) <> 'object' or coalesce(e->>'id','') = '')\n    or (select count(distinct e->>'id') from jsonb_array_elements(p_items) e) <> jsonb_array_length(p_items)\n    then raise exception 'stock_duplicate_or_invalid_item'; end if;\n\n  -- Unique-key conflict waits for an in-flight identical request to commit/rollback.\n  insert into mixora_private.stock_requests values(actor.venue_id,p_request_id,actor.tg_id,p_items,null)\n    on conflict do nothing;\n  select * into strict req from mixora_private.stock_requests\n    where venue_id=actor.venue_id and request_id=p_request_id for update;\n  if req.actor <> actor.tg_id or req.payload <> p_items then raise exception 'stock_idempotency_conflict'; end if;\n  if req.result is not null then return req.result; end if;\n\n  -- Lock missing rows too, in deterministic order, before inserting initial stock.\n  -- Advisory collisions only serialize unrelated operations, never compromise data.\n  for entry in select value from jsonb_array_elements(p_items) order by value->>'id' loop\n    fid := entry->>'id';\n    perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(actor.venue_id::text || ':' || fid,0));\n  end loop;\n  for entry in select value from jsonb_array_elements(p_items) order by value->>'id' loop\n    fid := entry->>'id';\n    if not exists(select 1 from public.flavors where id=fid and (venue_id is null or venue_id=actor.venue_id)) then raise exception 'stock_unknown_item'; end if;\n    insert into public.stock(venue_id,flavor_id,wh) values(actor.venue_id,fid,0) on conflict(venue_id,flavor_id) do nothing;\n    select * into strict cur from public.stock where venue_id=actor.venue_id and flavor_id=fid for update;\n    if jsonb_typeof(entry->'revision') is distinct from 'number' or (entry->>'revision') !~ '^[0-9]+$'\n      or (entry->>'revision')::integer <> cur.revision then raise exception 'stock_stale_revision'; end if;\n    before_doc := jsonb_build_object('wh',cur.wh,'bar',cur.bar,'stop',coalesce(cur.stop,false),\n      'stopAuto',coalesce(cur.stop_auto,false),'slow',coalesce(cur.slow,false),'retired',coalesce(cur.retired,false));\n    kind := coalesce(entry->>'kind','in'); reason := entry->>'reason';\n    if entry ? 'undo' then\n      select * into prior from public.moves where venue_id=actor.venue_id and flavor_id=fid and operation_id=(entry->>'undo')::uuid;\n      if prior.operation_id is null or prior.stock_revision <> cur.revision then raise exception 'stock_undo_not_latest'; end if;\n      if prior.reason like '\u041e\u0442\u043c\u0435\u043d\u0430 \u043e\u043f\u0435\u0440\u0430\u0446\u0438\u0438 %' then raise exception 'stock_undo_of_undo_forbidden'; end if;\n      desired := prior.prev; kind := 'in'; reason := '\u041e\u0442\u043c\u0435\u043d\u0430 \u043e\u043f\u0435\u0440\u0430\u0446\u0438\u0438 ' || (entry->>'undo');\n    else\n      desired := entry->'doc';\n    end if;\n    if jsonb_typeof(desired) is distinct from 'object' or jsonb_typeof(desired->'wh') is distinct from 'number'\n      or (desired->>'wh') !~ '^[0-9]+$' then raise exception 'stock_invalid_quantity'; end if;\n    next_wh := (desired->>'wh')::integer;\n    if next_wh > 1000000 then raise exception 'stock_quantity_limit'; end if;\n    if kind not in ('in','tobar','fin','off','wo','inv') or length(coalesce(reason,''))>1000 then raise exception 'stock_invalid_kind_or_reason'; end if;\n    if exists(select 1 from jsonb_each(desired) kv where kv.key in ('bar','stop','stopAuto','slow','retired')\n      and jsonb_typeof(kv.value) <> 'boolean' and not(kv.key='bar' and kv.value='null'::jsonb)) then raise exception 'stock_invalid_flag'; end if;\n    next_bar := coalesce((desired->>'bar')::boolean,cur.bar,false);\n    next_stop := coalesce((desired->>'stop')::boolean,false);\n    next_auto := coalesce((desired->>'stopAuto')::boolean,false);\n    next_slow := coalesce((desired->>'slow')::boolean,false);\n    next_retired := coalesce((desired->>'retired')::boolean,false);\n    qty := next_wh-cur.wh;\n    update public.stock set wh=next_wh,bar=next_bar,stop=next_stop,stop_auto=next_auto,\n      slow=next_slow,retired=next_retired,revision=revision+1 where venue_id=actor.venue_id and flavor_id=fid;\n    after_doc := jsonb_build_object('wh',next_wh,'bar',next_bar,'stop',next_stop,'stopAuto',next_auto,\n      'slow',next_slow,'retired',next_retired,'revision',cur.revision+1);\n    if reason is null and qty=0 then reason := '\u0418\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u0435 \u0441\u043e\u0441\u0442\u043e\u044f\u043d\u0438\u044f \u043f\u043e\u0437\u0438\u0446\u0438\u0438'; end if;\n    insert into public.moves(venue_id,flavor_id,kind,qty,left_after,reason,prev,bar_to,at,by_tg,operation_id,stock_revision,next_state)\n      values(actor.venue_id,fid,kind,qty,next_wh,reason,before_doc,next_bar,pg_catalog.transaction_timestamp(),actor.tg_id,p_request_id,cur.revision+1,after_doc);\n    v_result := v_result || jsonb_build_array(jsonb_build_object('id',fid,'doc',after_doc));\n  end loop;\n  update mixora_private.stock_requests set result=v_result where venue_id=actor.venue_id and request_id=p_request_id;\n  return v_result;\nend $function$\n"
+    },
+    {
+      "acl": [
+        "=X/postgres",
+        "postgres=X/postgres",
+        "anon=X/postgres",
+        "authenticated=X/postgres",
+        "service_role=X/postgres"
+      ],
+      "owner": "postgres",
+      "signature": "me_venue()",
+      "definition": "CREATE OR REPLACE FUNCTION public.me_venue()\n RETURNS uuid\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\n select venue_id from public.users where tg_id=public.me_tg()\n$function$\n"
+    },
+    {
+      "acl": [
+        "=X/postgres",
+        "postgres=X/postgres",
+        "anon=X/postgres",
+        "authenticated=X/postgres",
+        "service_role=X/postgres"
+      ],
+      "owner": "postgres",
+      "signature": "enforce_master_stock()",
+      "definition": "CREATE OR REPLACE FUNCTION public.enforce_master_stock()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\ndeclare r text; p text[];\nbegin\n  select role, perms into r, p from users where tg_id = me_tg();\n  if r is distinct from 'master' then return new; end if;\n  if new.wh is distinct from old.wh and not ('take' = any(p) or 'add' = any(p)) then raise exception '\u043d\u0435\u0442 \u043f\u0440\u0430\u0432\u0430 \u043c\u0435\u043d\u044f\u0442\u044c \u0441\u043a\u043b\u0430\u0434'; end if;\n  if new.bar is distinct from old.bar and not ('take' = any(p) or 'offbar' = any(p)) then raise exception '\u043d\u0435\u0442 \u043f\u0440\u0430\u0432\u0430 \u043c\u0435\u043d\u044f\u0442\u044c \u0441\u0442\u043e\u0439\u043a\u0443'; end if;\n  if new.slow is distinct from old.slow and not ('slow' = any(p)) then raise exception '\u043d\u0435\u0442 \u043f\u0440\u0430\u0432\u0430 \u043c\u0435\u043d\u044f\u0442\u044c \u043d\u0435\u043b\u0438\u043a\u0432\u0438\u0434'; end if;\n  if new.retired is distinct from old.retired then raise exception '\u043d\u0435\u0442 \u043f\u0440\u0430\u0432\u0430 \u0432\u044b\u0432\u043e\u0434\u0438\u0442\u044c \u0432\u043a\u0443\u0441'; end if;\n  if old.stop and not new.stop and not ('unstop' = any(p)) then raise exception '\u043d\u0435\u0442 \u043f\u0440\u0430\u0432\u0430 \u0441\u043d\u0438\u043c\u0430\u0442\u044c \u0441\u0442\u043e\u043f'; end if;\n  return new;\nend $function$\n"
+    },
+    {
+      "acl": [
+        "=X/postgres",
+        "postgres=X/postgres",
+        "anon=X/postgres",
+        "authenticated=X/postgres",
+        "service_role=X/postgres"
+      ],
+      "owner": "postgres",
+      "signature": "users_default_manager()",
+      "definition": "CREATE OR REPLACE FUNCTION public.users_default_manager()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nbegin\n  new.role := 'manager';\n  return new;\nend $function$\n"
+    },
+    {
+      "acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres",
+        "service_role=X/postgres"
+      ],
+      "owner": "postgres",
+      "signature": "apply_stock(uuid,jsonb)",
+      "definition": "CREATE OR REPLACE FUNCTION public.apply_stock(p_request_id uuid, p_items jsonb)\n RETURNS jsonb\n LANGUAGE sql\n SET search_path TO ''\nAS $function$\n  select mixora_private.apply_stock(p_request_id,p_items);\n$function$\n"
+    },
+    {
+      "acl": [
+        "=X/postgres",
+        "postgres=X/postgres",
+        "anon=X/postgres",
+        "authenticated=X/postgres",
+        "service_role=X/postgres"
+      ],
+      "owner": "postgres",
+      "signature": "me_tg()",
+      "definition": "CREATE OR REPLACE FUNCTION public.me_tg()\n RETURNS bigint\n LANGUAGE sql\n STABLE\n SET search_path TO ''\nAS $function$\n select case when c->>'role'='authenticated' and c->>'sub' ~ '^[0-9]{1,18}$'\n   and (not(c ? 'tg_id') or c->>'tg_id'=c->>'sub') then (c->>'sub')::bigint end\n from (select coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb c) q\n$function$\n"
+    }
+  ],
+  "schemas": [
+    {
+      "acl": [
+        "pg_database_owner=UC/pg_database_owner",
+        "=U/pg_database_owner",
+        "postgres=U/pg_database_owner",
+        "anon=U/pg_database_owner",
+        "authenticated=U/pg_database_owner",
+        "service_role=U/pg_database_owner"
+      ],
+      "name": "public",
+      "owner": "pg_database_owner"
+    },
+    {
+      "acl": [
+        "postgres=UC/postgres",
+        "authenticated=U/postgres"
+      ],
+      "name": "mixora_private",
+      "owner": "postgres"
+    }
+  ],
+  "private_tables": [
+    {
+      "acl": [
+        "postgres=arwdDxtm/postgres"
+      ],
+      "rls": true,
+      "kind": "r",
+      "name": "stock_requests",
+      "schema": "mixora_private"
+    }
+  ],
+  "private_columns": [
+    {
+      "type": "uuid",
+      "table": "stock_requests",
+      "column": "venue_id",
+      "schema": "mixora_private",
+      "default": null,
+      "not_null": true
+    },
+    {
+      "type": "uuid",
+      "table": "stock_requests",
+      "column": "request_id",
+      "schema": "mixora_private",
+      "default": null,
+      "not_null": true
+    },
+    {
+      "type": "bigint",
+      "table": "stock_requests",
+      "column": "actor",
+      "schema": "mixora_private",
+      "default": null,
+      "not_null": true
+    },
+    {
+      "type": "jsonb",
+      "table": "stock_requests",
+      "column": "payload",
+      "schema": "mixora_private",
+      "default": null,
+      "not_null": true
+    },
+    {
+      "type": "jsonb",
+      "table": "stock_requests",
+      "column": "result",
+      "schema": "mixora_private",
+      "default": null,
+      "not_null": false
+    }
+  ],
+  "private_constraints": [
+    {
+      "name": "stock_requests_pkey",
+      "table": "stock_requests",
+      "schema": "mixora_private",
+      "definition": "PRIMARY KEY (venue_id, request_id)"
+    }
+  ],
+  "indexes": [
+    {
+      "indexdef": "CREATE UNIQUE INDEX flavors_pkey ON public.flavors USING btree (id)",
+      "indexname": "flavors_pkey",
+      "tablename": "flavors",
+      "schemaname": "public",
+      "tablespace": null
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX inv_log_pkey ON public.inv_log USING btree (id)",
+      "indexname": "inv_log_pkey",
+      "tablename": "inv_log",
+      "schemaname": "public",
+      "tablespace": null
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX moves_pkey ON public.moves USING btree (id)",
+      "indexname": "moves_pkey",
+      "tablename": "moves",
+      "schemaname": "public",
+      "tablespace": null
+    },
+    {
+      "indexdef": "CREATE INDEX moves_venue_id_at_idx ON public.moves USING btree (venue_id, at DESC)",
+      "indexname": "moves_venue_id_at_idx",
+      "tablename": "moves",
+      "schemaname": "public",
+      "tablespace": null
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX moves_operation_item_b5 ON public.moves USING btree (operation_id, flavor_id)",
+      "indexname": "moves_operation_item_b5",
+      "tablename": "moves",
+      "schemaname": "public",
+      "tablespace": null
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX stock_pkey ON public.stock USING btree (venue_id, flavor_id)",
+      "indexname": "stock_pkey",
+      "tablename": "stock",
+      "schemaname": "public",
+      "tablespace": null
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX users_pkey ON public.users USING btree (tg_id)",
+      "indexname": "users_pkey",
+      "tablename": "users",
+      "schemaname": "public",
+      "tablespace": null
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX stock_requests_pkey ON mixora_private.stock_requests USING btree (venue_id, request_id)",
+      "indexname": "stock_requests_pkey",
+      "tablename": "stock_requests",
+      "schemaname": "mixora_private",
+      "tablespace": null
+    }
+  ],
+  "role_memberships": [
+    {
+      "role": "pg_monitor",
+      "member": "supabase_read_only_user"
+    },
+    {
+      "role": "pg_monitor",
+      "member": "postgres"
+    },
+    {
+      "role": "pg_monitor",
+      "member": "supabase_etl_admin"
+    },
+    {
+      "role": "pg_read_all_settings",
+      "member": "pg_monitor"
+    },
+    {
+      "role": "pg_read_all_stats",
+      "member": "pg_monitor"
+    },
+    {
+      "role": "pg_stat_scan_tables",
+      "member": "pg_monitor"
+    },
+    {
+      "role": "pg_signal_backend",
+      "member": "postgres"
+    },
+    {
+      "role": "pg_read_all_data",
+      "member": "supabase_etl_admin"
+    },
+    {
+      "role": "pg_read_all_data",
+      "member": "postgres"
+    },
+    {
+      "role": "pg_read_all_data",
+      "member": "supabase_read_only_user"
+    },
+    {
+      "role": "pg_create_subscription",
+      "member": "postgres"
+    },
+    {
+      "role": "anon",
+      "member": "postgres"
+    },
+    {
+      "role": "anon",
+      "member": "supabase_realtime_admin"
+    },
+    {
+      "role": "anon",
+      "member": "authenticator"
+    },
+    {
+      "role": "authenticated",
+      "member": "authenticator"
+    },
+    {
+      "role": "authenticated",
+      "member": "postgres"
+    },
+    {
+      "role": "authenticated",
+      "member": "supabase_realtime_admin"
+    },
+    {
+      "role": "service_role",
+      "member": "postgres"
+    },
+    {
+      "role": "service_role",
+      "member": "supabase_realtime_admin"
+    },
+    {
+      "role": "service_role",
+      "member": "authenticator"
+    },
+    {
+      "role": "authenticator",
+      "member": "supabase_storage_admin"
+    },
+    {
+      "role": "authenticator",
+      "member": "postgres"
+    },
+    {
+      "role": "supabase_privileged_role",
+      "member": "postgres"
+    },
+    {
+      "role": "supabase_privileged_role",
+      "member": "supabase_etl_admin"
+    }
+  ],
+  "role_flags": [
+    {
+      "name": "authenticated",
+      "inherit": true,
+      "superuser": false,
+      "bypass_rls": false
+    },
+    {
+      "name": "anon",
+      "inherit": true,
+      "superuser": false,
+      "bypass_rls": false
+    },
+    {
+      "name": "service_role",
+      "inherit": true,
+      "superuser": false,
+      "bypass_rls": true
+    },
+    {
+      "name": "authenticator",
+      "inherit": false,
+      "superuser": false,
+      "bypass_rls": false
+    }
+  ],
+  "default_acls": [
+    {
+      "acl": [
+        "postgres=arwdDxtm/postgres",
+        "anon=arwdDxtm/postgres",
+        "authenticated=arwdDxtm/postgres",
+        "service_role=arwdDxtm/postgres"
+      ],
+      "type": "r",
+      "owner": "postgres",
+      "schema": "public"
+    },
+    {
+      "acl": [
+        "postgres=X/postgres",
+        "anon=X/postgres",
+        "authenticated=X/postgres",
+        "service_role=X/postgres"
+      ],
+      "type": "f",
+      "owner": "postgres",
+      "schema": "public"
+    },
+    {
+      "acl": [
+        "postgres=rwU/postgres",
+        "anon=rwU/postgres",
+        "authenticated=rwU/postgres",
+        "service_role=rwU/postgres"
+      ],
+      "type": "S",
+      "owner": "postgres",
+      "schema": "public"
+    },
+    {
+      "acl": [
+        "postgres=rwU/supabase_admin",
+        "anon=rwU/supabase_admin",
+        "authenticated=rwU/supabase_admin",
+        "service_role=rwU/supabase_admin"
+      ],
+      "type": "S",
+      "owner": "supabase_admin",
+      "schema": "public"
+    },
+    {
+      "acl": [
+        "postgres=arwdDxtm/supabase_admin",
+        "anon=arwdDxtm/supabase_admin",
+        "authenticated=arwdDxtm/supabase_admin",
+        "service_role=arwdDxtm/supabase_admin"
+      ],
+      "type": "r",
+      "owner": "supabase_admin",
+      "schema": "public"
+    },
+    {
+      "acl": [
+        "postgres=X/supabase_admin",
+        "anon=X/supabase_admin",
+        "authenticated=X/supabase_admin",
+        "service_role=X/supabase_admin"
+      ],
+      "type": "f",
+      "owner": "supabase_admin",
+      "schema": "public"
+    }
+  ],
+  "function_and_version_columns_verified_at": "2026-10-29T01:27:42.935999Z",
+  "function_definition_md5": {
+    "me_role()": "d325d1f2a2888fc75ff30224dfc46356",
+    "is_staff()": "2bf56ea6dc03ad3bbd55c13affa308f1",
+    "mixora_private.apply_stock(uuid,jsonb)": "96ad242f277ae692165af4db92982fe6",
+    "me_venue()": "4a61556a6b6cbec2bd6168ae9ebd8b7c",
+    "enforce_master_stock()": "2f59c844c53e229cec9f565b9c65c26d",
+    "users_default_manager()": "268e4a0c74d322536825f40446400574",
+    "apply_stock(uuid,jsonb)": "3e16dc41f802d4d9791428cae906168c",
+    "me_tg()": "5e695b110d17a22566a55ae306e395f7"
+  }
+}

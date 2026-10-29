@@ -1,0 +1,85 @@
+name: Mixora B5 build consistency
+on:
+  pull_request:
+    paths:
+      - 'src/stoika.html'
+      - 'app/shim.js'
+      - 'app/config.js'
+      - 'build_app.py'
+      - 'index.html'
+      - 'tests/**'
+      - 'supabase/b5_atomic_stock_PROPOSAL.sql'
+      - '.github/workflows/mixora-build-consistency.yml'
+  workflow_dispatch:
+jobs:
+  build-consistency:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Rebuild staff app
+        run: python build_app.py
+      - name: Verify committed index.html matches sources
+        run: |
+          git diff --exit-code -- index.html
+          grep -q 'commitStockBatch' index.html
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: B5 client recovery and write guards
+        run: |
+          node tests/b5-client.cjs
+          node tests/b5-actions-client.cjs
+      - name: Existing action and matching regressions
+        run: |
+          node tests/actions.cjs
+          node tests/matching.cjs
+  database-regressions:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:16@sha256:1beaa3084eee2676f20a9cd9928f0bf2c5bf674f8e49f81017912183d377c61c
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: b5-disposable-only
+          POSTGRES_DB: mixora_b5_test_ci
+        ports:
+          - 127.0.0.1:55475:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d mixora_b5_test_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned catalog fixture generator
+        run: npm ci --prefix tests/b5-wasm --ignore-scripts
+      - name: Install pinned test driver
+        run: python -m pip install 'psycopg[binary]==3.2.13'
+      - name: Real PostgreSQL sessions, permissions and transaction regressions
+        env:
+          B5_ALLOW_TEST_DATABASE: 'YES'
+          B5_TEST_DATABASE_URL: postgresql://postgres:b5-disposable-only@127.0.0.1:55475/mixora_b5_test_ci
+        run: python tests/b5-database.py
+      - name: Production catalog incompatibility probes and fail-closed migration guard
+        env:
+          B5_ALLOW_TEST_DATABASE: 'YES'
+          B5_TEST_DATABASE_URL: postgresql://postgres:b5-disposable-only@127.0.0.1:55475/mixora_b5_test_ci
+        run: python tests/b5-production-compat.py
+      - name: Embedded SQL and catalog-only compatibility probes
+        run: |
+          node tests/b5-wasm/run.mjs
+          node tests/b5-wasm/production-compat.mjs

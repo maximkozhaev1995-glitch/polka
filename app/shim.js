@@ -22,8 +22,8 @@
   }
   // Токен живёт 12 часов: обновляем заранее, чтобы открытое на всю смену приложение не теряло доступ к базе
   let refreshT=0,refreshP=null;
-  const planRefresh=()=>{clearTimeout(refreshT);refreshT=setTimeout(()=>refresh().catch(()=>{}),11*3600e3)};
-  function refresh(){
+  const planRefresh=()=>{clearTimeout(refreshT);refreshT=setTimeout(()=>refreshAuth().catch(()=>{}),11*3600e3)};
+  function refreshAuth(){
     if(!refreshP)refreshP=call("").then(r=>{if(!r.ok)return false;session.token=r.body.token;session.user=r.body.user;planRefresh();return true}).finally(()=>{refreshP=null});
     return refreshP;
   }
@@ -56,17 +56,17 @@
   // ===== база =====
   const H=()=>({apikey:CFG.anon,Authorization:"Bearer "+session.token,"Content-Type":"application/json"});
   const V=()=>session.user.venue_id;
-  async function rest(path,opt,again){const r=await fetch(CFG.url+"/rest/v1/"+path,Object.assign({headers:H()},opt));if(r.status===401&&!again&&await refresh().catch(()=>false)){if(opt&&opt.headers&&opt.headers.Authorization)opt=Object.assign({},opt,{headers:Object.assign({},opt.headers,H())});return rest(path,opt,true)}if(!r.ok){let t="";try{t=(await r.json()).message}catch(e){}throw new Error(t||("HTTP "+r.status))}const t=await r.text();return t?JSON.parse(t):null}
+  async function rest(path,opt,again){const r=await fetch(CFG.url+"/rest/v1/"+path,Object.assign({headers:H()},opt));if(r.status===401&&!again&&await refreshAuth().catch(()=>false)){if(opt&&opt.headers&&opt.headers.Authorization)opt=Object.assign({},opt,{headers:Object.assign({},opt.headers,H())});return rest(path,opt,true)}if(!r.ok){let j={};try{j=await r.json()}catch(e){}const error=new Error(j.message||("HTTP "+r.status));error.status=r.status;error.code=j.code;throw error}const t=await r.text();return t?JSON.parse(t):null}
   const iso=x=>x?new Date(x).toISOString():undefined;
   const MAP={
     stock:{table:"stock",key:"flavor_id",
-      list:()=>"stock?select=flavor_id,wh,bar,stop,stop_auto,slow,retired&venue_id=eq."+V(),
-      toDoc:r=>{const d={wh:r.wh,bar:r.bar};if(r.stop)d.stop=true;if(r.stop_auto)d.stopAuto=true;if(r.slow)d.slow=true;if(r.retired)d.retired=true;return d},
+      list:()=>"stock?select=flavor_id,wh,bar,stop,stop_auto,slow,retired,revision&venue_id=eq."+V(),
+      toDoc:r=>{const d={wh:r.wh,bar:r.bar,revision:String(r.revision)};if(r.stop)d.stop=true;if(r.stop_auto)d.stopAuto=true;if(r.slow)d.slow=true;if(r.retired)d.retired=true;return d},
       fromDoc:(id,o)=>{const b={venue_id:V(),flavor_id:id,wh:o.wh||0,stop:!!o.stop,stop_auto:!!o.stopAuto,slow:!!o.slow,retired:!!o.retired};if(typeof o.bar==="boolean")b.bar=o.bar;return b},
       conflict:"venue_id,flavor_id"},
     moves:{table:"moves",key:"id",
-      list:()=>"moves?select=id,flavor_id,kind,qty,left_after,reason,prev,bar_to,at&venue_id=eq."+V()+"&order=at.desc&limit=400",
-      toDoc:r=>({item:r.flavor_id,kind:r.kind,qty:r.qty,left:r.left_after,reason:r.reason||undefined,prev:r.prev||undefined,barTo:r.bar_to===null?undefined:r.bar_to,at:r.at}),
+      list:()=>"mixora_stock_moves?select=id,flavor_id,kind,qty,left_after,reason,prev,bar_to,at,operation_id,reversal_of,compensated&venue_id=eq."+V()+"&order=at.desc&limit=400",
+      toDoc:r=>({compensated:r.compensated,operationId:r.operation_id,reversalOf:r.reversal_of,item:r.flavor_id,kind:r.kind,qty:r.qty,left:r.left_after,reason:r.reason||undefined,prev:r.prev||undefined,barTo:r.bar_to===null?undefined:r.bar_to,at:r.at}),
       fromDoc:(id,o)=>({venue_id:V(),flavor_id:o.item,kind:o.kind||"in",qty:o.qty||0,left_after:o.left,reason:o.reason||null,prev:o.prev||null,bar_to:typeof o.barTo==="boolean"?o.barTo:null,at:o.at||new Date().toISOString(),by_tg:session.user.tg_id})},
     suppliers:{table:"suppliers",key:"id",
       list:()=>"suppliers?select=id,name,contact,brands,ctype,legal_address,requisites,items,files&venue_id=eq."+V(),
@@ -99,8 +99,8 @@
       toDoc:r=>({b:r.brand,l:r.line||"",n:r.name,d:r.descr||"",s:"name",t:[],bar:false}),
       fromDoc:(id,o)=>({id,brand:o.b,line:o.l||"",name:o.n,descr:o.d||"",custom:true,venue_id:V()}),conflict:"id"},
     invlog:{table:"inv_log",key:"id",
-      list:()=>"inv_log?select=id,ig,items,shortage_units,shortage_g,price_per_g,shortage_rub,at&venue_id=eq."+V()+"&order=at.desc&limit=200",
-      toDoc:r=>({ig:r.ig,items:r.items,units:r.shortage_units,g:r.shortage_g,price:r.price_per_g,rub:r.shortage_rub,at:r.at}),
+      list:()=>"inv_log?select=id,ig,items,shortage_units,shortage_g,price_per_g,shortage_rub,at,unknown_weight_items&venue_id=eq."+V()+"&order=at.desc&limit=200",
+      toDoc:r=>({unknownWeights:r.unknown_weight_items,ig:r.ig,items:r.items,units:r.shortage_units,g:r.shortage_g,price:r.price_per_g,rub:r.shortage_rub,at:r.at}),
       fromDoc:(id,o)=>({venue_id:V(),ig:o.ig,items:o.items||0,shortage_units:o.units||0,shortage_g:o.g||0,price_per_g:o.price||null,shortage_rub:o.rub||null,by_tg:session.user.tg_id,at:o.at||new Date().toISOString()})},
     tasks:{table:"tasks",key:"id",patch:true,
       list:()=>"tasks?select=id,text,recur,weekday,created_at&venue_id=eq."+V()+"&order=created_at.desc&limit=200",
@@ -128,20 +128,32 @@
   document.addEventListener("visibilitychange",()=>{if(!document.hidden&&session)Object.keys(subs).forEach(refresh)});
   const bump=c=>setTimeout(()=>refresh(c),150);
   const listen=c=>({onSnapshot:(f,err)=>{const s=subs[c]||(subs[c]={fns:[],errs:[],hash:""});s.fns.push(f);if(err)s.errs.push(err);refresh(c)}});
+  const guardWrite=c=>{if(c==="stock"||c==="moves"||c==="items"||c==="invlog")throw Error("Прямая запись склада и журнала закрыта. Используйте подтверждение складского черновика.")};
   const db={
-    // Один PostgREST INSERT/UPSERT выполняется транзакционно для всех меток.
-    setStockBatch:async docs=>{const m=MAP.stock;const rows=Object.entries(docs).map(([id,o])=>m.fromDoc(id,o));
-      if(!rows.length)return;await rest("stock?on_conflict="+m.conflict,{method:"POST",headers:Object.assign(H(),{Prefer:"resolution=merge-duplicates,missing=default"}),body:JSON.stringify(rows)});bump("stock")},
-    bulk:async(c,ids,o)=>{const m=MAP[c];await rest(m.table+"?"+m.key+"=in.("+ids.map(encodeURIComponent).join(",")+")",{method:"PATCH",body:JSON.stringify(m.fromDoc(null,o))});setTimeout(()=>refresh(c),150)},
+    stockScope:()=>V()+":"+session.user.tg_id,
+    // B5: одна серверная транзакция для остатков и журнала; повторный запрос идемпотентен.
+    commitStockBatch:async(operationId,items)=>{
+      if(!/^[0-9a-f-]{36}$/i.test(operationId)||!Array.isArray(items)||!items.length)throw Error("Некорректная складская операция");
+      const result=await rest("rpc/mixora_commit_stock_batch",{method:"POST",body:JSON.stringify({p_operation_id:operationId,p_items:items})});
+      bump("stock");bump("moves");return result;
+    },
+    stockAction:async(operationId,request)=>{
+      const result=await rest("rpc/mixora_stock_action",{method:"POST",body:JSON.stringify({p_operation_id:operationId,p_request:request})});
+      ["stock","moves","items","invlog"].forEach(bump);return result;
+    },
+    // Generic snapshots remain forbidden; explicit UI patches use stockAction.
+    setStockBatch:async()=>{guardWrite("stock")},
+    bulk:async(c,ids,o)=>{guardWrite(c);const m=MAP[c];await rest(m.table+"?"+m.key+"=in.("+ids.map(encodeURIComponent).join(",")+")",{method:"PATCH",body:JSON.stringify(m.fromDoc(null,o))});setTimeout(()=>refresh(c),150)},
     collection:c=>Object.assign(listen(c),{
       orderBy:()=>({limit:()=>listen(c)}),
-      add:async o=>{const m=MAP[c];const r=await rest(m.table,{method:"POST",headers:Object.assign(H(),{Prefer:"return=representation"}),body:JSON.stringify(m.fromDoc(null,o))});bump(c);return{id:String(r[0][m.key])}}}),
+      add:async o=>{guardWrite(c);const m=MAP[c];const r=await rest(m.table,{method:"POST",headers:Object.assign(H(),{Prefer:"return=representation"}),body:JSON.stringify(m.fromDoc(null,o))});bump(c);return{id:String(r[0][m.key])}}}),
     doc:p=>{const [c,id]=p.split("/");return{
       set:async o=>{
+        guardWrite(c);
         if(c==="order"){await rest("orders?on_conflict=venue_id",{method:"POST",headers:Object.assign(H(),{Prefer:"resolution=merge-duplicates"}),body:JSON.stringify({venue_id:V(),items:o,updated_at:new Date().toISOString()})});bump(c);return}
         const m=MAP[c];if(m.patch){await rest(m.table+"?"+m.key+"=eq."+encodeURIComponent(id)+(m.table==="flavors"?"":"&venue_id=eq."+V()),{method:"PATCH",body:JSON.stringify(m.fromDoc(id,o))});bump(c);return}
         await rest(m.table+"?on_conflict="+(m.conflict||m.key),{method:"POST",headers:Object.assign(H(),{Prefer:"resolution=merge-duplicates"}),body:JSON.stringify(m.fromDoc(id,o))});bump(c)},
-      delete:async()=>{const m=MAP[c];await rest(m.table+"?"+m.key+"=eq."+encodeURIComponent(id)+"&venue_id=eq."+V(),{method:"DELETE"});bump(c)}}},
+      delete:async()=>{guardWrite(c);const m=MAP[c];await rest(m.table+"?"+m.key+"=eq."+encodeURIComponent(id)+"&venue_id=eq."+V(),{method:"DELETE"});bump(c)}}},
     uploadFile:async(folder,file)=>{
       const safe=file.name.replace(/[^\w.\-]+/g,"_").slice(-80),path=V()+"/"+folder+"/"+Date.now().toString(36)+"_"+safe;
       const r=await fetch(CFG.url+"/storage/v1/object/files/"+path,{method:"POST",headers:{Authorization:"Bearer "+session.token,apikey:CFG.anon,"Content-Type":file.type||"application/octet-stream","x-upsert":"true"},body:file});
