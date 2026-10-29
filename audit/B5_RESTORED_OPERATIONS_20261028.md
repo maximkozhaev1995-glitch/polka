@@ -84,3 +84,13 @@ a coordinated full backup including public data, mixora_internal ledger/effects/
 reversals and sequences. A partial legacy data snapshot is not a supported rollback
 for this schema and now fails before TRUNCATE. An isolated full-baseline restore
 rehearsal remains a release gate; do not reset only stock while retaining old receipts.
+
+
+## Production compatibility supersedes synthetic release assumptions — 2026-10-29
+
+[B5_PRODUCTION_COMPATIBILITY_20261029.md](B5_PRODUCTION_COMPATIBILITY_20261029.md)
+records the authorized read-only catalog audit. Released PR77 uses apply_stock,
+uniform venue staff, an independent stop-list and venue-owned catalog settings.
+PR75's alternative protocol is incompatible with that baseline; the new SQL guard
+rejects it before mutation. Earlier passing tests and APPROVED code review concern
+the synthetic baseline only and do not approve this overlay or production release.

@@ -85,3 +85,13 @@ addressed in ac7e557, b8a9f1d and 4c0fd4d. See
 implementation, independent audit corrections, final native 19/19 and client CI,
 rollback boundary and remaining integration gates. This file's earlier verdict
 records the earlier code state, not missing RPCs in the current HEAD.
+
+
+## Production compatibility supersedes synthetic release assumptions — 2026-10-29
+
+[B5_PRODUCTION_COMPATIBILITY_20261029.md](B5_PRODUCTION_COMPATIBILITY_20261029.md)
+records the authorized read-only catalog audit. Released PR77 uses apply_stock,
+uniform venue staff, an independent stop-list and venue-owned catalog settings.
+PR75's alternative protocol is incompatible with that baseline; the new SQL guard
+rejects it before mutation. Earlier passing tests and APPROVED code review concern
+the synthetic baseline only and do not approve this overlay or production release.

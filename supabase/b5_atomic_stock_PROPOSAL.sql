@@ -1,6 +1,18 @@
 -- B5 DRAFT ONLY. Review and test in an isolated database; NEVER run directly on production.
 -- One PostgreSQL transaction covers all stock updates and movement records.
 begin;
+-- This alternative protocol is not an upgrade for the released PR74/77 schema.
+-- Reject before creating objects, changing ACLs or installing revision triggers.
+do $production_compatibility$
+begin
+ if to_regprocedure('public.apply_stock(uuid,jsonb)') is not null
+    or to_regprocedure('mixora_private.apply_stock(uuid,jsonb)') is not null then
+  raise exception 'Incompatible deployed apply_stock protocol: reconcile PR75 with released uniform-staff/venue-catalog schema first'
+   using errcode='0A000';
+ end if;
+end;
+$production_compatibility$;
+
 create schema if not exists mixora_internal;
 revoke all on schema mixora_internal from public;
 create table if not exists mixora_internal.stock_operations(

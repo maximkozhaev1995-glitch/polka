@@ -62,6 +62,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned catalog fixture generator
+        run: npm ci --prefix tests/b5-wasm --ignore-scripts
       - name: Install pinned test driver
         run: python -m pip install 'psycopg[binary]==3.2.13'
       - name: Real PostgreSQL sessions, permissions and transaction regressions
@@ -69,3 +74,12 @@ jobs:
           B5_ALLOW_TEST_DATABASE: 'YES'
           B5_TEST_DATABASE_URL: postgresql://postgres:b5-disposable-only@127.0.0.1:55475/mixora_b5_test_ci
         run: python tests/b5-database.py
+      - name: Production catalog incompatibility probes and fail-closed migration guard
+        env:
+          B5_ALLOW_TEST_DATABASE: 'YES'
+          B5_TEST_DATABASE_URL: postgresql://postgres:b5-disposable-only@127.0.0.1:55475/mixora_b5_test_ci
+        run: python tests/b5-production-compat.py
+      - name: Embedded SQL and catalog-only compatibility probes
+        run: |
+          node tests/b5-wasm/run.mjs
+          node tests/b5-wasm/production-compat.mjs
