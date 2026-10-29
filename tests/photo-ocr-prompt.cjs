@@ -16,7 +16,10 @@ for (const word of [
   'Амбровый банан', 'Maas Dam', 'не угадывай',
   'антитабачные предупреждения', 'СЛЕПОЙ', 'ГАНГРЕНА', 'ИМПОТЕНЦИЯ', 'НЕДОНОШЕННОСТЬ', 'ИНФАРКТ', 'ИНСУЛЬТ', 'МЕРТВОРОЖДЕНИЕ', 'НОВООБРАЗОВАНИЯ', 'СЛЕПОТА', 'РАК ЛЁГКОГО', 'Подробнее о последствиях', 'по контексту оформления', 'НЕ бренд'
 ]) assert(prompt.includes(word), 'missing server guidance: ' + word);
-assert(server.includes('content: [b, { type: "text", text: PHOTO_PROMPT }]'), 'Claude reader must receive PHOTO_PROMPT');
+assert(server.includes('content: [b, { type: "text", text: PHOTO_PROMPT + hints }]'), 'Claude reader must receive PHOTO_PROMPT plus venue hints');
+assert(server.includes('venuePhotoHints(db, member.data.venue_id)'), 'signed-in venue must scope learned OCR hints');
+assert(server.includes('const hints = hasImg ? await venuePhotoHints'), 'OCR-only must load corrections');
+assert(server.includes('Не угадывай бренд или аромат'), 'learned examples must never override unreadable labels');
 assert(server.includes('if (ocr_only) { const r = hasImg ? await readPhotos(claude, messages)'), 'OCR-only endpoint must use reader');
 assert(shim.includes('content:[b]}],tools:[],ocr_only:true'), 'Client must send image without discarded guidance');
 assert(!shim.includes('photoOcrGuidance'), 'Dead client-side instructions must be removed');
