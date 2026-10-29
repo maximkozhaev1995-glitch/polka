@@ -472,6 +472,11 @@ body{margin:0}
 #home-screen[hidden]{display:none!important}
 #home-btn{font-size:20px;min-width:40px;min-height:40px;border:1px solid var(--line);background:var(--surface);border-radius:12px;color:var(--fg);cursor:pointer}
 body.home-mode .stats{display:none}
+body.home-mode #menu-btn,body.home-mode #home-btn,body.home-mode #scan-fab{display:none!important}
+body.home-mode #list,body.home-mode #found{display:none!important}
+#bnav{display:none!important}
+body.hasnav{padding-bottom:0}
+.home-mode .topbar{justify-content:flex-start}
 @media(min-width:680px){.home-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.home-hero{grid-column:1/-1}}
 </style>
 
@@ -484,6 +489,7 @@ body.home-mode .stats{display:none}
     <div class="home-grid">
       <button type="button" class="home-tile home-hero" data-home="ai"><span class="home-ico" aria-hidden="true">✦</span><strong>ИИ-ассистент</strong><small>Найти, списать, пополнить</small></button>
       <button type="button" class="home-tile" data-home="bar"><span class="home-ico" aria-hidden="true">▤</span><strong>Стойка</strong><small>Что есть на баре</small></button>
+      <button type="button" class="home-tile" data-home="off"><span class="home-ico" aria-hidden="true">◫</span><strong>Не на стойке</strong><small>Есть на складе, нет на баре</small></button>
       <button type="button" class="home-tile" data-home="wh"><span class="home-ico" aria-hidden="true">▣</span><strong>Склад</strong><small>Запасные банки</small></button>
       <button type="button" class="home-tile" data-home="stop"><span class="home-ico" aria-hidden="true">⊘</span><strong>Стоп-лист</strong><small>Закончившиеся вкусы</small></button>
       <button type="button" class="home-tile" data-home="order"><span class="home-ico" aria-hidden="true">▧</span><strong>Заказ</strong><small>Что нужно заказать</small></button>
@@ -825,7 +831,12 @@ function render(){
   $("#sect").textContent=TABS[st.tab]||"Стойка";document.body.classList.toggle("inv-mode",st.tab==="inv");
   if(!staffReady&&(st.tab==="inv"||st.tab==="sup"||st.tab==="str"||st.tab==="pack"||st.tab==="wish"||st.tab==="team"))st.tab="bar";
   $("#t-str").hidden=!staffReady;$("#t-wish").hidden=!staffReady;$("#t-pack").hidden=!staffReady;{const ds=$("#d-set");ds.hidden=false;if(["wish","pack","str","team","chk","know"].includes(st.tab))ds.open=true}$("#t-team").hidden=!staffReady;$("#t-log").hidden=false;$("#t-inv").hidden=!staffReady;$("#t-sup").hidden=!staffReady;$("#c-chk").textContent=chkTodayOpen();$("#who").textContent=staffReady?"Сотрудник":"Вход";
-  if(st.tab==="home"){$("#chat").hidden=true;$("#sup").hidden=true;$("#logbox").hidden=true;return}
+  if(st.tab==="home"){
+    ["#list",".search","#brands","#filters",".legend","#chat","#sup","#logbox","#omanual","#tray","#otray"].forEach(q=>{const e=$(q);if(e)e.hidden=true});
+    $(".ttl .stats").hidden=true;
+    document.body.classList.remove("ai-mode","has-tray");
+    return
+  }
   if(st.tab==="mixes"){renderMixes();return}
   if(st.tab==="log"){renderJournal();return}
   if(st.tab==="team"){renderTeam();return}
@@ -1175,7 +1186,7 @@ drawer.addEventListener("touchend",e=>{if(tx!==null&&tx-e.changedTouches[0].clie
 // Анимация появления только при переходе (не при каждом обновлении данных)
 function navAnim(){document.body.classList.add("nav-anim");clearTimeout(navAnim.t);navAnim.t=setTimeout(()=>document.body.classList.remove("nav-anim"),800)}
 // List updates stay still: action clicks must not restart entrance animations.
-const go=t=>{if(!$("#hsh").hidden)hClose();st.tab=t;st.f="";st.q="";selId="";{const q=$("#q");if(q)q.value="";const c=$("#clear");if(c)c.hidden=true}if(t!=="stop"&&t!=="slow")st.brand="";save();render();hlpUi();menu(false);window.scrollTo(0,0)};
+const go=t=>{if(!$("#hsh").hidden)hClose();if(t==="off"){st.barView="off";t="bar"}else if(t==="bar"){st.barView="on"}st.tab=t;st.f="";st.q="";selId="";{const q=$("#q");if(q)q.value="";const c=$("#clear");if(c)c.hidden=true}if(t!=="stop"&&t!=="slow")st.brand="";save();render();hlpUi();menu(false);window.scrollTo(0,0)};
 $("#home-btn").onclick=()=>go("home");
 $("#home-screen").addEventListener("click",e=>{const b=e.target.closest("[data-home]");if(b)go(b.dataset.home)});
 $("#t-or").onclick=()=>go("order");
@@ -1927,7 +1938,7 @@ $("#hsh").addEventListener("click",e=>{const c=hConvOf(hTab());
   const ok=e.target.closest("[data-hok]");if(ok){hApply(c.view[+ok.dataset.hok]);return}
   const no=e.target.closest("[data-hno]");if(no){c.view[+no.dataset.hno].done="Отменено";hDraw();return}
   if(e.target.closest("[data-hrev]")){hClose();openReview()}});
-function hlpUi(){$("#hlp-btn").hidden=!sampleFn||st.tab==="ai"}
+function hlpUi(){$("#hlp-btn").hidden=!sampleFn||st.tab==="ai"||st.tab==="home"}
 
 (async()=>{
   try{db=await window.claude?.use?.("db")}catch(e){db=null}
@@ -2413,7 +2424,7 @@ if(true){
   const NAV=[["bar","Стойка"],["wh","Склад"],["stop","Стоп-лист"],["slow","Неликвид"],["log","Журнал"]];
   const nav=document.createElement("nav");nav.id="bnav";nav.setAttribute("aria-label","Разделы");
   nav.innerHTML=NAV.map(([k,t])=>'<button type="button" data-n="'+k+'"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+IC[k]+'</svg><span>'+t+'</span></button>').join("");
-  document.body.appendChild(nav);document.body.classList.add("hasnav");
+  document.body.appendChild(nav);nav.hidden=true;document.body.classList.remove("hasnav");
   nav.onclick=e=>{const b=e.target.closest("button");if(b)go(b.dataset.n)};
   const navSync=()=>{const cur=st.tab;nav.querySelectorAll("button").forEach(b=>{const k=b.dataset.n;b.setAttribute("aria-current",k===cur?"page":"false")});
     const f=$("#scan-fab");if(f&&st.tab==="home")f.hidden=true};
@@ -2470,10 +2481,8 @@ if(true){
   const thApply=()=>{const r=document.documentElement;let t=thm;if(t==="auto"){t=tgw&&tgw.colorScheme?tgw.colorScheme:(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")}if(t)r.setAttribute("data-theme",t);else r.removeAttribute("data-theme");document.querySelectorAll("#theme-sw [data-th]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.th===thm))};
   thApply();$("#theme-sw").addEventListener("click",e=>{const b=e.target.closest("[data-th]");if(!b)return;thm=b.dataset.th;try{localStorage.setItem("polka_theme",thm)}catch(e){}thApply()});$("#d-close").onclick=()=>menu(false);
   $("#t-chk").onclick=()=>go("chk");$("#t-know").onclick=()=>go("know");
-  const backSync=()=>{navVis();const sub=st.tab!=="bar";if(tgw&&tgw.BackButton){try{if(!tgBack){tgw.BackButton.onClick(()=>go("bar"));tgBack=true}sub?tgw.BackButton.show():tgw.BackButton.hide()}catch(e){}}
-    const l=$("#list");if(SUB.has(st.tab)&&!l.hidden&&!l.querySelector("#s-back"))l.insertAdjacentHTML("afterbegin",'<button type="button" class="btn sback" id="s-back">← На стойку</button>')};
-  $("#list").addEventListener("click",e=>{if(e.target.closest("#s-back"))go("bar")});
-  const r1=render;render=function(){if(st.tab==="home"){drawHome();navSync();backSync();return}r1.apply(this,arguments);navSync();backSync()};
-  st.tab="bar";render();
+  const backSync=()=>{navVis();const sub=st.tab!=="home";if(tgw&&tgw.BackButton){try{if(!tgBack){tgw.BackButton.onClick(()=>go("home"));tgBack=true}sub?tgw.BackButton.show():tgw.BackButton.hide()}catch(e){}}};
+  const r1=render;render=function(){r1.apply(this,arguments);navSync();backSync()};
+  st.tab="home";render();
 }
 </script>
