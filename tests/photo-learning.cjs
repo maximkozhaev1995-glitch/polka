@@ -17,6 +17,17 @@ const matcher=app.slice(app.indexOf('function matchPhotoText('),app.indexOf('let
 assert(matcher.includes('learnedKey(x.raw_label)===learnedKey(chunk)'),'only exact normalized OCR label may use an approval');
 assert(matcher.includes('approved.b===focus'),'approval must not override another brand in focus');
 assert(matcher.includes('const hit=safe?[approved]:detected.hit'),'approved label must actually change matching, not just display hints');
+// Verify the real Cyrillic warning matcher rather than merely searching for prompt words.
+const warningSource=matcher.match(/const warning=(\/[^\n]+\/iu);/);
+assert(warningSource,'photo matcher must define a warning guard');
+const warning=vm.runInNewContext(warningSource[1]);
+for(const label of ['СЛЕПОЙ','ГАНГРЕНА','ИНСУЛЬТ','НЕДОНОШЕННОСТЬ','Рак лёгкого','Подробнее о последствиях']) {
+ assert(warning.test(label),'health warning should be rejected: '+label);
+}
+assert(!warning.test('САРМА360 Малина'),'real flavor must not be rejected');
+assert(matcher.includes('!warning.test(chunk)'),'learned mapping must not override a warning');
+assert(matcher.includes('!visibleBrand||visibleBrand===focus'),'learned mapping must not override a conflicting brand');
+
 assert(app.includes('learnedPhoto=await db.listPhotoCorrections()'),'photo command must reload current approved rules');
 
 assert(shim.includes('listPhotoCorrections:async'),'read method required');
