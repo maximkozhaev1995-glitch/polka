@@ -39,4 +39,5 @@ assert(n.includes('x.onBar?", на стойке: есть":", на стойке:
 const sql=fs.readFileSync('supabase/migrations/20261029_photo_corrections.sql','utf8');
 for(const part of ['ENABLE ROW LEVEL SECURITY','is_staff()','me_venue()','REFERENCES public.flavors(id)','TO authenticated'])assert(sql.includes(part),'missing secure migration: '+part);
 assert(!sql.includes('TO anon\n'),'Anonymous users must not write');
+assert(sql.includes('raw_label !~*'),'database must reject warning labels too');
 console.log('PASS: approved photo corrections, venue-scoped persistence, safe /найти hints and RLS policy');
