@@ -213,7 +213,16 @@ body.ai-mode .wrap{overscroll-behavior:none}
 body.hsh-on{overflow:hidden}
 .hacts{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;white-space:normal}.hacts ul{flex-basis:100%;margin:0;padding-left:18px}
 .msrc{display:block;margin-top:4px;font-size:11px;color:var(--muted);white-space:nowrap}
-.ai-imgs{align-self:flex-start;border:1px dashed var(--accent);background:var(--accent-soft);color:var(--accent);font:inherit;font-size:13px;border-radius:999px;padding:4px 12px;cursor:pointer}
+.ai-imgs{flex:none;min-width:0;width:100%;max-height:132px;overflow-x:auto;overflow-y:hidden;padding:4px 0}
+.photo-strip{display:flex;gap:8px;max-width:100%;overflow-x:auto;white-space:normal;padding:4px 0}
+.photo-tile{position:relative;flex:none;width:92px;min-width:0}
+.photo-open{display:block;width:100%;padding:0;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--fg);font:inherit;cursor:pointer;overflow:hidden}
+.photo-open img{display:block;width:100%;height:72px;object-fit:cover;background:var(--surface)}
+.photo-open span{display:block;padding:3px 5px;font-size:11px;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.photo-remove{position:absolute;top:2px;right:2px;min-width:32px;min-height:32px;padding:0;border:1px solid var(--line);border-radius:50%;background:var(--bg);color:var(--fg);font-size:22px;cursor:pointer}
+.photo-full{display:block;max-width:100%;max-height:65vh;object-fit:contain;margin:auto}
+.msg .photo-strip{margin-top:6px}
+
 [hidden]{display:none!important}
 html,body{overflow-x:hidden;max-width:100%;-webkit-text-size-adjust:100%;touch-action:pan-x pan-y}
 
@@ -468,7 +477,7 @@ body{margin:0}
   <div class="ai-top"><span class="muted small">Изменения — после подтверждения</span><button class="btn sm" type="button" id="ai-new" title="Очистить текущую переписку">Новый диалог</button></div>
   <div class="ai-log" id="ai-log" aria-live="polite"></div>
   <p class="small aioff" id="ai-off" hidden>Ассистент недоступен в этом окне. Открой страницу в claude.ai.</p>
-  <button class="ai-imgs" id="ai-imgs" type="button" hidden></button>
+  <div class="ai-imgs" id="ai-imgs" aria-label="Прикреплённые фотографии" hidden></div>
   <details class="ai-tools" id="ai-tools"><summary>Действия со складом</summary><div class="ai-tools-grid" role="group" aria-label="Вставить команду">
     <button class="btn" type="button" data-ai-command="/перенос">Перенести</button>
     <button class="btn" type="button" data-ai-command="/пополнить">Пополнить</button>
@@ -488,7 +497,7 @@ body{margin:0}
   <div class="hsh-h"><b id="hsh-t">✨ Помощник</b><button class="btn sm" type="button" id="hsh-new">Заново</button><button class="btn sm" type="button" id="hsh-x" aria-label="Закрыть">✕</button></div>
   <div class="ai-log" id="hsh-log" aria-live="polite"></div>
   <div class="ai-quick" id="hsh-q"></div>
-  <button class="ai-imgs" id="hsh-imgs" type="button" hidden></button>
+  <div class="ai-imgs" id="hsh-imgs" aria-label="Прикреплённые фотографии" hidden></div>
   <div class="ai-in"><label class="btn ai-ph" id="hsh-ph-l" hidden title="Фото накладной или банок" aria-label="Приложить фото">📷<input type="file" id="hsh-ph" accept="image/*" multiple hidden></label>
     <textarea id="hsh-in" rows="1" placeholder="Спроси или попроси…" enterkeyhint="send"></textarea>
     <button class="btn go" type="button" id="hsh-send">Отправить</button><button class="btn" type="button" id="hsh-stop" hidden>Стоп</button></div>
@@ -1374,10 +1383,27 @@ function photoMatchChunk(text,label,photo=false){let T=cnTxt(text),fixed=[];if(p
      if(hit.length!==1)hit=[];
    }
    return{hit,byN,T,brands,fixed}}
+// A near OCR spelling is a read-only catalog suggestion, never an actionable match.
+function photoCatalogSuggestion(text,focus){
+ if(!focus||/…|\.{2,}|\?[^?]*\?/.test(text))return null;
+ const T=photoBrandText(cnTxt(text)),brands=[...new Set(DATA.map(x=>x.b))].filter(b=>T.includes(cnTxt(b)));
+ if(brands.length!==1||brands[0]!==focus)return null;
+ let rest=T.replace(cnTxt(focus),' ').trim();
+ const own=DATA.filter(x=>x.b===focus),candidates=[];
+ for(const x of own){const line=cnTxt(x.l).trim();let q=rest;if(line&&q.startsWith(line+' '))q=q.slice(line.length).trim();
+  q=lat(q).replace(/ /g,'');if(q.length<6)continue;
+  for(const name of [x.n,...(x.a||[])]){const n=lat(cnTxt(name)).replace(/ /g,'');if(n.length<6||Math.abs(n.length-q.length)>1)continue;
+   const distance=lev(q,n);if(distance<=1)candidates.push({item:x,distance})}
+ }
+ if(!candidates.length)return null;const best=Math.min(...candidates.map(c=>c.distance));
+ const options=[...new Map(candidates.filter(c=>c.distance===best).map(c=>[c.item.id,{id:c.item.id,brand:c.item.b,line:c.item.l||'',name:c.item.n}])).values()].slice(0,5);
+ return {text:text.trim(),options};
+}
+function photoSuggestionText(m){const list=m.suggestions||[];return list.length?'\n\nПохожие названия в каталоге — уточни, что на фото:\n'+list.map(s=>'— «'+s.text+'» → '+s.options.map(o=>o.brand+' '+o.name+(o.line?' · '+o.line:'')).join(' или ')).join('\n')+'\nЭто подсказки, с этими позициями ничего не сделано.':''}
 function mergePhotoMatches(results){
-  const by=new Map(),tally={},miss=[];
-  results.forEach(r=>{r.found.forEach(x=>{if(by.has(x.id))by.get(x.id).jars+=x.jars;else by.set(x.id,{...x})});Object.entries(r.jars_by_brand).forEach(([b,n])=>tally[b]=(tally[b]||0)+n);miss.push(...r.not_found_lines)});
-  return{found:[...by.values()],not_found_lines:miss,jars_by_brand:tally,new_flavors:[],ambiguous:[]};
+  const by=new Map(),tally={},miss=[],suggestions=[];
+  results.forEach(r=>{r.found.forEach(x=>{if(by.has(x.id))by.get(x.id).jars+=x.jars;else by.set(x.id,{...x})});Object.entries(r.jars_by_brand).forEach(([b,n])=>tally[b]=(tally[b]||0)+n);miss.push(...r.not_found_lines);suggestions.push(...(r.suggestions||[]))});
+  return{found:[...by.values()],not_found_lines:miss,suggestions,jars_by_brand:tally,new_flavors:[],ambiguous:[]};
 }
 function matchPhotoText(text,photo=true){const raw=String(text||"");
    if(photo&&/^Фото\s+\d+:\s*$/m.test(raw))return mergePhotoMatches(raw.split(/^Фото\s+\d+:\s*$/m).filter(t=>t.trim()).map(t=>matchText(t,true)));
@@ -1391,13 +1417,13 @@ function matchPhotoText(text,photo=true){const raw=String(text||"");
    const chunks=labels.length?labels:photo?raw.split(/\n+/).filter(l=>l.trim()&&!/^Фокус:/i.test(l)):[raw];
    // Один вкус на нескольких этикетках — это несколько банок (сервер уже склеил куски одной этикетки
    // по координатам), считаем их в jars, а не теряем вторую банку
-   const seen=new Map(),found=[];
+   const seen=new Map(),found=[],suggestions=[];
    const gotLabel=new Set(),tally={},newf=[];
    // Бренд на этикетке так, как он записан в каталоге (для подсчёта банок и новых вкусов)
    const brandOf=T=>{const b=[...new Set(DATA.map(x=>x.b))].filter(b=>cnTxt(b).trim().length>2&&T.includes(cnTxt(b))).sort((a,b)=>b.length-a.length);return b[0]||""};
    const background=new Set();
    chunks.forEach(chunk=>{if(photo){const c=photoBrandText(cnTxt(chunk));const b=[...new Set(DATA.map(x=>x.b))].filter(b=>c.includes(cnTxt(b))).sort((a,b)=>c.indexOf(cnTxt(a))-c.indexOf(cnTxt(b))||b.length-a.length)[0];if(b&&b!==focus){background.add(chunk.trim());return}}
-     const{hit,byN,T,fixed}=photoMatchChunk(chunk,labels.length>0||photo,photo);if(hit.length)gotLabel.add(chunk.trim());
+     const{hit,byN,T,fixed}=photoMatchChunk(chunk,labels.length>0||photo,photo);if(hit.length)gotLabel.add(chunk.trim());else if(photo){const suggestion=photoCatalogSuggestion(chunk,focus);if(suggestion)suggestions.push(suggestion)}
      if(labels.length){const b=hit.length?hit[0].b:brandOf(T);tally[b||"Без бренда"]=(tally[b||"Без бренда"]||0)+1;
        // Бренд прочитан, а вкуса у него в каталоге нет — кандидат в новые вкусы (что осталось от этикетки без бренда)
        // Этикетка с «?» обрезана краем кадра — из её огрызка («Coff») новый вкус не предлагаем
@@ -1413,7 +1439,7 @@ function matchPhotoText(text,photo=true){const raw=String(text||"");
    const names=found.map(x=>cnTxt(x.name));
    const lines=(labels.length?labels:raw.split(/\n+/)).map(l=>l.trim());
    const miss=lines.filter(l=>{if(gotLabel.has(l)||background.has(l)||photo&&/^Фокус:/i.test(l))return false;if(photo)return !!l.trim();const c=cnTxt(l);return c.trim().length>2&&!brands.has(c.trim())&&!names.some(n=>nameIn(c,n.trim())||c.includes(n)||n.includes(c))});
-   return{found:found.slice(0,80),not_found_lines:miss.slice(0,40),jars_by_brand:tally,new_flavors:newf,ambiguous:[]}}
+   return{found:found.slice(0,80),suggestions,not_found_lines:miss.slice(0,40),jars_by_brand:tally,new_flavors:newf,ambiguous:[]}}
 // Фото, прочитанное на сервере (Sonnet или Яндекс): приложение само сверяет текст с каталогом и отдаёт модели готовый список —
 // маленькая модель на ПК иначе пропускает банки и придумывает вкусы
 // Итог по фото за один вопрос: банки по брендам и новые вкусы. Приложение само ставит его в начало ответа и
@@ -1604,12 +1630,12 @@ async function inspectPhoto(out,args,imgs,signal){
   const lines=m.found.map(x=>"• "+x.brand+" "+x.name+(x.line?" · "+x.line:"")+(x.jars>1?" ×"+x.jars:""));
   out.textContent=(lines.length?"Распознано по каталогу:\n"+lines.join("\n"):"Не удалось уверенно распознать позиции по каталогу.")
     +(m.not_found_lines.length?"\n\nНе распознано уверенно:\n"+m.not_found_lines.map(l=>"• "+l).join("\n"):"")
-    +(failed?"\n\nНе удалось прочитать фото: "+failed+".":"");
+    +photoSuggestionText(m)+(failed?"\n\nНе удалось прочитать фото: "+failed+".":"");
 }
 async function cmdNaiti(out,args,imgs){const{m}=await cmdFindIds(args,imgs,aiCtl.signal);
-  if(!m.found.length){out.textContent="Не нашёл ничего на складе"+(args||(imgs&&imgs.length)?" по этому запросу":"")+". Пришли фото банок или напиши названия вкусов.";return}
+  if(!m.found.length){out.textContent=(m.suggestions?.length?"Нет уверенного совпадения на фото.":"Не нашёл ничего на складе"+(args||(imgs&&imgs.length)?" по этому запросу":"")+". Пришли фото банок или напиши названия вкусов.")+photoSuggestionText(m);return}
   const lines=m.found.map(x=>{const it=byId[x.id];return "— "+x.brand+" "+x.name+(imgs&&imgs.length&&x.jars>1?" ×"+x.jars:"")+": на складе "+x.wh+(x.onBar?", на стойке":"")+(it&&flag(it,"slow")?" (неликвид)":"")+(it&&flag(it,"stop")?" (стоп)":"")});
-  out.textContent=(imgs&&imgs.length?"Распознано по каталогу:\n":"Нашёл на складе и стойке:\n")+lines.join("\n")+(m.not_found_lines.length?"\n\nНе распознано уверенно:\n"+m.not_found_lines.map(l=>"— "+l).join("\n"):"")}
+  out.textContent=(imgs&&imgs.length?"Распознано по каталогу:\n":"Нашёл на складе и стойке:\n")+lines.join("\n")+(m.not_found_lines.length?"\n\nНе распознано уверенно:\n"+m.not_found_lines.map(l=>"— "+l).join("\n"):"")+photoSuggestionText(m)}
 function transferQuantity(args){
  const text=String(args||"").trim();
  const matches=[...text.matchAll(/(?:^|\s)(\d+)\s*(?:шт\.?|штук[аи]?|упаков(?:ка|ки|ок))(?=\s|$)/gi)];
@@ -1673,13 +1699,13 @@ async function aiSend(){
   cancelAiProposals();const imgs=aiImgs;aiImgs=[];if(imgs.length)lastPhotoIds=[];renderAiImgs();
   const cmd=parseCmd(t);
   if(cmd||imgs.length&&photoInspection(t)){
-    aiBubble("user",(t||"Фото")+(imgs.length?"  [фото: "+imgs.length+"]":""));box.value="";
+    attachMessagePhotos(aiBubble("user",(t||"Фото")+(imgs.length?"  [фото: "+imgs.length+"]":"")),imgs);box.value="";
     const out=aiBubble("assistant","Ищу…","wait");aiCtl=new AbortController();aiUi();
     try{if(cmd)await runCmd(cmd.cmd,out,cmd.args,imgs);else await inspectPhoto(out,t,imgs,aiCtl.signal)}
     catch(e){out.textContent=(e&&e.message)||"Не получилось.";out.classList.add("err")}
     out.classList.remove("wait");aiCtl=null;aiUi();render();return}
   aiOrdPhoto=imgs.length>0;aiOrdAsk=ordAsked(t);aiOrdSeen=new Set();photoAcc=imgs.length?photoAccNew():null;const acc=photoAcc;
-  aiBubble("user",(t||"Фото")+(imgs.length?"  [фото: "+imgs.length+"]":""));box.value="";
+  attachMessagePhotos(aiBubble("user",(t||"Фото")+(imgs.length?"  [фото: "+imgs.length+"]":"")),imgs);box.value="";
   aiTurns.push({role:"user",content:(t||"Разбери фото.")+(imgs.length?"\n(К сообщению приложено фото: "+imgs.length+")":"")});
   const out=aiBubble("assistant","Думаю…","wait");aiCtl=new AbortController();aiUi();
   const ambiguity=matchText(t);if(ambiguity.ambiguous.length){out.classList.remove("wait");out.textContent="Нужно уточнение."+ambTxt(ambiguity);aiTurns.pop();aiCtl=null;aiUi();return}
@@ -1709,13 +1735,25 @@ function aiRestore(){try{const c=JSON.parse(localStorage.getItem("polka-ai-chat"
   aiTurns=c.turns;aiView=c.view||[];aiView.forEach(m=>{const d=aiBubble(m.role,m.text);if(m.src)aiSrc(d,m.src)})}catch(e){aiTurns=[]}}
 function aiUi(){const busyAi=!!aiCtl;$("#ai-send").hidden=busyAi;$("#ai-stop").hidden=!busyAi;$("#ai-send").disabled=!sampleFn;$("#ai-in").disabled=!sampleFn;
   $("#ai-photo-l").hidden=!aiCanImg||!sampleFn;$("#ai-off").hidden=!!sampleFn}
-function renderAiImgs(){$("#ai-imgs").textContent=aiImgs.length?"Фото к сообщению: "+aiImgs.length+" (✕ убрать)":"";$("#ai-imgs").hidden=!aiImgs.length}
+function photoSources(files){return files.map((file,i)=>({url:URL.createObjectURL(file),name:file.name||"Фото "+(i+1)}))}
+function releasePhotoSources(photos){(photos||[]).forEach(p=>URL.revokeObjectURL(p.url))}
+function photoStripHtml(photos,removable=false){return '<div class="photo-strip">'+photos.map((p,i)=>'<div class="photo-tile"><button class="photo-open" type="button" data-photo-open="'+i+'" aria-label="Открыть фото '+(i+1)+': '+esc(p.name)+'"><img src="'+esc(p.url)+'" alt="Фото '+(i+1)+'" decoding="async"><span>'+esc(p.name)+'</span></button>'+(removable?'<button class="photo-remove" type="button" data-photo-remove="'+i+'" aria-label="Убрать фото '+(i+1)+'">×</button>':'')+'</div>').join("")+'</div>'}
+function openChatPhoto(photo){showDlg('<h2>'+esc(photo.name)+'</h2><img class="photo-full" src="'+esc(photo.url)+'" alt="'+esc(photo.name)+'"><div class="dlg-btns"><button type="button" class="btn" id="photo-close">Закрыть</button></div>');$("#photo-close").onclick=closeDlg}
+function wirePhotoStrip(root,photos,onRemove){root.querySelectorAll('[data-photo-open]').forEach(b=>b.onclick=()=>openChatPhoto(photos[+b.dataset.photoOpen]));if(onRemove)root.querySelectorAll('[data-photo-remove]').forEach(b=>b.onclick=()=>onRemove(+b.dataset.photoRemove))}
+function renderPhotoPicker(root,files,onRemove){
+ if(root._photoFiles&&root._photoFiles.length===files.length&&root._photoFiles.every((f,i)=>f===files[i]))return;
+ releasePhotoSources(root._photoSources);root._photoFiles=[...files];root._photoSources=photoSources(files);root.hidden=!files.length;
+ root.innerHTML=photoStripHtml(root._photoSources,true);wirePhotoStrip(root,root._photoSources,onRemove)
+}
+function attachMessagePhotos(node,files){if(!files.length)return node;const photos=photoSources(files),strip=document.createElement('div');strip.innerHTML=photoStripHtml(photos);strip._photoSources=photos;wirePhotoStrip(strip,photos);node.append(strip);aiScroll(true);return node}
+function clearMessagePhotos(root){root.querySelectorAll('[data-photo-open] img').forEach(img=>URL.revokeObjectURL(img.src))}
+function renderAiImgs(){renderPhotoPicker($("#ai-imgs"),aiImgs,i=>{aiImgs=aiImgs.filter((_,n)=>n!==i);renderAiImgs()})}
 $("#ai-send").onclick=aiSend;
 $("#ai-stop").onclick=()=>aiCtl&&aiCtl.abort();
 $("#ai-in").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();aiSend()}});
 $("#ai-photo").addEventListener("change",e=>{aiImgs=[...e.target.files].slice(0,5);e.target.value="";renderAiImgs()});
-$("#ai-imgs").onclick=()=>{aiImgs=[];renderAiImgs()};
-$("#ai-new").onclick=()=>{cancelAiProposals();if(aiCtl)aiCtl.abort();aiTurns=[];aiView=[];$("#ai-log").innerHTML="";aiImgs=[];renderAiImgs();$("#ai-in").value="";try{localStorage.removeItem("polka-ai-chat")}catch(e){}};
+
+$("#ai-new").onclick=()=>{cancelAiProposals();if(aiCtl)aiCtl.abort();aiTurns=[];aiView=[];clearMessagePhotos($("#ai-log"));$("#ai-log").innerHTML="";aiImgs=[];renderAiImgs();$("#ai-in").value="";try{localStorage.removeItem("polka-ai-chat")}catch(e){}};
 document.querySelectorAll("[data-ai-command]").forEach(b=>b.onclick=()=>{const box=$("#ai-in");if(box.disabled)return;box.value=b.dataset.aiCommand+" "+box.value.replace(/^\/(списать и заказать|перенос|пополнить|списать|заказать|найти)\s*/,"");$("#ai-tools").open=false;box.focus()});
 aiRestore();
 (async()=>{try{sampleFn=await window.claude?.use?.("sample")}catch(e){sampleFn=null}
@@ -1803,20 +1841,21 @@ function hKeep(tab){try{const all=hKept(),c=hConv[tab],turns=keepCut(c.turns);
 function hlpHello(tab){const ttl=tab==="home"?"Главная":TABS[tab]||"раздел";return "Я помощник раздела «"+ttl+"». Спроси, как здесь что работает, или попроси сделать дело. Ничего не меняю без твоего «Подтвердить»."}
 function hDraw(){const tab=hTab(),c=hConvOf(tab),H=HELP[tab]||HELP.home;
   $("#hsh-t").textContent="✨ Помощник · "+(tab==="home"?"Главная":TABS[tab]||"");
-  $("#hsh-log").innerHTML=c.view.map((m,i)=>'<div class="msg '+m.role+(m.cls?" "+m.cls:"")+'">'+esc(m.text)
+  $("#hsh-log").innerHTML=c.view.map((m,i)=>'<div class="msg '+m.role+(m.cls?" "+m.cls:"")+'">'+esc(m.text)+(m.photos?photoStripHtml(m.photos):"")
     +(m.acts&&m.acts.length&&!m.done?'<div class="hacts"><ul>'+m.acts.map(a=>'<li>'+esc(a.txt)+'</li>').join("")+'</ul><button type="button" class="btn sm go" data-hok="'+i+'">Подтвердить</button><button type="button" class="btn sm" data-hno="'+i+'">Отмена</button></div>':"")
     +(m.src?'<small class="msrc">'+aiSrcTxt(m.src)+'</small>':"")+(m.done?'<div class="hacts small muted">'+esc(m.done)+'</div>':"")
     +(m.stock?'<div class="hacts"><button type="button" class="btn sm go" data-hrev="1">Проверить и подтвердить склад</button></div>':"")+'</div>').join("");
   $("#hsh-q").innerHTML=c.turns.length?"":H.q.filter(()=>1).map(t=>'<button type="button" class="chip" data-hq>'+esc(t)+'</button>').join("");
   $("#hsh-ph-l").hidden=!(H.img&&aiCanImg&&sampleFn);
-  $("#hsh-imgs").textContent=hImgs.length?"Фото к сообщению: "+hImgs.length+" (✕ убрать)":"";$("#hsh-imgs").hidden=!hImgs.length;
+  $("#hsh-log").querySelectorAll('.msg').forEach((node,i)=>{if(c.view[i].photos)wirePhotoStrip(node,c.view[i].photos)});
+  renderPhotoPicker($("#hsh-imgs"),hImgs,i=>{hImgs=hImgs.filter((_,n)=>n!==i);hDraw()});
   $("#hsh-send").hidden=!!hCtl;$("#hsh-stop").hidden=!hCtl;$("#hsh-send").disabled=$("#hsh-in").disabled=!sampleFn;
   const l=$("#hsh-log");l.scrollTop=l.scrollHeight}
 function hOpen(){$("#hsh").hidden=false;$("#hsh-scrim").hidden=false;document.body.classList.add("hsh-on");hDraw()}
 function hClose(){$("#hsh").hidden=true;$("#hsh-scrim").hidden=true;document.body.classList.remove("hsh-on")}
 async function hSend(){const box=$("#hsh-in"),t=box.value.trim();if((!t&&!hImgs.length)||hCtl||!sampleFn)return;
   const tab=hTab(),c=hConvOf(tab),imgs=hImgs;hImgs=[];if(imgs.length)lastPhotoIds=[];box.value="";
-  c.view.push({role:"user",text:(t||"Фото")+(imgs.length?"  [фото: "+imgs.length+"]":"")});
+  c.view.push({role:"user",text:(t||"Фото")+(imgs.length?"  [фото: "+imgs.length+"]":""),photos:imgs.length?photoSources(imgs):undefined});
   c.turns.push({role:"user",content:(t||"Разбери фото.")+(imgs.length?"\n(К сообщению приложено фото: "+imgs.length+")":"")});
   const out={role:"assistant",text:"Думаю…",cls:"wait"};c.view.push(out);hCtl=new AbortController();hDraw();
   if(imgs.length&&photoInspection(t)){
@@ -1849,9 +1888,9 @@ async function hApply(m){if(m.done)return;m.done="Сохраняю…";hDraw();
 $("#hlp-btn").onclick=hOpen;$("#hsh-x").onclick=hClose;$("#hsh-scrim").onclick=hClose;
 $("#hsh-send").onclick=hSend;$("#hsh-stop").onclick=()=>hCtl&&hCtl.abort();
 $("#hsh-in").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();hSend()}});
-$("#hsh-new").onclick=()=>{if(hCtl)hCtl.abort();const tab=hTab();hConv[tab]={turns:[],kv:[],view:[{role:"assistant",text:hlpHello(tab)}]};hKeep(tab);hDraw()};
+$("#hsh-new").onclick=()=>{if(hCtl)hCtl.abort();const tab=hTab();hConvOf(tab).view.forEach(m=>releasePhotoSources(m.photos));hImgs=[];hConv[tab]={turns:[],kv:[],view:[{role:"assistant",text:hlpHello(tab)}]};hKeep(tab);hDraw()};
 $("#hsh-ph").addEventListener("change",e=>{hImgs=[...e.target.files].slice(0,5);e.target.value="";hDraw()});
-$("#hsh-imgs").onclick=()=>{hImgs=[];hDraw()};
+
 $("#hsh").addEventListener("click",e=>{const c=hConvOf(hTab());
   const q=e.target.closest("[data-hq]");if(q){$("#hsh-in").value=q.textContent;hSend();return}
   const ok=e.target.closest("[data-hok]");if(ok){hApply(c.view[+ok.dataset.hok]);return}
