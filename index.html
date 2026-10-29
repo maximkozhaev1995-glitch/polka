@@ -2085,6 +2085,16 @@ function offerPhotoCorrection(out,ocr){
    const matches=DATA.filter(x=>cnTxt(x.b+" "+x.n).trim()===requested||cnTxt(x.b+" "+(x.l||"")+" "+x.n).trim()===requested);
    if(matches.length!==1){window.alert("Не найден единственный аромат в каталоге. Проверь бренд, название и линейку.");return}
    const f=matches[0];
+   // A label that already clearly names another flavor must not teach a contradictory mapping.
+   // Example: STARLINE БЕЛЬГИЙСКИЕ ВАФЛИ cannot be saved as Клубничный мильфей.
+   const literal=photoMatchChunk(raw,true,true).hit;
+   if(literal.length===1&&literal[0].id!==f.id){
+     window.alert("Нельзя обучить на другой аромат: надпись уже соответствует "+literal[0].b+" "+literal[0].n+".");
+     return;
+   }
+   const visible=photoBrandText(cnTxt(raw));
+   const other=[...new Set(DATA.map(x=>x.b))].filter(x=>x!==f.b&&visible.includes(cnTxt(x)));
+   if(other.length){window.alert("На этикетке указан другой бренд. Исправление не сохранено.");return}
    if(!window.confirm("Сохранить для этого заведения: «"+raw+"» → «"+f.b+" "+f.n+"»? Остатки не изменятся."))return;
    b.disabled=true;
    try{
