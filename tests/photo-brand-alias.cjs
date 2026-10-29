@@ -1,0 +1,22 @@
+// Behavioral aliases regression: run actual photoBrandText source without external calls.
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const source=fs.readFileSync('src/stoika.html','utf8');
+const start=source.indexOf('function photoBrandText(T){'),end=source.indexOf('function photoNameIn(',start);
+assert(start>=0&&end>start);
+const fn=source.slice(start,end);
+const DATA=[{b:'Kraken'},{b:"Trofimoff's"},{b:'World Tobacco Original'},{b:'Palitra'}];
+const cnTxt=v=>' '+String(v||'').toLowerCase().replace(/[^a-zа-я0-9]+/g,' ').trim()+' ';
+const norm=v=>String(v).toLowerCase();
+const photoBrandText=vm.runInNewContext('('+fn+')',{DATA,cnTxt,norm});
+const has=(input,brand)=>assert(photoBrandText(cnTxt(input)).includes(cnTxt(brand)),input+' should resolve to '+brand);
+has('MAGNUM S07 WILD STRAWBERRY','Kraken');
+has('MAGNUM L07 WILD STRAWBERRY','Kraken');
+has('VTO Maas Dam','World Tobacco Original');
+has('WTO Tanzania','World Tobacco Original');
+has('Trofimoffs Finlandia Vanila',"Trofimoff's");
+has('Трофимов Bailey s',"Trofimoff's");
+assert(!photoBrandText(cnTxt('MAGNUM WILD STRAWBERRY')).includes(cnTxt('Kraken')),'Magnum without S/L code should not be asserted');
+assert(!photoBrandText(cnTxt('Pear Date')).includes(cnTxt('Palitra')),'flavor should not infer brand');
+assert(source.includes('const want=magnumCode[1]==="s"?"seco":"ligero"'),'code letter must select strength');
+assert(source.includes('if(options.length)hit=options'),'only catalog strength options get selected');
+console.log('PASS: verified photo brand aliases and Magnum strength separation');
