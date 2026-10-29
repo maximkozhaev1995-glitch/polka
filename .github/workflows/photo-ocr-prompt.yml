@@ -1,0 +1,26 @@
+name: Mixora server photo OCR prompt
+on:
+  pull_request:
+    paths:
+      - 'supabase/functions/ai/index.ts'
+      - 'app/shim.js'
+      - 'index.html'
+      - 'tests/photo-ocr-prompt.cjs'
+      - '.github/workflows/photo-ocr-prompt.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/ai/index.ts'
+      - 'app/shim.js'
+      - 'index.html'
+      - 'tests/photo-ocr-prompt.cjs'
+      - '.github/workflows/photo-ocr-prompt.yml'
+jobs:
+  prompt-wiring:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node tests/photo-ocr-prompt.cjs
