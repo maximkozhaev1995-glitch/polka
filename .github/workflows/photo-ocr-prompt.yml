@@ -6,6 +6,7 @@ on:
       - 'app/shim.js'
       - 'index.html'
       - 'tests/photo-ocr-prompt.cjs'
+      - 'tests/photo-brand-alias.cjs'
       - '.github/workflows/photo-ocr-prompt.yml'
   push:
     branches: [main]
@@ -23,4 +24,4 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node tests/photo-ocr-prompt.cjs
+      - run: node tests/photo-ocr-prompt.cjs && node tests/photo-brand-alias.cjs
