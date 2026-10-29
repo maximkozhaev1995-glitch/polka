@@ -7,6 +7,7 @@ on:
       - app/config.js
       - app/shim.js
       - tests/home-navigation.test.cjs
+      - tests/order-sync.cjs
       - .github/workflows/home-navigation-tests.yml
   push:
     branches: [main]
@@ -16,6 +17,7 @@ on:
       - app/config.js
       - app/shim.js
       - tests/home-navigation.test.cjs
+      - tests/order-sync.cjs
       - .github/workflows/home-navigation-tests.yml
 permissions:
   contents: read
@@ -26,3 +28,6 @@ jobs:
       - uses: actions/checkout@v4
       - name: Run dependency-free navigation regression tests
         run: node --test tests/home-navigation.test.cjs
+
+      - name: Run order synchronization regression tests
+        run: node tests/order-sync.cjs
