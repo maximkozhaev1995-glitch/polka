@@ -20,7 +20,8 @@ assert(server.includes('content: [b, { type: "text", text: PHOTO_PROMPT + hints 
 assert(server.includes('venuePhotoHints(db, member.data.venue_id)'), 'signed-in venue must scope learned OCR hints');
 assert(server.includes('const hints = hasImg ? await venuePhotoHints'), 'OCR-only must load corrections');
 assert(server.includes('Не угадывай бренд или аромат'), 'learned examples must never override unreadable labels');
-assert(server.includes('if (ocr_only) { const r = hasImg ? await readPhotos(claude, messages)'), 'OCR-only endpoint must use reader');
+assert(server.includes('if (ocr_only) { const hints = hasImg ? await venuePhotoHints'), 'OCR-only must load approved hints');
+assert(server.includes('readPhotos(claude, messages, hints)'), 'OCR-only must use Claude reader with those hints');
 assert(shim.includes('content:[b]}],tools:[],ocr_only:true'), 'Client must send image without discarded guidance');
 assert(!shim.includes('photoOcrGuidance'), 'Dead client-side instructions must be removed');
 assert(built.includes('content:[b]}],tools:[],ocr_only:true'), 'Built app must use corrected client');
