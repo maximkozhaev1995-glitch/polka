@@ -1792,7 +1792,13 @@ function matchPhotoText(text,photo=true){const raw=String(text||"");
    const brandOf=T=>{const b=[...new Set(DATA.map(x=>x.b))].filter(b=>cnTxt(b).trim().length>2&&T.includes(cnTxt(b))).sort((a,b)=>b.length-a.length);return b[0]||""};
    const background=new Set();
    chunks.forEach(chunk=>{if(photo){const c=photoBrandText(cnTxt(chunk));const b=[...new Set(DATA.map(x=>x.b))].filter(b=>c.includes(cnTxt(b))).sort((a,b)=>c.indexOf(cnTxt(a))-c.indexOf(cnTxt(b))||b.length-a.length)[0];if(b&&b!==focus){background.add(chunk.trim());return}}
-     const{hit,byN,T,fixed}=photoMatchChunk(chunk,labels.length>0||photo,photo);if(hit.length)gotLabel.add(chunk.trim());else if(photo){const suggestion=photoCatalogSuggestion(chunk,focus);if(suggestion)suggestions.push(suggestion)}
+     const detected=photoMatchChunk(chunk,labels.length>0||photo,photo);
+     // Only exact human-approved label-to-catalog mapping for this venue and this focus.
+     // Never override a different visible brand or infer from warning labels.
+     const correction=learnedPhoto.find(x=>learnedKey(x.raw_label)===learnedKey(chunk));
+     const approved=correction&&byId[correction.flavor_id];
+     const safe=approved&&approved.b===focus&&!/[?…]/.test(focusLine||"");
+     const hit=safe?[approved]:detected.hit,byN=safe?{[cnTxt(approved.n)]:[approved]}:detected.byN,T=detected.T,fixed=detected.fixed;if(hit.length)gotLabel.add(chunk.trim());else if(photo){const suggestion=photoCatalogSuggestion(chunk,focus);if(suggestion)suggestions.push(suggestion)}
      if(labels.length){const b=hit.length?hit[0].b:brandOf(T);tally[b||"Без бренда"]=(tally[b||"Без бренда"]||0)+1;
        // Бренд прочитан, а вкуса у него в каталоге нет — кандидат в новые вкусы (что осталось от этикетки без бренда)
        // Этикетка с «?» обрезана краем кадра — из её огрызка («Coff») новый вкус не предлагаем
@@ -1991,6 +1997,7 @@ function parseCmd(raw){const s=String(raw||"");const m=s.match(/^\s*\/\s*(.*)$/s
 async function cmdFindIds(args,imgs,signal){if(signal?.aborted)throw new Error("Остановлено");let text=args||"",failed=0;
   if(imgs&&imgs.length&&sampleFn&&sampleFn.readLabels){
     const r=await sampleFn.readLabels(imgs,signal);text=r.text||"";failed=r.failed||0;if(signal?.aborted)throw new Error("Остановлено");if(failed)throw new Error("Фото не удалось прочитать; ничего не изменено")}
+  if(imgs?.length&&db?.listPhotoCorrections){try{learnedPhoto=await db.listPhotoCorrections()}catch(e){learnedPhoto=[];console.warn("Mixora OCR corrections unavailable",e)}}
   const m=matchText(text,!!(imgs&&imgs.length));if(m.ambiguous.length)throw new Error("Нужно уточнение."+ambTxt(m));return{m,text,failed}}
 const photoInspection=t=>!t||/^(?:(?:пожалуйста|привет)[,!.]?\s*)?(?:что\s+(?:на|здесь|тут)|разбери|распознай|распознать|прочитай|определи|перечисли|посмотри|проверь\s+фото)/i.test(t)&&!stockAsked(t)&&!ordAsked(t)&&!/микс|рекоменд|совет/i.test(t);
 async function inspectPhoto(out,args,imgs,signal){
@@ -2020,6 +2027,7 @@ function offerPhotoCorrection(out,ocr){
    const label=(String(ocr||"").match(/^Этикетка\s*\d+\s*:\s*(.+)$/mi)||[])[1]||"";
    const raw=window.prompt("Какую ошибочную строку OCR исправить? Введи точный текст этикетки без номера.",label);
    if(raw===null)return;
+   if(!String(raw).trim()){window.alert("Укажи точный текст ошибочной этикетки.");return}
    const chosen=window.prompt("Введи ТОЧНО: Бренд Название аромата (при одинаковых названиях также линейку)","");
    if(chosen===null)return;
    const requested=cnTxt(chosen).trim();
