@@ -13,6 +13,12 @@ const hints=vm.runInContext('learnedHints("Фокус: САРМА\\nЭтикет
 assert(hints.includes('Сарма Малина')&&hints.includes('на стойке: нет'),hints);
 assert.equal(vm.runInContext('learnedHints("Фокус: ДРУГОЙ\\nЭтикетка 1: САРМА360 Княженика")',context),'');
 assert(!helper.includes('stage_stock'),'Learned hints must never stage stock');
+const matcher=app.slice(app.indexOf('function matchPhotoText('),app.indexOf('let photoAcc=null;',app.indexOf('function matchPhotoText(')));
+assert(matcher.includes('learnedKey(x.raw_label)===learnedKey(chunk)'),'only exact normalized OCR label may use an approval');
+assert(matcher.includes('approved.b===focus'),'approval must not override another brand in focus');
+assert(matcher.includes('const hit=safe?[approved]:detected.hit'),'approved label must actually change matching, not just display hints');
+assert(app.includes('learnedPhoto=await db.listPhotoCorrections()'),'photo command must reload current approved rules');
+
 assert(shim.includes('listPhotoCorrections:async'),'read method required');
 assert(shim.includes('savePhotoCorrection:async'),'approval write method required');
 assert(shim.includes('photo_corrections?on_conflict=venue_id,raw_label'),'venue-scoped upsert required');
