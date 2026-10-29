@@ -473,7 +473,8 @@ body{margin:0}
 #home-screen[hidden]{display:none!important}
 #home-btn{font-size:20px;min-width:40px;min-height:40px;border:1px solid var(--line);background:var(--surface);border-radius:12px;color:var(--fg);cursor:pointer}
 body.home-mode .stats{display:none}
-body.home-mode #menu-btn,body.home-mode #home-btn,body.home-mode #scan-fab{display:none!important}
+body.home-mode #home-btn,body.home-mode #scan-fab{display:none!important}
+.home-tile:disabled{opacity:.55;cursor:not-allowed;transform:none}
 body.home-mode #list,body.home-mode #found{display:none!important}
 #bnav{display:none!important}
 body.hasnav{padding-bottom:0}
@@ -1017,7 +1018,7 @@ const idleText=x=>{const d=idleDays(x.id);return d===null?(journalDays()>=7?"н�
 const slowCand=()=>journalDays()>=30?DATA.filter(x=>!flag(x,"slow")&&(wh(x)>0||onBar(x))&&(idleDays(x.id)===null||idleDays(x.id)>=30)):[];
 function itemsV2(){const t=st.q?norm(st.q):"";const mq=x=>!t||norm([x.b,x.l,x.n,x.d,x.t.join(" ")].join(" ")).includes(t);
   const nr=x=>t||!flag(x,"retired");
-  if(st.tab==="bar")return DATA.filter(x=>nr(x)&&mq(x)&&(st.barView==="off"?!flag(x,"retired")&&!onBar(x):(t||onBar(x))));
+  if(st.tab==="bar")return DATA.filter(x=>nr(x)&&mq(x)&&(st.barView==="off"?!flag(x,"retired")&&!onBar(x)&&wh(x)>0:(t||onBar(x))));
   if(st.tab==="wh")return DATA.filter(x=>nr(x)&&mq(x)&&(t||wh(x)>0)&&(t||!whLow||(tracked(x)&&wh(x)<=1)));
   if(st.tab==="stop")return DATA.filter(x=>nr(x)&&mq(x)&&(t||inStop(x)));
   return DATA.filter(x=>nr(x)&&mq(x)&&(t||flag(x,"slow")))}
@@ -1071,9 +1072,9 @@ function renderV2(){
   ["#sup","#omanual","#chat","#logbox","#brands","#filters","#tray","#otray"].forEach(q=>{const e=$(q);if(e)e.hidden=true});
   $("#list").hidden=false;$(".search").hidden=false;$(".legend").hidden=true;$(".ttl .stats").hidden=false;document.body.classList.remove("ai-mode","has-tray");
   const barRaw=DATA.filter(onBar).length,barN=DATA.filter(x=>onBar(x)&&!flag(x,"stop")).length,whP=DATA.reduce((a,x)=>a+wh(x),0),whI=DATA.filter(x=>wh(x)>0).length,stopN=DATA.filter(inStop).length,slowN=DATA.filter(x=>flag(x,"slow")).length;
-  $("#total").textContent=st.tab==="bar"?(st.barView==="off"?DATA.filter(x=>!flag(x,"retired")&&!onBar(x)).length:barN):st.tab==="wh"?whP:st.tab==="stop"?stopN:slowN;
-  $("#totlabel").textContent=st.tab==="bar"?(st.barView==="off"?"не на стойке":"на стойке")+(barRaw>barN?" · "+(barRaw-barN)+" в стопе":""):st.tab==="wh"?"шт., "+whI+" вкусов":st.tab==="stop"?"в стопе":"вкусов";
-  $("#q").placeholder="Найти любой вкус";
+  $("#total").textContent=st.tab==="bar"?(st.barView==="off"?DATA.filter(x=>!flag(x,"retired")&&!onBar(x)&&wh(x)>0).length:barN):st.tab==="wh"?whP:st.tab==="stop"?stopN:slowN;
+  $("#totlabel").textContent=st.tab==="bar"?(st.barView==="off"?"не на стойке":("на стойке"+(barRaw>barN?" · "+(barRaw-barN)+" в стопе":""))):st.tab==="wh"?"шт., "+whI+" вкусов":st.tab==="stop"?"в стопе":"вкусов";
+  $("#q").placeholder=st.tab==="bar"&&st.barView==="off"?"Найти среди запасов не на стойке":"Найти любой вкус";
   const items=itemsV2(),brands=[...new Set(items.map(x=>x.b))].sort(abc),list=$("#list");let html="";
   if(st.tab==="bar")html+=`<div class="acts2"><button type="button" class="ab ${st.barView!=="off"?"go":""}" data-v="bar-on">На стойке</button><button type="button" class="ab ${st.barView==="off"?"go":""}" data-v="bar-off">Не на стойке</button></div>`;
   if(st.tab==="stop")html+='<p class="hintline">Только вкусы, отмеченные в стоп-лист. Наличие на стойке и запас на складе не добавляют сюда автоматически.</p>';
@@ -1101,6 +1102,11 @@ document.addEventListener("click",e=>{if(!V2.has(st.tab))return;const lst=e.targ
 function render(){
   {const a=document.activeElement;if(a&&a.matches&&a.matches("input.oin")){renderLater=true;return}}renderLater=false;
   document.body.classList.toggle("home-mode",st.tab==="home");$("#home-screen").hidden=st.tab!=="home";
+  const supTile=$("#home-screen [data-home='sup']");
+  supTile.disabled=!staffReady;
+  supTile.setAttribute("aria-disabled",String(!staffReady));
+  supTile.title=staffReady?"Открыть поставщиков":"Доступно после входа сотрудника";
+  supTile.querySelector("small").textContent=staffReady?"Поставщики":"Доступно после входа";
   const barN=DATA.filter(x=>onBar(x)&&!flag(x,"stop")).length,whItems=DATA.filter(x=>wh(x)>0),whPacks=whItems.reduce((a,x)=>a+wh(x),0);
   const ordSel=DATA.filter(x=>stockLoaded&&oq(x)>0);
   const stopN=DATA.filter(inStop).length,slowN=DATA.filter(x=>flag(x,"slow")).length,slowP=DATA.filter(x=>flag(x,"slow")).reduce((a,x)=>a+wh(x),0);
@@ -1464,7 +1470,7 @@ drawer.addEventListener("touchend",e=>{if(tx!==null&&tx-e.changedTouches[0].clie
 // Анимация появления только при переходе (не при каждом обновлении данных)
 function navAnim(){document.body.classList.add("nav-anim");clearTimeout(navAnim.t);navAnim.t=setTimeout(()=>document.body.classList.remove("nav-anim"),800)}
 // List updates stay still: action clicks must not restart entrance animations.
-const go=t=>{if(!$("#hsh").hidden)hClose();if(t==="off"){st.barView="off";t="bar"}else if(t==="bar"){st.barView="on"}st.tab=t;st.f="";st.q="";selId="";{const q=$("#q");if(q)q.value="";const c=$("#clear");if(c)c.hidden=true}if(t!=="stop"&&t!=="slow")st.brand="";save();render();hlpUi();menu(false);window.scrollTo(0,0)};
+const go=t=>{if(t==="sup"&&!staffReady)return;if(!$("#hsh").hidden)hClose();if(t==="off"){st.barView="off";t="bar"}else if(t==="bar"){st.barView="on"}st.tab=t;st.f="";st.q="";selId="";{const q=$("#q");if(q)q.value="";const c=$("#clear");if(c)c.hidden=true}if(t!=="stop"&&t!=="slow")st.brand="";save();render();hlpUi();menu(false);window.scrollTo(0,0)};
 $("#home-btn").onclick=()=>go("home");
 $("#home-screen").addEventListener("click",e=>{const b=e.target.closest("[data-home]");if(b)go(b.dataset.home)});
 $("#t-or").onclick=()=>go("order");
