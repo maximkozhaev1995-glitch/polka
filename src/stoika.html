@@ -1015,16 +1015,26 @@ function askUndo(id){const m=lastMove(id);if(!m)return;
   showDlg('<h2>Отменить последнее движение?</h2><p>Будет добавлено обратное движение. Если позиция уже менялась, сервер отклонит отмену.</p><div class="dlg-btns"><button class="btn go" id="dlg-ok">Отменить движение</button><button class="btn" id="dlg-back">Назад</button></div>');
   $("#dlg-back").onclick=closeDlg;$("#dlg-ok").onclick=async()=>{await undoMove(m.id);closeDlg()};
 }
-let oTimer=null;
-function saveOrder(){clearTimeout(oTimer);oTimer=setTimeout(async()=>{
-  try{lastOrderAt=new Date().toISOString();await db.doc("order/current").set({q:orderQ,m:orderM,at:lastOrderAt})}catch(e){setStatus("Заказ не сохранился: "+(e&&e.message||"нет доступа"),true)}oTimer=null},500)}
+let oTimer=null,oSaving=false,oDirty=false;
+function saveOrder(){oDirty=true;orderVer++;clearTimeout(oTimer);oTimer=setTimeout(()=>{oTimer=null;flushOrder()},150)}
+async function flushOrder(){
+  if(oSaving||!oDirty)return;
+  oSaving=true;const version=orderVer;
+  const at=new Date(Math.max(Date.now(),(Date.parse(lastOrderAt)||0)+1)).toISOString();
+  const payload=JSON.parse(JSON.stringify({q:orderQ,m:orderM,at}));
+  lastOrderAt=at;
+  try{await db.doc("order/current").set(payload);if(orderVer===version)oDirty=false}
+  catch(e){setStatus("Заказ не сохранился. Изменения оставлены на экране; повтори изменение для сохранения: "+(e&&e.message||"нет доступа"),true);return}
+  finally{oSaving=false}
+  if(oDirty){clearTimeout(oTimer);oTimer=null;flushOrder()}
+}
 function addAllStop(){let n=0;DATA.filter(x=>inStop(x)&&!flag(x,"slow")).forEach(x=>{if(!oq(x)){orderQ[x.id]=1;n++}});if(n){saveOrder();toast(n+" "+(n===1?"позиция добавлена":"позиций добавлено")+" в заказ")}render()}
 // Позиции заказа: из каталога и добавленные вручную, разложенные по поставщикам (поставщик бренда — в suppliers)
 function orderRows(){
   const rows=DATA.filter(x=>inOrder(x)&&oq(x)>0).map(x=>({b:x.b,l:x.l||"",n:x.n,q:oq(x),x}));
   Object.entries(orderM).forEach(([k,m])=>{if(m&&m.q>0)rows.push({b:m.b||"",l:"",n:m.n||"",q:m.q,mk:k})});
   return rows}
-const supOf=b=>sups.find(s=>(s.brands||[]).includes(b));
+const supOf=b=>sups.find(s=>(s.ctype||"kalyan")==="kalyan"&&(s.brands||[]).some(v=>String(v).trim().toLocaleLowerCase()===String(b).trim().toLocaleLowerCase()));
 function orderGroups(){const g={};
   orderRows().forEach(r=>{const s=supOf(r.b),k=s?s.id:"";(g[k]=g[k]||{sup:s,rows:[]}).rows.push(r)});
   return Object.values(g).sort((p,q)=>(p.sup?0:1)-(q.sup?0:1)||abc(p.sup?p.sup.name:"",q.sup?q.sup.name:""))}
@@ -1036,7 +1046,11 @@ function orderText(rows,sup){
 function contactHtml(c){if(!c)return"";return esc(c).replace(/(@[A-Za-z0-9_]{4,})|(https?:\/\/\S+)|([\w.+-]+@[\w-]+\.[\w.]+)|(\+?\d[\d\s()-]{8,}\d)/g,(m,tg,url,em,ph)=>
   tg?'<a href="https://t.me/'+tg.slice(1)+'" target="_blank" rel="noopener">'+tg+'</a>':url?'<a href="'+url+'" target="_blank" rel="noopener">'+url+'</a>':em?'<a href="mailto:'+em+'">'+em+'</a>':'<a href="tel:'+ph.replace(/[^\d+]/g,"")+'">'+ph+'</a>')}
 function sendLink(sup,text){const c=sup&&sup.contact||"";const d=new Date().toLocaleDateString("ru-RU"),sub="Заказ табака "+d;
-  let m;if(m=c.match(/@([A-Za-z0-9_]{4,})/))return"https://t.me/"+m[1]+"?text="+encodeURIComponent(text);
+  let link=c.match(/(?:https?:\/\/)?(?:t\.me|telegram\.me)\/([A-Za-z0-9_]{4,})(?:[/?#\s]|$)/i);
+  if(link)return"https://t.me/"+link[1]+"?text="+encodeURIComponent(text);
+  link=c.match(/(?:https?:\/\/)?wa\.me\/(\d+)/i);
+  if(link)return"https://wa.me/"+link[1]+"?text="+encodeURIComponent(text);
+  let m;if(m=c.match(/(?:^|\s)@([A-Za-z0-9_]{4,})\b/))return"https://t.me/"+m[1]+"?text="+encodeURIComponent(text);
   if(m=c.match(/[\w.+-]+@[\w-]+\.[\w.]+/))return"mailto:"+m[0]+"?subject="+encodeURIComponent(sub)+"&body="+encodeURIComponent(text);
   if(m=c.match(/\+?\d[\d\s()-]{8,}\d/))return"https://wa.me/"+m[0].replace(/\D/g,"")+"?text="+encodeURIComponent(text);
   return""}
@@ -1966,7 +1980,7 @@ function hlpUi(){$("#hlp-btn").hidden=!sampleFn||st.tab==="ai"||st.tab==="home"}
   {const tgw=window.Telegram&&window.Telegram.WebApp,sp=tgw&&tgw.initDataUnsafe&&tgw.initDataUnsafe.start_param;
    if(sp&&/^guest_/i.test(sp)){const gid=parseGuestCode(sp);if(gid)setTimeout(()=>openGuestMix(gid),400)}}
   db.collection("stock").onSnapshot(s=>{for(const k in stock)delete stock[k];s.docs.forEach(d=>{stock[d.id]=d.data()});stockLoaded=true;render()},e=>setStatus("Склад не загрузился: "+e.message,true));
-  db.collection("order").onSnapshot(s=>{const d=s.docs.find(x=>x.id==="current");const od=d&&d.data();if(!oTimer&&!(od&&lastOrderAt&&(od.at||"")<lastOrderAt)){orderQ=Object.assign({},od&&od.q);orderM=JSON.parse(JSON.stringify(od&&od.m||{}))}render()},()=>{});
+  db.collection("order").onSnapshot(s=>{const d=s.docs.find(x=>x.id==="current");const od=d&&d.data();if(!oTimer&&!oSaving&&!oDirty&&(!lastOrderAt||(od&&Date.parse(od.at)>=Date.parse(lastOrderAt)))){orderQ=Object.assign({},od&&od.q);orderM=JSON.parse(JSON.stringify(od&&od.m||{}))}render()},()=>{});
   db.collection("items").onSnapshot(s=>{let ch=false;s.docs.forEach(d=>{if(byId[d.id])return;const o=Object.assign({l:"",d:"",s:"name",t:[],bar:false},d.data(),{id:d.id});DATA.push(o);byId[d.id]=o;ch=true});if(ch)render()},()=>{});
   db.collection("strength").onSnapshot(s=>{strMap={};s.docs.forEach(d=>{strMap[d.id]=d.data().s});if(st.tab==="str"&&!document.activeElement.matches("select,input"))render()},()=>{});
   db.collection("pack").onSnapshot(s=>{packMap={};s.docs.forEach(d=>{packMap[d.id]=d.data().g});render()},()=>{});
