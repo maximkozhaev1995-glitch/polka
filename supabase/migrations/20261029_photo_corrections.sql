@@ -2,7 +2,9 @@
 CREATE TABLE IF NOT EXISTS public.photo_corrections (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   venue_id uuid NOT NULL REFERENCES public.venues(id) ON DELETE CASCADE,
-  raw_label text NOT NULL CHECK (char_length(raw_label) BETWEEN 3 AND 180),
+  raw_label text NOT NULL CHECK (char_length(raw_label) BETWEEN 3 AND 180
+    AND raw_label !~ '[[:cntrl:]]'
+    AND raw_label !~* '(слепой|гангрена|импотенция|инфаркт|инсульт|недоношенность|слепота|мертворождение|новообразования|рак[[:space:]]+л[её]гк|подробнее[[:space:]]+о[[:space:]]+последствиях)'),
   flavor_id text NOT NULL REFERENCES public.flavors(id) ON DELETE RESTRICT,
   confirmed_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT photo_corrections_venue_label_unique UNIQUE (venue_id, raw_label)
