@@ -1715,7 +1715,7 @@ async function inspectPhoto(out,args,imgs,signal){
 }
 async function cmdNaiti(out,args,imgs){const{m}=await cmdFindIds(args,imgs,aiCtl.signal);
   if(!m.found.length){out.textContent=(m.suggestions?.length?"Нет уверенного совпадения на фото.":"Не нашёл ничего на складе"+(args||(imgs&&imgs.length)?" по этому запросу":"")+". Пришли фото банок или напиши названия вкусов.")+photoSuggestionText(m);return}
-  const lines=m.found.map(x=>{const it=byId[x.id];return "— "+x.brand+" "+x.name+(imgs&&imgs.length&&x.jars>1?" ×"+x.jars:"")+": на складе "+x.wh+(x.onBar?", на стойке":"")+(it&&flag(it,"slow")?" (неликвид)":"")+(it&&flag(it,"stop")?" (стоп)":"")});
+  const lines=m.found.map(x=>{const it=byId[x.id];return "— "+x.brand+" "+x.name+(imgs&&imgs.length&&x.jars>1?" ×"+x.jars:"")+": на складе "+x.wh+(x.onBar?", на стойке: есть":", на стойке: нет")+(it&&flag(it,"slow")?" (неликвид)":"")+(it&&flag(it,"stop")?" (стоп)":"")});
   out.textContent=(imgs&&imgs.length?"Распознано по каталогу:\n":"Нашёл на складе и стойке:\n")+lines.join("\n")+(m.not_found_lines.length?"\n\nНе распознано уверенно:\n"+m.not_found_lines.map(l=>"— "+l).join("\n"):"")+photoSuggestionText(m)}
 function transferQuantity(args){
  const text=String(args||"").trim();
