@@ -1669,7 +1669,9 @@ function photoBrandText(T){
   brands.forEach(b=>{const compact=b.replace(/ /g,"");if(compact!==b)T=T.replaceAll(" "+compact+" "," "+b+" ")});
   // Only explicit, user-confirmed brand aliases. Never infer a brand from a flavor alone.
   const all=brands.filter(b=>b);const exact=(part)=>all.find(b=>cnTxt(b).trim()===part);
-  const wto=exact("world tobacco original"),trofim=exact("trofimoff s"),kraken=exact("kraken");
+  const wto=exact("world tobacco original"),trofim=exact("trofimoff s"),kraken=exact("kraken"),sarma=exact("сарма");
+  // САРМА360 is the packaging/strength marking of brand Сарма, not a different brand.
+  if(sarma)T=T.replace(/ сарма\s*360 /g," "+sarma+" ");
   if(wto)T=T.replace(/ (?:vto|wto) /g," "+wto+" ");
   if(trofim)T=T.replace(/ (?:trofimoffs|trafimoffs|трофимов) /g," "+trofim+" ");
   // Magnum is a Kraken line; S and L are strength classes, not interchangeable numbers.
@@ -1809,7 +1811,7 @@ function photoNote(text){const m=matchText(text);
   if(photoAcc){m.ambiguous.forEach(a=>a.options.forEach(o=>photoAcc.blocked.add(o.id)));m.found.forEach(x=>{photoAcc.jars[x.id]=(photoAcc.jars[x.id]||0)+(x.jars||1)});Object.entries(m.jars_by_brand).forEach(([b,c])=>{photoAcc.tally[b]=(photoAcc.tally[b]||0)+c});
     m.new_flavors.forEach(y=>{if(!photoAcc.newf.some(z=>z.b===y.b&&norm(z.n)===norm(y.n)))photoAcc.newf.push(y)})}
   return "[Фото: текст прочитан с фото и уже сверен с каталогом приложением. Общее количество банок по брендам и предложение добавить новые вкусы приложение покажет само — в ответе их не пересчитывай и не повторяй. Опирайся на этот список, вкусов сверх него не придумывай.]\n"
-   +"НАЙДЕНО В КАТАЛОГЕ ("+m.found.length+"):\n"+(m.found.map(x=>"— "+x.brand+" "+x.name+(x.jars>1?" ×"+x.jars+" (на "+x.jars+" разных этикетках — скорее всего столько банок)":"")+" (id "+x.id+", на складе "+x.wh+(x.onBar?", на стойке":"")+(x.ambiguous?", бренд на фото не прочитан — уточни":"")+")").join("\n")||"— ничего")
+   +"НАЙДЕНО В КАТАЛОГЕ ("+m.found.length+"):\n"+(m.found.map(x=>"— "+x.brand+" "+x.name+(x.jars>1?" ×"+x.jars+" (на "+x.jars+" разных этикетках — скорее всего столько банок)":"")+" (id "+x.id+", на складе "+x.wh+(x.onBar?", на стойке: есть":", на стойке: нет")+(x.ambiguous?", бренд на фото не прочитан — уточни":"")+")").join("\n")||"— ничего")
    +ambTxt(m)+(m.not_found_lines.length?"\nНЕ НАШЛОСЬ В КАТАЛОГЕ (строки с фото, могут быть рукописные или с ошибкой распознавания — добери через find_items или переспроси):\n"+m.not_found_lines.map(l=>"— "+l).join("\n"):"")}
 // Новый вкус с фото — в каталог (Склад, 0 шт.) и строка в Журнал «Новый вкус — внёс ассистент».
 // Kind "in" с нулём: отдельного вида движения в базе нет (moves_kind_check), текст строки берётся из reason
