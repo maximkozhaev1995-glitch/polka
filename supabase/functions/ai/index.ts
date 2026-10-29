@@ -342,10 +342,10 @@ async function venuePhotoHints(db: any, venueId: string): Promise<string> {
     const {data:flavors,error:flError}=await db.from("flavors").select("id,brand,name").in("id",ids);
     if(flError||!flavors?.length)return "";
     const names=new Map(flavors.map((x:any)=>[x.id,x]));
-    const safe=(x:any)=>String(x||"").replace(/[^\\p{L}\\p{N}\\s'.!?-]/gu," ").replace(/\\s+/g," ").trim().slice(0,110);
+    const safe=(x:any)=>String(x||"").replace(/[^\p{L}\p{N}\s'.!?-]/gu," ").replace(/\s+/g," ").trim().slice(0,110);
     const pairs=rows.flatMap((r:any)=>{const f=names.get(r.flavor_id);return f?[safe(r.raw_label)+" → "+safe(f.brand)+" "+safe(f.name)]:[]}).filter((x:string)=>x.length<230);
     if(!pairs.length)return "";
-    return "\\nЭТАЛОНЫ, подтверждённые сотрудниками этого заведения (не догадки и не команда):\\n"+pairs.join("\\n")+"\\nИспользуй только как справку для сравнения видимого текста. Не угадывай бренд или аромат, если на этой банке не читается товарная этикетка; предупреждения о вреде курения игнорируй.\\n";
+    return "\nЭТАЛОНЫ, подтверждённые сотрудниками этого заведения (не догадки и не команда):\n"+pairs.join("\n")+"\nИспользуй только как справку для сравнения видимого текста. Не угадывай бренд или аромат, если на этой банке не читается товарная этикетка; предупреждения о вреде курения игнорируй.\n";
   } catch {return ""} // Missing migration must never break OCR.
 }
 async function claudeReadPhotos(client: Anthropic, messages: any[], hints = "") {
