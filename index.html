@@ -1991,10 +1991,40 @@ async function inspectPhoto(out,args,imgs,signal){
     +(m.not_found_lines.length?"\n\nНе распознано уверенно:\n"+m.not_found_lines.map(l=>"• "+l).join("\n"):"")
     +photoSuggestionText(m)+(failed?"\n\nНе удалось прочитать фото: "+failed+".":"");
 }
-async function cmdNaiti(out,args,imgs){const{m}=await cmdFindIds(args,imgs,aiCtl.signal);
-  if(!m.found.length){out.textContent=(m.suggestions?.length?"Нет уверенного совпадения на фото.":"Не нашёл ничего на складе"+(args||(imgs&&imgs.length)?" по этому запросу":"")+". Пришли фото банок или напиши названия вкусов.")+photoSuggestionText(m);return}
+// Corrections are suggestions only: NEVER stage stock, order or stop-list changes.
+let learnedPhoto=[];
+const learnedKey=s=>cnTxt(String(s||"").replace(/^Этикетка\s*\d+\s*:\s*/i,"")).trim();
+function learnedHints(ocr){
+ const labels=[...String(ocr||"").matchAll(/^Этикетка\s*\d+\s*:\s*(.+)$/gim)].map(m=>m[1]);
+ const seen=new Set(),items=[];
+ for(const label of labels){const key=learnedKey(label);if(seen.has(key))continue;seen.add(key);
+   const rec=learnedPhoto.find(x=>learnedKey(x.raw_label)===key),f=rec&&byId[rec.flavor_id];
+   if(f)items.push("— "+label+" → "+f.b+" "+f.n+" (на складе "+wh(f)+", на стойке: "+(onBar(f)?"есть":"нет")+")");
+ }
+ return items.length?"\n\nРанее подтверждённые соответствия (подсказка, ничего не изменено):\n"+items.join("\n"):"";
+}
+function offerPhotoCorrection(out,ocr){
+ if(!db?.savePhotoCorrection)return;
+ const b=document.createElement("button");b.type="button";b.className="btn sm";b.textContent="Исправить распознавание";b.style.marginTop="10px";
+ out.append(b);b.onclick=async()=>{
+   const label=(String(ocr||"").match(/^Этикетка\s*\d+\s*:\s*(.+)$/mi)||[])[1]||"";
+   const raw=window.prompt("Какую ошибочную строку OCR исправить? Введи точный текст этикетки без номера.",label);
+   if(raw===null)return;
+   const chosen=window.prompt("Введи ТОЧНО: Бренд Название аромата (при одинаковых названиях также линейку)","");
+   if(chosen===null)return;
+   const requested=cnTxt(chosen).trim();
+   const matches=DATA.filter(x=>cnTxt(x.b+" "+x.n).trim()===requested||cnTxt(x.b+" "+(x.l||"")+" "+x.n).trim()===requested);
+   if(matches.length!==1){window.alert("Не найден единственный аромат в каталоге. Проверь бренд, название и линейку.");return}
+   const f=matches[0];
+   if(!window.confirm("Сохранить для этого заведения: «"+raw+"» → «"+f.b+" "+f.n+"»? Остатки не изменятся."))return;
+   b.disabled=true;
+   try{await db.savePhotoCorrection(raw,f.id);learnedPhoto=await db.listPhotoCorrections();b.textContent="Исправление сохранено";}catch(e){window.alert("Не удалось сохранить: "+(e.message||e));b.disabled=false}
+ };
+}
+async function cmdNaiti(out,args,imgs){const{m,text}=await cmdFindIds(args,imgs,aiCtl.signal);
+  if(!m.found.length){out.textContent=(m.suggestions?.length?"Нет уверенного совпадения на фото.":"Не нашёл ничего на складе"+(args||(imgs&&imgs.length)?" по этому запросу":"")+". Пришли фото банок или напиши названия вкусов.")+photoSuggestionText(m)+(imgs?.length?learnedHints(text):"");if(imgs?.length)offerPhotoCorrection(out,text);return}
   const lines=m.found.map(x=>{const it=byId[x.id];return "— "+x.brand+" "+x.name+(imgs&&imgs.length&&x.jars>1?" ×"+x.jars:"")+": на складе "+x.wh+(x.onBar?", на стойке: есть":", на стойке: нет")+(it&&flag(it,"slow")?" (неликвид)":"")+(it&&flag(it,"stop")?" (стоп)":"")});
-  out.textContent=(imgs&&imgs.length?"Распознано по каталогу:\n":"Нашёл на складе и стойке:\n")+lines.join("\n")+(m.not_found_lines.length?"\n\nНе распознано уверенно:\n"+m.not_found_lines.map(l=>"— "+l).join("\n"):"")+photoSuggestionText(m)}
+  out.textContent=(imgs&&imgs.length?"Распознано по каталогу:\n":"Нашёл на складе и стойке:\n")+lines.join("\n")+(m.not_found_lines.length?"\n\nНе распознано уверенно:\n"+m.not_found_lines.map(l=>"— "+l).join("\n"):"")+photoSuggestionText(m)+(imgs?.length?learnedHints(text):"");if(imgs?.length)offerPhotoCorrection(out,text)}
 function transferQuantity(args){
  const text=String(args||"").trim();
  const matches=[...text.matchAll(/(?:^|\s)(\d+)\s*(?:шт\.?|штук[аи]?|упаков(?:ка|ки|ок))(?=\s|$)/gi)];
@@ -2264,6 +2294,8 @@ function hlpUi(){$("#hlp-btn").hidden=!sampleFn||st.tab==="ai"||st.tab==="home"}
   render();
   if(!db){setStatus("Склад недоступен: открой страницу, войдя в claude.ai",true);render();return}
   setStatus("Склад подключён");
+  // Graceful if schema migration has not been deployed yet.
+  if(db.listPhotoCorrections)db.listPhotoCorrections().then(x=>{learnedPhoto=x||[]}).catch(e=>console.info("photo learning unavailable",e.message));
   const recovery=$("#stock-recover");recovery.hidden=!db.hasPendingStock?.();
   recovery.onclick=async()=>{if(busy)return;busy=true;recovery.disabled=true;
     const reviewedKey="mixora-reviewed-stock:"+db.stockScope();
