@@ -1465,6 +1465,44 @@ function photoMatchChunk(text,label,photo=false){let T=cnTxt(text),fixed=[];if(p
      if(hit.length!==1)hit=[];
    }
    return{hit,byN,T,brands,fixed}}
+// Brand-aware near-match for a PHOTO label only. OCR typography/transliteration differences
+// are acceptable only when the visible brand is known and there is one unambiguous catalog item.
+// Does not guess an unreadable label, another brand, or a Kraken Seco/Ligero variant.
+function photoFuzzyCandidate(chunk,focus){
+ if(!focus||/[?…]|\.\.{1,}/.test(chunk))return null;
+ const T=photoBrandText(cnTxt(chunk));
+ const brands=[...new Set(DATA.map(x=>x.b))];
+ const seen=brands.filter(b=>T.includes(cnTxt(b)));
+ if(!seen.includes(focus)||seen.some(b=>b!==focus))return null;
+ const remainder=T.replace(cnTxt(focus)," ").trim();
+ if(!remainder||remainder.length<4)return null;
+ const compact=s=>lat(cnTxt(s)).replace(/[^a-z0-9]/g,"");
+ const own=DATA.filter(x=>x.b===focus);
+ const options=[];
+ for(const x of own){
+   let nameText=remainder;
+   const line=cnTxt(x.l||"").trim();
+   if(line&&nameText.startsWith(line+" "))nameText=nameText.slice(line.length).trim();
+   const typed=compact(nameText);
+   if(typed.length<5)continue; // no fuzzy matching of short, generic names
+   for(const synonym of [x.n,...(x.a||[])]){
+     const canonical=compact(synonym);
+     if(canonical.length<5)continue;
+     const distance=lev(typed,canonical);
+     options.push({item:x,distance,max:canonical.length>=12?2:canonical.length>=6?1:0});
+   }
+ }
+ options.sort((a,b)=>a.distance-b.distance||a.item.id.localeCompare(b.item.id));
+ const best=options[0],runner=options.find(x=>x.item.id!==best?.item.id);
+ if(!best||best.distance>best.max)return null;
+ // A close runner-up means this is not an automatic choice. Ask the user instead.
+ if(runner&&runner.distance-best.distance<2)return null;
+ // Distinguish identical flavors in separate lines, where the picture lacks the line label.
+ const sameName=own.filter(x=>x.id!==best.item.id&&compact(x.n)===compact(best.item.n));
+ if(sameName.length&&!sameName.every(x=>cnTxt(remainder).includes(cnTxt(best.item.l||""))&&
+   !cnTxt(remainder).includes(cnTxt(x.l||""))))return null;
+ return best.item;
+}
 // A near OCR spelling is a read-only catalog suggestion, never an actionable match.
 function photoCatalogSuggestion(text,focus){
  if(!focus||/…|\.{2,}|\?[^?]*\?/.test(text))return null;
@@ -1514,8 +1552,9 @@ function matchPhotoText(text,photo=true){const raw=String(text||"");
      // A learned mapping cannot turn a health warning into a flavor or override a visibly different brand.
      const warning=/(?:^|[^\p{L}])(?:слепой|гангрена|импотенция|инфаркт|инсульт|недоношенность|слепота|мертворождение|новообразования)(?=$|[^\p{L}])|рак\s+л[её]гк|подробнее\s+о\s+последствиях/iu;
      const visibleBrand=[...new Set(DATA.map(x=>x.b))].find(b=>photoBrandText(cnTxt(chunk)).includes(cnTxt(b)));
-     const safe=approved&&approved.b===focus&&!/[?…]/.test(focusLine||"")&&!warning.test(chunk)&&(!visibleBrand||visibleBrand===focus);
-     const hit=safe?[approved]:detected.hit,byN=safe?{[cnTxt(approved.n)]:[approved]}:detected.byN,T=detected.T,fixed=detected.fixed;if(hit.length)gotLabel.add(chunk.trim());else if(photo){const suggestion=photoCatalogSuggestion(chunk,focus);if(suggestion)suggestions.push(suggestion)}
+     const safe=approved&&approved.b===focus&&!/[?…]/.test(focusLine||"")&&!warning.test(chunk)&&(!visibleBrand||visibleBrand===focus)&&(!detected.hit.length||detected.hit.some(x=>x.id===approved.id));
+     const fuzzy=!safe&&!detected.hit.length&&!warning.test(chunk)?photoFuzzyCandidate(chunk,focus):null;
+     const hit=safe?[approved]:detected.hit.length?detected.hit:fuzzy?[fuzzy]:[],byN=safe?{[cnTxt(approved.n)]:[approved]}:fuzzy?{[cnTxt(fuzzy.n)]:[fuzzy]}:detected.byN,T=detected.T,fixed=detected.fixed;if(hit.length)gotLabel.add(chunk.trim());else if(photo){const suggestion=photoCatalogSuggestion(chunk,focus);if(suggestion)suggestions.push(suggestion)}
      if(labels.length){const b=hit.length?hit[0].b:brandOf(T);tally[b||"Без бренда"]=(tally[b||"Без бренда"]||0)+1;
        // Бренд прочитан, а вкуса у него в каталоге нет — кандидат в новые вкусы (что осталось от этикетки без бренда)
        // Этикетка с «?» обрезана краем кадра — из её огрызка («Coff») новый вкус не предлагаем
@@ -1739,10 +1778,17 @@ function learnedHints(ocr){
 }
 function offerPhotoCorrection(out,ocr){
  if(!db?.savePhotoCorrection)return;
+ const labels=[...String(ocr||"").matchAll(/^Этикетка\s*(\d+)\s*:\s*(.+)$/gim)].map(m=>({number:Number(m[1]),text:m[2]}));
+ if(!labels.length)return;
  const b=document.createElement("button");b.type="button";b.className="btn sm";b.textContent="Исправить распознавание";b.style.marginTop="10px";
- out.append(b);b.onclick=async()=>{
-   const label=(String(ocr||"").match(/^Этикетка\s*\d+\s*:\s*(.+)$/mi)||[])[1]||"";
-   const raw=window.prompt("Какую ошибочную строку OCR исправить? Введи точный текст этикетки без номера.",label);
+ out.append(b);
+ b.onclick=async()=>{
+   // Select one of all photographed labels. Do not always reselect the first.
+   const selected=window.prompt("Какой номер этикетки исправить? Доступны: "+labels.map(x=>x.number).join(", "),String(labels[0].number));
+   if(selected===null)return;
+   const number=Number(selected),target=labels.find(x=>x.number===number);
+   if(!Number.isInteger(number)||!target){window.alert("Выбери номер этикетки из списка.");return}
+   const raw=window.prompt("Проверь исходную строку этикетки "+number+". Исправляй только эту банку.",target.text);
    if(raw===null)return;
    if(!String(raw).trim()){window.alert("Укажи точный текст ошибочной этикетки.");return}
    const chosen=window.prompt("Введи ТОЧНО: Бренд Название аромата (при одинаковых названиях также линейку)","");
@@ -1753,7 +1799,14 @@ function offerPhotoCorrection(out,ocr){
    const f=matches[0];
    if(!window.confirm("Сохранить для этого заведения: «"+raw+"» → «"+f.b+" "+f.n+"»? Остатки не изменятся."))return;
    b.disabled=true;
-   try{await db.savePhotoCorrection(raw,f.id);learnedPhoto=await db.listPhotoCorrections();b.textContent="Исправление сохранено";}catch(e){window.alert("Не удалось сохранить: "+(e.message||e));b.disabled=false}
+   try{
+     await db.savePhotoCorrection(raw,f.id);
+     learnedPhoto=await db.listPhotoCorrections();
+     b.textContent="Исправить ещё одну этикетку";
+     const note=document.createElement("div");note.className="muted small";
+     note.textContent="Сохранено для этикетки "+number+": "+f.b+" "+f.n;out.append(note);
+   }catch(e){window.alert("Не удалось сохранить: "+(e.message||e))}
+   finally{b.disabled=false}
  };
 }
 async function cmdNaiti(out,args,imgs){const{m,text}=await cmdFindIds(args,imgs,aiCtl.signal);
