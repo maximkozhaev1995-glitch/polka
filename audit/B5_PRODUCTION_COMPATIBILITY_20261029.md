@@ -82,7 +82,7 @@ Ten embedded PostgreSQL probes pass: baseline uniform staff, venue RLS, atomic g
 existing version/sequence mismatch, callable legacy entry points, wrong returned
 revision/retry, new role denial, stop clearing, ignored venue weight, incompatible
 catalog editor. Fourteen earlier embedded SQL groups also pass on the synthetic
-PR75 baseline. Native CI results will be appended after verification.
+PR75 baseline. Verified native CI results are recorded below.
 
 The native compatibility runner creates/drops only its own random database on
 127.0.0.1/localhost with the mixora_b5_test prefix. It refuses a remote hostname.
@@ -103,3 +103,33 @@ A migration must reconcile both receipt formats, existing versions, pending clie
 requests and compensation history; it requires a coordinated rollback rehearsal.
 PR75 remains Draft and is not ready to merge. No production permission is requested
 for writing or applying anything as part of this read-only audit.
+
+## Verified CI evidence
+
+Code/guard commit: 9bf2dae66f9e0b7391f0136e1226d8d05586af88.
+https://github.com/maximkozhaev1995-glitch/polka/actions/runs/40801113470
+
+Both build-consistency (job123209185101) and database-regressions
+(job123209185486) succeeded. Retrieved logs confirm:
+
+- Native PostgreSQL16.15: original19 tests OK (2.319s) and catalog compatibility10
+  tests OK (1.139s). The ten probes run on the reconstructed catalog subset, not
+  production; they reproduce failure modes. This is not a full native PG17 baseline.
+- PGlite/PostgreSQL18.6: original14 groups and catalog compatibility10 probes PASS.
+- Client13 + restored-client7 groups; actions20; matching27/27; catalog1144 with0
+  failures. index.html exactly matches build_app.py. The app itself was not changed
+  in this follow-up, so rebuilding required no new generated file content.
+- The compatibility suite's final machine result is release_compatible=false,
+  guard_verified=true. A green CI is deliberately NOT a production compatibility claim.
+- The isolated database suite completed class cleanup, and workflow logs confirm
+  that the disposable PostgreSQL container was stopped and removed.
+
+Catalog fixture SHA256:
+7152c178ff5db56d7e3ba8a7b03dd01e3d71e99bd51de7523f3c56cf45f37810.
+The final documentation-only commit does not change the tested code or SQL.
+
+No new independent-agent approval is claimed for this follow-up: that reviewer
+was unavailable due to its usage limit. The production findings were checked in
+a separate code-reading pass and by the two executable catalog reconstructions.
+The earlier independent APPROVED review remains historical evidence for the old
+synthetic baseline, with the applicability restriction explained above.
