@@ -1,0 +1,28 @@
+name: Mixora home navigation tests
+on:
+  pull_request:
+    paths:
+      - src/stoika.html
+      - index.html
+      - app/config.js
+      - app/shim.js
+      - tests/home-navigation.test.cjs
+      - .github/workflows/home-navigation-tests.yml
+  push:
+    branches: [main]
+    paths:
+      - src/stoika.html
+      - index.html
+      - app/config.js
+      - app/shim.js
+      - tests/home-navigation.test.cjs
+      - .github/workflows/home-navigation-tests.yml
+permissions:
+  contents: read
+jobs:
+  navigation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run dependency-free navigation regression tests
+        run: node --test tests/home-navigation.test.cjs
