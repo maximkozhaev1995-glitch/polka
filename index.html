@@ -1795,7 +1795,7 @@ function matchPhotoText(text,photo=true){const raw=String(text||"");
      const detected=photoMatchChunk(chunk,labels.length>0||photo,photo);
      // Only exact human-approved label-to-catalog mapping for this venue and this focus.
      // Never override a different visible brand or infer from warning labels.
-     const correction=learnedPhoto.find(x=>learnedKey(x.raw_label)===learnedKey(chunk));
+     const correction=typeof learnedPhoto!=="undefined"&&Array.isArray(learnedPhoto)?learnedPhoto.find(x=>learnedKey(x.raw_label)===learnedKey(chunk)):null;
      const approved=correction&&byId[correction.flavor_id];
      const safe=approved&&approved.b===focus&&!/[?…]/.test(focusLine||"");
      const hit=safe?[approved]:detected.hit,byN=safe?{[cnTxt(approved.n)]:[approved]}:detected.byN,T=detected.T,fixed=detected.fixed;if(hit.length)gotLabel.add(chunk.trim());else if(photo){const suggestion=photoCatalogSuggestion(chunk,focus);if(suggestion)suggestions.push(suggestion)}
