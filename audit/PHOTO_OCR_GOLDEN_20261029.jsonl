@@ -1,0 +1,7 @@
+{"image":"IMG_9389.HEIC","brand":"Palitra","expected":["Pear Date"],"must_not":["Pear Bate"],"kind":"confirmed_label"}
+{"image":"IMG_9433.HEIC","brand":"Overdose","expected":["Амбровый банан"],"must_not":["Арбузный банан"],"kind":"confirmed_label"}
+{"image":"IMG_9453.HEIC","brand":"Trofimoff's","expected":["Finlandia Vanila"],"must_not_as_brand":["Слепой"],"kind":"focus_and_warning"}
+{"image":"IMG_9454.HEIC","brand":"Trofimoff's","expected":["Bailey's"],"must_not_as_brand":["Слепой"],"kind":"confirmed_label"}
+{"image":"IMG_9455.HEIC","brand":"Trofimoff's","expected":["Cashmere Guava","Wintergreen"],"must_not_as_brand":["Слепой"],"kind":"confirmed_label"}
+{"image":"IMG_9391.HEIC","brand":"Сарма","expected":["Княженика","Брусника-клюква","Грейпфрутовый сок","Арбузный мармелад","Жёлтый арбуз","Зелёное яблоко","Малина","Виноградный сок"],"brand_alias":["САРМА360"],"kind":"handwritten_label"}
+{"image":"IMG_9468.jpeg","brand":null,"expected":[],"ignore_as_brand_and_flavor":["Слепой","Гангрена","Импотенция","Недоношенность","Инфаркт","Инсульт","Мертворождение","Новообразования","Слепота","Рак лёгкого"],"kind":"anti_smoking_warning","no_guess":true}

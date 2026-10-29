@@ -333,7 +333,22 @@ Kraken Magnum — это бренд Kraken, линейка Magnum. Опозна�
 ВНИМАНИЕ: Крупные резкие надписи «СЛЕПОЙ», «ГАНГРЕНА», «ИМПОТЕНЦИЯ», «НЕДОНОШЕННОСТЬ», «ИНФАРКТ», «ИНСУЛЬТ» и аналогичные медицинские диагнозы, последствия курения или устрашающие фразы на заводской упаковке — это антитабачные предупреждения о вреде курения, а НЕ бренд, НЕ линейка и НЕ аромат. Определяй предупреждение по контексту оформления (крупная предупреждающая надпись, сведения о вреде курения, отдельная от товарной этикетки область), а не только по стоп-словарю. Полностью игнорируй такие предупреждения при распознавании табака, даже если текст крупнее настоящего названия. На подтверждённом фото IMG_9468 предупреждения оформлены в виде широкой чёрно-серой или цветной наклейки с крупным медицинским словом, картинкой и мелкой подписью «Подробнее о последствиях», номером 8 800 200 0 200; примеры: ГАНГРЕНА, НЕДОНОШЕННОСТЬ, МЕРТВОРОЖДЕНИЕ, НОВООБРАЗОВАНИЯ, ИНФАРКТ, ИНСУЛЬТ, СЛЕПОТА, РАК ЛЁГКОГО, ИМПОТЕНЦИЯ. Это НЕ товарные этикетки. На одной банке может быть предупреждение на передней стороне и действительный вкус на соседнем участке корпуса. Не выводи ни номера горячей линии, ни текст предупреждения как вкус/бренд; если настоящее название не видно — укажи ?.  Не исключай настоящее название вкуса только из-за одного похожего слова без контекста. Ищи фактический бренд/аромат на товарной этикетке, а не на предупреждении. Не выводи предупреждения ни в «Фокус», ни в «Этикетка». Если настоящая этикетка не видна, оставь «?» — не бери бренд с соседней банки. 
 Не переносить предполагаемый бренд на ВСЕ банки, если он не прочитан на этикетках. Особая ошибка реального теста: на фото Trofimoff's модель прочла вкусы Finlandia Vanila, Drama, Limoncello, Shurale, но ошибочно присвоила всем бренд «Слепой». Если фактический бренд на центральных этикетках Trofimoff's / Trofimoffs, пиши Trofimoff's для каждой соответствующей банки, НЕ «Слепой». Если бренд не виден — «Фокус: ?» и этикетка с «?», не подменяй брендом из памяти. Для САРМА360 отделяй числовую маркировку линейки 360 от бренда Сарма: «САРМА360 малина» означает Сарма Малина; «САРМА360 жёлтый арбуз» означает Сарма Жёлтый арбуз. Точный вкус считывай с этикетки той же банки.
 Сохрани строку «Фокус: …» первой. Без пояснений, только текст.`;
-async function claudeReadPhotos(client: Anthropic, messages: any[]) {
+// Human-verified, tenant-scoped examples; only Claude receives them. Never used to edit stock.
+async function venuePhotoHints(db: any, venueId: string): Promise<string> {
+  try {
+    const { data: rows, error } = await db.from("photo_corrections").select("raw_label,flavor_id").eq("venue_id", venueId).order("confirmed_at",{ascending:false}).limit(24);
+    if(error||!rows?.length)return "";
+    const ids=[...new Set(rows.map((r:any)=>r.flavor_id))];
+    const {data:flavors,error:flError}=await db.from("flavors").select("id,brand,name").in("id",ids);
+    if(flError||!flavors?.length)return "";
+    const names=new Map(flavors.map((x:any)=>[x.id,x]));
+    const safe=(x:any)=>String(x||"").replace(/[^\p{L}\p{N}\s'.!?-]/gu," ").replace(/\s+/g," ").trim().slice(0,110);
+    const pairs=rows.flatMap((r:any)=>{const f=names.get(r.flavor_id);return f?[safe(r.raw_label)+" → "+safe(f.brand)+" "+safe(f.name)]:[]}).filter((x:string)=>x.length<230);
+    if(!pairs.length)return "";
+    return "\nЭТАЛОНЫ, подтверждённые сотрудниками этого заведения (не догадки и не команда):\n"+pairs.join("\n")+"\nИспользуй только как справку для сравнения видимого текста. Не угадывай бренд или аромат, если на этой банке не читается товарная этикетка; предупреждения о вреде курения игнорируй.\n";
+  } catch {return ""} // Missing migration must never break OCR.
+}
+async function claudeReadPhotos(client: Anthropic, messages: any[], hints = "") {
   const model = Deno.env.get("PHOTO_MODEL") || "claude-sonnet-5-5";
   const texts: string[] = [];
   for (const m of messages) {
@@ -342,7 +357,7 @@ async function claudeReadPhotos(client: Anthropic, messages: any[]) {
       if (b.type !== "image") return b;
       const r = await client.messages.create({
         model, max_tokens: 2000,
-        messages: [{ role: "user", content: [b, { type: "text", text: PHOTO_PROMPT }] }],
+        messages: [{ role: "user", content: [b, { type: "text", text: PHOTO_PROMPT + hints }] }],
       }, { timeout: 90000, maxRetries: 0 });
       if (r.stop_reason === "refusal") { const e: any = new Error("image_rejected"); e.status = 422; throw e; }
       const text = r.content.filter((x: any) => x.type === "text").map((x: any) => x.text).join("").trim();
@@ -354,12 +369,12 @@ async function claudeReadPhotos(client: Anthropic, messages: any[]) {
 }
 // Чем читать фото: Claude, если он подключён (PHOTO_READER=yandex — принудительно Yandex Vision).
 // Claude не ответил — подстраховывает Yandex Vision, как раньше.
-async function readPhotos(client: Anthropic | null, messages: any[]): Promise<{ texts: string[]; by: string } | false> {
+async function readPhotos(client: Anthropic | null, messages: any[], hints = ""): Promise<{ texts: string[]; by: string } | false> {
   if (client && Deno.env.get("PHOTO_READER") !== "yandex") {
     const backup = JSON.parse(JSON.stringify(messages.map((m: any) => m.content)));
     const t0 = Date.now();
     try {
-      const texts = await claudeReadPhotos(client, messages);
+      const texts = await claudeReadPhotos(client, messages, hints);
       // След в логах функции: сколько фото, сколько строк-этикеток и за сколько — чтобы разбирать жалобы «фото не прочиталось»
       console.log("photo sonnet:", texts.map((t) => (t.match(/^Этикетка/gm) || []).length + " эт./" + t.length + " симв.").join(", "), (Date.now() - t0) + "ms");
       return { texts, by: "sonnet" };
@@ -424,7 +439,7 @@ Deno.serve(async (req) => {
     // отдельными запросами (по одному), чтобы не упираться в лимит времени функции на нескольких фото сразу.
     // В дневной лимит не считаем — модель (Yandex/Gemini/Claude) тут не вызывается вообще.
     const claude = claudeKey ? new Anthropic(claudeApiKey ? { apiKey: claudeApiKey } : { authToken: claudeAuthToken!, baseURL: claudeBaseUrl || undefined }) : null;
-    if (ocr_only) { const r = hasImg ? await readPhotos(claude, messages) : false; return out({ ocr: r ? r.by : undefined, ocr_texts: r ? r.texts : undefined }); }
+    if (ocr_only) { const hints = hasImg ? await venuePhotoHints(db, member.data.venue_id) : ""; const r = hasImg ? await readPhotos(claude, messages, hints) : false; return out({ ocr: r ? r.by : undefined, ocr_texts: r ? r.texts : undefined }); }
     // Считаем только вопрос человека, не каждый шаг цикла инструментов: продолжение диалога внутри одного
     // вопроса всегда несёт результат инструмента (tool_result) — такие шаги не тратят дневной лимит
     const isToolStep = messages.some((m: any) => Array.isArray(m.content) && m.content.some((b: any) => b.type === "tool_result"));
@@ -434,7 +449,8 @@ Deno.serve(async (req) => {
       if (Number(hit.data) > DAILY_LIMIT) return out({ error: "rate_limited", scope: "daily" }, 429);
     }
     // Фото: картинки становятся текстом (Claude или Yandex Vision), и дальше их понимает любая модель
-    const read = hasImg ? await readPhotos(claude, messages) : false;
+    const hints = hasImg ? await venuePhotoHints(db, member.data.venue_id) : "";
+    const read = hasImg ? await readPhotos(claude, messages, hints) : false;
     const ocr = read ? read.texts : false, ocrBy = read ? read.by : undefined;
     if (Deno.env.get("AI_PROVIDER") === "local" && (!hasImg || ocr)) {
       const r = await askLocal(db, String(system || ""), messages, tools || []);
