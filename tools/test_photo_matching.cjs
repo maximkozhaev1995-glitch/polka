@@ -17,11 +17,16 @@ test('isolated unreadable word before a complete name preserves exact match',()=
  assert.deepEqual(r.found.map(x=>x.name),['Currant Shock']);assert.deepEqual(r.not_found_lines,[]);
  for(const label of ['BLACKBURN CURRANT SHOCK?', 'BLACKBURN ? CURRANT', 'BLACKBURN ? CURRANT SHOCK CHERRY SHOCK'])assert.equal(match('Фокус: BLACKBURN\nЭтикетка 1: '+label).found.length,0,label);
 });
-test('cropped, uncertain and misspelled labels do not become confident matches',()=>{
- for(const text of ['BONCHE COFF?','BONCHE COFF…','PALITRA Pear bate','Darkside Pearlescent','Darkside Supernova?']){
+test('cropped, uncertain and unrelated labels do not become confident matches',()=>{
+ for(const text of ['BONCHE COFF?','BONCHE COFF…','Darkside Pearlescent','Darkside Supernova?']){
   const brand=text.startsWith('BONCHE')?'Bonche':text.startsWith('PALITRA')?'Palitra':'Darkside';
   const r=match('Фокус: '+brand+'\nЭтикетка 1: '+text);assert.equal(r.found.length,0,text);assert.equal(r.new_flavors.length,0,text);assert.equal(r.not_found_lines.length,1,text);
  }
+});
+test('unique brand-scoped OCR spelling errors do resolve to a known catalog flavor',()=>{
+ const r=match('Фокус: Palitra\nЭтикетка 1: PALITRA Pear bate');
+ assert.deepEqual(r.found.map(x=>x.name),['Pear Date']);
+ assert.deepEqual(r.not_found_lines,[]);
 });
 test('brands and names from different labels or document lines never combine',()=>{
  for(const text of ['Этикетка 1: Darkside\nЭтикетка 2: Supernova','Darkside\nSupernova','Этикетка 1: Bonche Supernova'])assert.equal(match(text).found.length,0,text);
