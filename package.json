@@ -2,8 +2,9 @@
   "name": "mixora-local-checks",
   "private": true,
   "scripts": {
-    "test": "node tests/matching.cjs && node tests/actions.cjs && node tests/stock-rpc.mjs && node tests/stock-client.cjs && node tests/catalog-client.cjs && node tests/syntax.cjs && node tests/uniform-access.mjs && node tests/telegram-auth.cjs && node tests/slow-compat.cjs && node tools/test_photo_matching.cjs",
-    "test:integration": "node tests/stock-concurrency.mjs && node tests/stock-uniform-concurrency.mjs && node tests/stock-browser.mjs"
+    "test": "node tests/matching.cjs && node tests/actions.cjs && node tests/stock-rpc.mjs && node tests/stock-client.cjs && node tests/catalog-client.cjs && node tests/syntax.cjs && node tests/uniform-access.mjs && node tests/telegram-auth.cjs && node tests/slow-compat.cjs && node tools/test_photo_matching.cjs && node tests/photo-transfer-quantity.cjs && node tests/photo-catalog-suggestions.cjs",
+    "test:integration": "node tests/stock-concurrency.mjs && node tests/stock-uniform-concurrency.mjs && node tests/stock-browser.mjs",
+    "test:photo-preview": "node tests/photo-preview-browser.mjs"
   },
   "devDependencies": {
     "@anthropic-ai/sdk": "1.3.0",

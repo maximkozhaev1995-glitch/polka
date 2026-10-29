@@ -1,0 +1,39 @@
+name: Mixora AI photo preview
+on:
+  pull_request:
+    paths:
+      - 'src/stoika.html'
+      - 'app/**'
+      - 'build_app.py'
+      - 'index.html'
+      - 'package*.json'
+      - 'tests/**'
+      - 'tools/test_photo_matching.cjs'
+      - '.github/workflows/ai-photo-preview.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ai-photo-regressions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci --ignore-scripts
+      - name: Rebuild and verify staff page
+        run: |
+          python build_app.py
+          git diff --exit-code -- index.html
+      - name: Catalog, actions, SQL and photo matching regressions
+        run: npm test
+      - name: Install isolated browser
+        run: npx playwright install --with-deps chromium
+      - name: Mobile file picker, previews and read-only lookup
+        run: npm run test:photo-preview

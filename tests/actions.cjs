@@ -15,7 +15,7 @@ const db={doc:path=>({set:async value=>{if(fail)throw Error('API failed');writes
 const esc=s=>String(s);let boxes=[];const document={createElement:()=>{const buttons=[{},{}];const box={querySelectorAll:()=>buttons,buttons};boxes.push(box);return box}};
 `+source.slice(source.indexOf('function stockEntry('),source.indexOf('async function toBar('))+tools+fixes+`
 let input={value:'поставь в заказ'},aiImgs=[],aiCtl=null,photoAcc=null,aiTurns=[],aiView=[],sampleFn;
-let cmdMatch={found:[],ambiguous:[],not_found_lines:[]};const matchText=()=>cmdMatch,ambTxt=()=>'';const $=()=>input,renderAiImgs=()=>{},parseCmd=()=>null,ordAsked=()=>true,photoAccNew=()=>({}),aiBubble=()=>({classList:{remove(){},add(){}},append(){}}),aiUi=()=>{},AI_RULES='',aiSnapshot=()=>'',photoNote=()=>{},photoHead=()=>'',aiSrc=()=>{},aiScroll=()=>{},aiErr=()=>'',aiKeep=()=>{};
+let cmdMatch={found:[],ambiguous:[],not_found_lines:[]};const matchText=()=>cmdMatch,ambTxt=()=>'';const $=()=>input,renderAiImgs=()=>{},parseCmd=()=>null,ordAsked=()=>true,photoAccNew=()=>({}),attachMessagePhotos=node=>node,aiBubble=()=>({classList:{remove(){},add(){}},append(){}}),aiUi=()=>{},AI_RULES='',aiSnapshot=()=>'',photoNote=()=>{},photoHead=()=>'',aiSrc=()=>{},aiScroll=()=>{},aiErr=()=>'',aiKeep=()=>{};
 `+source.slice(source.indexOf('async function cmdFindIds('),source.indexOf('async function aiSend()'))+send+`;globalThis.api={tools:AI_TOOLS,proposal:aiProposalTools,box:aiProposalBox,commit:aiCommitProposal,cancel:cancelAiProposals};`,ctx);
 const run=s=>vm.runInContext(s,ctx);
 let count=0;async function test(name,fn){await fn();console.log('PASS',name);count++}
