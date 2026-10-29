@@ -9,6 +9,7 @@ on:
       - 'tests/photo-brand-alias.cjs'
       - 'tests/photo-learning.cjs'
       - 'tests/photo-fuzzy-learning.cjs'
+      - 'tests/trofimoff-inventory-photo.cjs'
       - 'supabase/migrations/20261029_photo_corrections.sql'
       - '.github/workflows/photo-ocr-prompt.yml'
   push:
@@ -27,4 +28,4 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node tests/photo-ocr-prompt.cjs && node tests/photo-brand-alias.cjs && node tests/photo-learning.cjs && node tests/photo-fuzzy-learning.cjs
+      - run: node tests/photo-ocr-prompt.cjs && node tests/photo-brand-alias.cjs && node tests/photo-learning.cjs && node tests/photo-fuzzy-learning.cjs && node tests/trofimoff-inventory-photo.cjs
