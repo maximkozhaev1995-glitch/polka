@@ -729,6 +729,16 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
   const bump=c=>setTimeout(()=>refresh(c),150);
   const listen=c=>({onSnapshot:(f,err)=>{const s=subs[c]||(subs[c]={fns:[],errs:[],hash:""});s.fns.push(f);if(err)s.errs.push(err);refresh(c)}});
   const db={
+    // Venue-scoped, read-only at application level except user-approved correction writes.
+    listPhotoCorrections:async()=>rest("photo_corrections?select=raw_label,flavor_id,confirmed_at&venue_id=eq."+V()+"&order=confirmed_at.desc&limit=500"),
+    savePhotoCorrection:async(raw,flavorId)=>{
+      const raw_label=String(raw||"").trim().replace(/\s+/g," ").slice(0,180);
+      if(raw_label.length<3||!/^[\p{L}\p{N}\s?'".,()\-]+$/u.test(raw_label))throw Error("Проверь текст этикетки");
+      if(/\b(?:слепой|гангрена|импотенция|инфаркт|инсульт|недоношенность|слепота|мертворождение|новообразования)\b/iu.test(raw_label))throw Error("Это похоже на предупреждение о курении; такое исправление не сохраняем.");
+      if(!flavorId)throw Error("Не выбран аромат каталога");
+      await rest("photo_corrections?on_conflict=venue_id,raw_label",{method:"POST",headers:Object.assign(H(),{Prefer:"resolution=merge-duplicates,return=minimal"}),body:JSON.stringify({venue_id:V(),raw_label,flavor_id:String(flavorId),confirmed_at:new Date().toISOString()})});
+      return true;
+    },
     stockScope:()=>V()+":"+session.user.tg_id,
     hasPendingStock:()=>!!localStorage.getItem("mixora-stock-pending:"+V()+":"+session.user.tg_id),
     // Persist request identity BEFORE sending. Unknown outcomes can only replay the
