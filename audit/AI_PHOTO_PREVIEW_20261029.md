@@ -44,4 +44,20 @@ Branch: codex/mixora-ai-photo-preview. Separate from incompatible PR75.
 A PR-only workflow runs the full suite, checks exact index regeneration and runs
 mobile browser tests using its installed Chromium. Native iOS/Telegram selection,
 keyboard and photo decoding still need device verification before release.
-CI evidence will be recorded after the branch run completes.
+Verified CI evidence is recorded below.
+
+## Verified CI
+
+Draft PR78: https://github.com/maximkozhaev1995-glitch/polka/pull/78
+Code SHA: a6fbb9714ed2d73b1303a7fc7abbf8ad6f2409d1.
+CI: https://github.com/maximkozhaev1995-glitch/polka/actions/runs/40804687973
+Job123220698560 succeeded. Logs were retrieved and checked: the complete npm
+suite, eight suggestion groups, eight real-browser groups and exact index.html
+regeneration all passed. The merge-preview tree equals the tested branch tree.
+The final report-only commit changes no application or test code.
+
+Before any publication, verify the selected-photo strip and full-size viewer in the
+owner's actual iPhone/Telegram WebView, then use /найти with the original Deus photo.
+Expected: exact labels stay recognized, DEUS BLACK AFGAN? offers Black Afgano as a
+candidate, background brands stay excluded, stock/draft/stop-list stay unchanged.
+No new real OCR/model result is claimed by this implementation check.
