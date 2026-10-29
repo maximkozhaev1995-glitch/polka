@@ -1510,7 +1510,7 @@ function matchPhotoText(text,photo=true){const raw=String(text||"");
      const correction=typeof learnedPhoto!=="undefined"&&Array.isArray(learnedPhoto)?learnedPhoto.find(x=>learnedKey(x.raw_label)===learnedKey(chunk)):null;
      const approved=correction&&byId[correction.flavor_id];
      // A learned mapping cannot turn a health warning into a flavor or override a visibly different brand.
-     const warning=/\\b(?:слепой|гангрена|импотенция|инфаркт|инсульт|недоношенность|слепота|мертворождение|новообразования)\\b|рак\\s+л[её]гк|подробнее\\s+о\\s+последствиях/iu;
+     const warning=/(?:^|[^\\p{L}])(?:слепой|гангрена|импотенция|инфаркт|инсульт|недоношенность|слепота|мертворождение|новообразования)(?=$|[^\\p{L}])|рак\\s+л[её]гк|подробнее\\s+о\\s+последствиях/iu;
      const visibleBrand=[...new Set(DATA.map(x=>x.b))].find(b=>photoBrandText(cnTxt(chunk)).includes(cnTxt(b)));
      const safe=approved&&approved.b===focus&&!/[?…]/.test(focusLine||"")&&!warning.test(chunk)&&(!visibleBrand||visibleBrand===focus);
      const hit=safe?[approved]:detected.hit,byN=safe?{[cnTxt(approved.n)]:[approved]}:detected.byN,T=detected.T,fixed=detected.fixed;if(hit.length)gotLabel.add(chunk.trim());else if(photo){const suggestion=photoCatalogSuggestion(chunk,focus);if(suggestion)suggestions.push(suggestion)}
