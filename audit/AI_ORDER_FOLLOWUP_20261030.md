@@ -33,3 +33,5 @@ Validation: full npm test passed again, including tests/ai-mix-context.cjs (know
 
 ## Mixology reference
 Read the user-provided Smokers’ Magazine article and visually inspected its six inline illustrations, including the flavor wheel. Added a short attributed sensory-description reference to mix instructions and a reviewed-image/source register in audit/MIXOLOGY_REFERENCE_20261030.md. The application-specific adaptation keeps catalog facts, actual availability and saved strength authoritative; no wheel adjacency rules, recipes, percentages or model-weight training are claimed. Prompt-wiring, helper propagation and syntax checks passed.
+
+Added HookahPlace Obninsk mixology page as the more relevant practical reference after inspecting its four illustrations. Retained the pipe-tobacco article as a sensory vocabulary reference. Wheel ratio templates do not override Mixora recipe constraints; unsupported brand-wide and chemistry claims were not imported. Prompt and section-helper propagation checks plus syntax passed.
