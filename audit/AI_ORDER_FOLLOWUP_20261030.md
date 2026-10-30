@@ -24,3 +24,9 @@ This change uses orderRows() for AI order reads, snapshot counts and helper cont
 AI item results, the main bar snapshot and slow-section helper now carry validated saved strength (integer 1–10; otherwise unknown). Snapshot and helper carry slow and authoritative inStop state. Prompt rules require a confirmed eligible slow ingredient in each requested slow-stock mix, allow complementary normal ingredients, and require an explicit insufficiency statement when saved component strength is missing. Brand reputation and flavor sweetness/body may not be used to invent mix strength. This is data wiring plus prompt guidance, not a deterministic validator of free-form model recipes.
 
 Validation: full npm test passed again, including tests/ai-mix-context.cjs (known/missing/invalid/boundary strength, slow/automatic stop, warehouse-only exclusion and prompt wiring). No live model response was evaluated in this change.
+
+## Audit fixes
+- Removed the stock-loaded UI predicate from orderRows(): a loaded order is readable even if the stock subscription is pending or unavailable. Quantity > 0 remains the membership criterion.
+- find_items(where: order) is a read-only full-order source even during a photo request; photoTools no longer filters its already paginated results or rewrites its totals. PHOTO_RULES explicitly distinguish order rows from recognition evidence. All mutation tools still require every ID to be recognized in the current photo.
+- Added regressions: stockLoaded=false with catalog plus manual rows; 102-row photo-wrapped traversal with consistent totals, final-page state and no lost manual row; off-photo/mixed-ID writes still rejected for all three mutation tools.
+- Full npm test and git diff --check passed after audit fixes. No live model/browser or production writes performed.

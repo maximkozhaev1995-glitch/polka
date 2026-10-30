@@ -1321,7 +1321,7 @@ async function flushOrder(){
 function addAllStop(){let n=0;DATA.filter(x=>inStop(x)&&!flag(x,"slow")).forEach(x=>{if(!oq(x)){orderQ[x.id]=1;n++}});if(n){saveOrder();toast(n+" "+(n===1?"позиция добавлена":"позиций добавлено")+" в заказ")}render()}
 // Позиции заказа: из каталога и добавленные вручную, разложенные по поставщикам (поставщик бренда — в suppliers)
 function orderRows(){
-  const rows=DATA.filter(x=>inOrder(x)&&oq(x)>0).map(x=>({b:x.b,l:x.l||"",n:x.n,q:oq(x),x}));
+  const rows=DATA.filter(x=>oq(x)>0).map(x=>({b:x.b,l:x.l||"",n:x.n,q:oq(x),x}));
   Object.entries(orderM).forEach(([k,m])=>{if(m&&m.q>0)rows.push({b:m.b||"",l:"",n:m.n||"",q:m.q,mk:k})});
   return rows}
 const supOf=b=>sups.find(s=>(s.ctype||"kalyan")==="kalyan"&&(s.brands||[]).some(v=>String(v).trim().toLocaleLowerCase()===String(b).trim().toLocaleLowerCase()));
@@ -1910,13 +1910,15 @@ function newFlavorBox(el,list){const box=document.createElement("div");box.class
     box.innerHTML='<small class="muted">'+(bad?"Добавлено: "+good+", не получилось: "+bad:"Добавлено в каталог: "+good+" ✓ (Склад, 0 шт.)")+'</small>';render()};
   if(no)no.onclick=()=>{box.innerHTML='<small class="muted">Не добавлено.</small>'}}
 // Every photo-driven mutation and search uses the same recognized foreground IDs.
-const PHOTO_RULES="ФОТО: один снимок — один основной бренд крупных банок в центре кадра. Используй только список уверенно распознанных позиций из текущего фото. Фоновые, дальние и обрезанные банки не перечисляй и не включай в операции, даже если знаешь их из каталога или прошлых сообщений. Для нескольких фото учитывай основной бренд каждого снимка отдельно.";
+const PHOTO_RULES="ФОТО: один снимок — один основной бренд крупных банок в центре кадра. Используй только список уверенно распознанных позиций из текущего фото. Фоновые, дальние и обрезанные банки не перечисляй и не включай в операции, даже если знаешь их из каталога или прошлых сообщений. Для нескольких фото учитывай основной бренд каждого снимка отдельно. Для сверки с заказом find_items с where: order возвращает полный заказ отдельным источником: его строки не доказывают наличие банок на фото и не разрешают операции с ними.";
 function photoTools(tools,acc){return tools.map(tool=>({...tool,execute(i){
   const allowed=id=>Object.hasOwn(acc.jars,String(id));
   if(["stage_stock","set_order","set_flag"].includes(tool.name)){
     const ids=Array.isArray(i.ids)?i.ids:[i.id];
     if(!ids.length||ids.some(id=>!allowed(id)))throw new Error("Позиция не распознана у основного бренда в центре фото.");
   }
+  // Read the complete order for comparison; photo mutation IDs remain restricted above.
+  if(tool.name==="find_items"&&i.where==="order")return tool.execute(i);
   const result=tool.execute(i);
   if(tool.name==="find_items"||tool.name==="match_text"){
     const clean=r=>{const out={...r};for(const k of ["items","found","similar"])if(out[k])out[k]=out[k].filter(x=>allowed(x.id));if(out.items)out.total=out.items.length;return out};
