@@ -1,0 +1,18 @@
+name: Mixora staging isolation guard
+on:
+  push:
+    branches:
+      - staging/mixora-isolated-20261031
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify-isolation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify no production URL or venue in staging assets
+        run: node tests/staging-isolation.cjs
