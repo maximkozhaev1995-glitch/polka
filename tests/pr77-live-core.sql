@@ -14,7 +14,7 @@ begin
  if not exists(select 1 from public.users where tg_id=700001 and name='B5 Test Manager') then
   raise exception 'Wrong project: isolated B5 fixture required';
  end if;
- insert into public.venues(id) values(v),(other);
+ insert into public.venues(id,name) values(v,'PR77 test venue A'),(other,'PR77 test venue B');
  insert into public.users(tg_id,venue_id,name,role) values(actor,v,'PR77 temporary master','master'),(actor+1,v,'PR77 temporary manager','manager'),(actor+2,other,'PR77 temporary foreign','master');
  insert into public.flavors(id,brand,name,strength,pack_g,custom,venue_id) values(fid,'PR77','Shared',5,50,false,null),(foreign_id,'PR77','Foreign',4,100,true,other);
  insert into public.stock(venue_id,flavor_id,wh,bar,stop,stop_auto,slow) values(v,fid,4,false,true,true,true);
