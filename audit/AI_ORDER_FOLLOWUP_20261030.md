@@ -19,3 +19,8 @@ This change uses orderRows() for AI order reads, snapshot counts and helper cont
 - User-editable persistent brand/name synonyms and main-name corrections are agreed but not implemented by this PR.
 - Existing manual Honey melon is not automatically merged or relinked to catalog Дыня.
 - Original local branch includes older uncommitted UI/order synchronization work. It is preserved and not bundled here.
+
+## Mix recommendation context follow-up
+AI item results, the main bar snapshot and slow-section helper now carry validated saved strength (integer 1–10; otherwise unknown). Snapshot and helper carry slow and authoritative inStop state. Prompt rules require a confirmed eligible slow ingredient in each requested slow-stock mix, allow complementary normal ingredients, and require an explicit insufficiency statement when saved component strength is missing. Brand reputation and flavor sweetness/body may not be used to invent mix strength. This is data wiring plus prompt guidance, not a deterministic validator of free-form model recipes.
+
+Validation: full npm test passed again, including tests/ai-mix-context.cjs (known/missing/invalid/boundary strength, slow/automatic stop, warehouse-only exclusion and prompt wiring). No live model response was evaluated in this change.

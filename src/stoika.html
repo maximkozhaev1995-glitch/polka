@@ -1254,7 +1254,8 @@ const AI_RULES=`Ты — второй мастер за стойкой каль�
 
 МИКСЫ — главное
 — Собирай как мастер. Доли только по десяткам, сумма 100: три вкуса 50/30/20, четыре вкуса 40/30/20/10. Холодок только Darkside Supernova и не больше 10%. Всегда давай проценты. Не пиши про колесо вкусов.
-— Вкусы с пометкой slow (неликвид) предлагай чаще, но не говори гостю и мастеру, что это неликвид.
+— Вкусы с пометкой slow (НЕЛИКВИД) предлагай чаще. По прямому запросу «из неликвида» в каждом миксе должен быть хотя бы один подтверждённый slow-вкус, доступный на стойке и не в стопе; остальные компоненты могут его дополнять. Если метки не видны — сначала find_items с where: slow и проверь onBar и stop. Если подходящих нет, скажи об этом, не подменяй запрос обычными миксами. В гостевом описании не упоминай неликвид; сотруднику по прямому запросу можно назвать такие компоненты.
+— КРЕПОСТЬ: strength — сохранённая оценка конкретного вкуса 1–10, null или «крепость не указана» означает отсутствие данных. Называй только сохранённые оценки компонентов. Если хотя бы у одного компонента нет оценки, прямо скажи, что данных для оценки крепости микса недостаточно. Не подставляй 5 по умолчанию, не назначай миксу число или категорию крепости по бренду, сладости, сливочности, плотности вкуса либо общим знаниям. Даже при полных данных оценки компонентов не являются измерением крепости готовой чаши. Не обещай изменение крепости от замены долей без подтверждённых данных.
 — Предлагай 2–3 готовых варианта, у каждого короткое название и 1–2 фразы: что впереди, что фоном, для кого.
 — Бери только то, что на стойке и не в стопе. Остаток на складе для микса не важен — не упоминай его.
 — Описания из каталога — факт о вкусе, но не цитируй их в кавычках; пиши своими словами. Общие знания о сочетаниях и характере известных вкусов (малина, лимон, мята, кола и т. п.) использовать можно. Чего не знаешь о конкретном табаке — не выдумывай, просто не бери его.
@@ -1269,7 +1270,9 @@ const AI_RULES=`Ты — второй мастер за стойкой каль�
 — Фото банок: по умолчанию это просто проверка стойки или полки — перечисли, что увидел, и ничего не меняй на складе. Пополнение через stage_stock готовь только если человек сам пишет, что это поступление («пришло», «привезли», «на склад», «оприходуй»). Неразборчивое не угадывай.
 — Строки с «?» — этикетка обрезана краем фото или не дочитана. Не выдавай их за найденный вкус и не предлагай по ним действий; можно одной строкой сказать, что банка у края кадра не дочитана.
 — Списки пиши без дефисов в начале строки: обычными строками или с «•».`;
-function aiItem(x){const r={id:x.id,brand:x.b,name:x.n,wh:wh(x),onBar:onBar(x)};
+function aiStrength(x){const n=Number(strMap[x.id]);return Number.isInteger(n)&&n>=1&&n<=10?n:null}
+function aiMixFacts(x){const strength=aiStrength(x);return (inStop(x)?" (СТОП)":"")+(flag(x,"slow")?" (НЕЛИКВИД)":"")+(strength===null?" (крепость не указана)":" (крепость "+strength+"/10)")}
+function aiItem(x){const r={id:x.id,brand:x.b,name:x.n,wh:wh(x),onBar:onBar(x),strength:aiStrength(x)};
   if(x.l)r.line=x.l;if(x.d)r.desc=x.d;if(x.t.length)r.tags=x.t;if(inStop(x))r.stop=true;if(flag(x,"slow"))r.slow=true;if(oq(x))r.order=oq(x);
   if(draft[x.id]){r.pending=draft[x.id].d||0;if(draft[x.id].bar!==undefined)r.pendingBar=draft[x.id].bar}return r}
 const cnTxt=v=>" "+norm(String(v||"")).replace(/[^a-zа-я0-9]+/g," ").trim()+" ";
@@ -1635,7 +1638,7 @@ function photoTools(tools,acc){return tools.map(tool=>({...tool,execute(i){
 }}))}
 function aiOrderItems(){return orderRows().map(r=>r.x?{...aiItem(r.x),aliases:r.x.a||[]}:{brand:r.b,name:r.n,order:r.q,source:"manual",catalogLinked:false})}
 const AI_TOOLS=[
- {name:"find_items",description:"Ищет вкусы в каталоге. query — слова из бренда, линейки, названия или описания (можно пусто). where: all (по умолчанию), bar — на стойке, wh — есть на складе, none — нет на складе (0 шт., кроме выведенных из палитры), low — на складе 0–1 шт., stop, slow, order, pending — в черновике. Возвращает до limit (по умолчанию 30, максимум 80) вкусов: id, brand, line, name, desc, tags, wh (банок на складе), onBar, stop, slow, order, pending, и total — сколько всего нашлось. where: order читает полный заказ, включая ручные позиции без id каталога. Только для order: offset — число пропущенных результатов, hasMore — есть следующая страница.",
+ {name:"find_items",description:"Ищет вкусы в каталоге. query — слова из бренда, линейки, названия или описания (можно пусто). where: all (по умолчанию), bar — на стойке, wh — есть на складе, none — нет на складе (0 шт., кроме выведенных из палитры), low — на складе 0–1 шт., stop, slow, order, pending — в черновике. Возвращает до limit (по умолчанию 30, максимум 80) вкусов: id, brand, line, name, desc, tags, wh (банок на складе), onBar, stop, slow, strength (1–10 или null, если не указана), order, pending, и total — сколько всего нашлось. where: order читает полный заказ, включая ручные позиции без id каталога. Только для order: offset — число пропущенных результатов, hasMore — есть следующая страница.",
   inputSchema:{type:"object",properties:{query:{type:"string"},where:{type:"string",enum:["all","bar","wh","none","low","stop","slow","order","pending"]},brand:{type:"string"},limit:{type:"number"},offset:{type:"integer",minimum:0}}},
   execute(i){const w=String(i.where||"all"),words=norm(String(i.query||"")).split(/\s+/).filter(Boolean),br=norm(String(i.brand||"")),lim=Math.min(80,Math.max(1,Number(i.limit)||30));
    if(w==="order"){const rows=aiOrderItems().filter(r=>(!br||norm(r.brand).includes(br))&&words.every(t=>norm([r.brand,r.line,r.name,r.desc,(r.tags||[]).join(" "),(r.aliases||[]).join(" ")].join(" ")).includes(t)));const raw=Number(i.offset),offset=Number.isFinite(raw)?Math.max(0,Math.floor(raw)):0,limit=Math.floor(lim);return{total:rows.length,offset,hasMore:offset+limit<rows.length,items:rows.slice(offset,offset+limit),note:"Ручные позиции без id не связаны с каталогом. Похожее название не подтверждает связь; не меняй их через set_order."}}
@@ -1722,7 +1725,7 @@ async function aiCommitProposal(list){
 function aiSnapshot(){
   const bar=DATA.filter(x=>onBar(x)),whP=DATA.reduce((a,x)=>a+wh(x),0);
   const by={};bar.forEach(x=>{(by[x.b]=by[x.b]||[]).push(x)});
-  const list=Object.keys(by).sort().map(b=>b+": "+by[b].map(x=>x.n+(x.l?" ["+x.l+"]":"")+(x.d&&!/не искал|не нашёл/.test(x.d)?" — "+x.d:"")+(x.t.includes("соло")?" (соло)":"")+(flag(x,"stop")?" (СТОП)":"")).join("; ")).join("\n");
+  const list=Object.keys(by).sort().map(b=>b+": "+by[b].map(x=>x.n+(x.l?" ["+x.l+"]":"")+(x.d&&!/не искал|не нашёл/.test(x.d)?" — "+x.d:"")+(x.t.includes("соло")?" (соло)":"")+aiMixFacts(x)).join("; ")).join("\n");
   return "Сегодня "+new Date().toLocaleDateString("ru-RU")+". На стойке "+bar.length+" вкусов, на складе "+whP+" банок, в стопе "+DATA.filter(inStop).length+", в заказе "+orderRows().length+", в черновике "+Object.keys(draft).length+" позиций.\n\nСТОЙКА СЕЙЧАС:\n"+list;
 }
 // Кто ответил: 🧑‍🔧 ПК (локальная модель), Я YandexGPT, ☁ Gemini или ✦ Claude, и кто читал фото (📷 Sonnet или 📷 Яндекс) — подпись под ответом
@@ -1974,7 +1977,7 @@ const HELP={
   rules:()=>"Управляющий здесь тоже может собрать заказ: через set_order ставь только вкусы из стоп-листа, и только если у них нет пометки «Неликвид» (set_order сам откажет на неликвиде — объясни почему и пропусти). Вкус, который уже в заказе, не дублируй. Если просят ещё и то, что на складе заканчивается, — это уже не по стоп-листу, только порекомендуй словами, set_order не вызывай.",
   ctx:()=>{const S=DATA.filter(inStop);return "В СТОПЕ ("+S.length+"):\n"+hlpList(S,x=>"— "+hlpFlav(x)+" (на складе "+wh(x)+", "+(onBar(x)?"на стойке":"не на стойке")+(flag(x,"slow")?", неликвид":"")+(oq(x)?", в заказе "+oq(x):"")+")")}},
  slow:{q:["Как продвинуть неликвид?","Собери микс из неликвида","Что вывести из палитры?"],rules:()=>hlpMixRules()+"\nЗдесь можно прямо говорить, что вкус в неликвиде.",
-  ctx:()=>{const S=DATA.filter(x=>flag(x,"slow"));return "НЕЛИКВИД ("+S.length+"):\n"+hlpList(S,x=>"— "+hlpFlav(x)+": "+wh(x)+" шт."+(onBar(x)?", на стойке":"")+(idleText(x)?", "+idleText(x):"")+(x.d?" — "+x.d:""))}},
+  ctx:()=>{const S=DATA.filter(x=>flag(x,"slow"));return "НЕЛИКВИД ("+S.length+"):\n"+hlpList(S,x=>"— "+hlpFlav(x)+": "+wh(x)+" шт."+(onBar(x)?", на стойке":"")+aiMixFacts(x)+(idleText(x)?", "+idleText(x):"")+(x.d?" — "+x.d:""))}},
  inv:{q:["Как провести инвентаризацию?","Что не сошлось?","Как считается недостача в ₽?"],img:1,mgr:1,
   ctx:()=>{const k=Object.keys(invD);return "Проверено позиций: "+k.length+".\nНЕ СОШЛОСЬ:\n"+hlpList(k.filter(id=>byId[id]&&invD[id]!==wh(byId[id])),id=>"— "+hlpFlav(byId[id])+": по базе "+wh(byId[id])+", по факту "+invD[id])}},
  pack:{q:["Зачем нужна граммовка?","Как указать вес банки?"],mgr:1,
