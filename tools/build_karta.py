@@ -4,7 +4,7 @@
 import json,os,re,sys,urllib.request
 sys.path.insert(0,os.path.dirname(__file__))
 from classify import classify
-REF='wwcgvwfmlkegaqkksujo';VENUE='e58bb6aa-8a0e-4697-9ef6-0bc001f0e21e'
+REF='qnohynnwasoyjakrrrhb';VENUE='e58bb6aa-8a0e-4697-9ef6-0bc001f0e21e'
 root=os.path.join(os.path.dirname(__file__),'..')
 if '--reuse-data' in sys.argv:
     # Offline UI rebuild: retain the exact previously committed catalog snapshot.
