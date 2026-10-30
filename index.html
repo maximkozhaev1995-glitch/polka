@@ -805,7 +805,7 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
   // Распознаёт фото без обращения к диалоговой модели (ocr_only) — для команд (/перенос и т.п.), где
   // решение детерминированное и модель не нужна. Возвращает сырой текст по каждому фото (может быть {failed})
   // и ocr — кто читал (sonnet/yandex), для подписи под ответом.
-  const readPhotos=async(images,signal)=>{
+  const readPhotos=async(images,signal,inspection=false)=>{
     const blocks=await Promise.all(images.map(imgToBlock));
     let ocr="";
     // Распознаём каждое фото отдельным запросом (ocr_only) — иначе на нескольких фото разом функция
@@ -816,7 +816,8 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
     const texts=await Promise.all(blocks.map(async b=>{
       let err="";
       for(let a=0;a<2;a++){
-        try{const r=await callAI({system:"",messages:[{role:"user",content:[b]}],tools:[],ocr_only:true},signal,()=>{});
+        try{const r=await callAI({system:"",messages:[{role:"user",content:[b]}],tools:[],ocr_only:true,...(inspection?{photo_mode:"inspection"}:{})},signal,()=>{});
+          if(inspection&&!r.inspection){err="inspection_unavailable";break}
           if(!r.ocr){err="not_read";continue}
           ocr=r.ocr;return (r.ocr_texts||[])[0]||""}
         catch(e){if(e&&e.name==="AbortError")return {failed:"cancelled"};err=e&&e.code||"network";console.warn("photo read failed:",err)}}
@@ -824,10 +825,10 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
     return {texts,ocr}};
   // Текст команды (/перенос, /пополнить, …): читает фото, без обращения к диалоговой модели.
   // Возвращает {text, failed} — text уже в формате «Этикетка N: …», готов для matchText на клиенте.
-  const readLabels=async(images,signal)=>{
-    const{texts}=await readPhotos(images,signal);
+  const readLabels=async(images,signal,options={})=>{
+    const{texts}=await readPhotos(images,signal,!!options.inspection);
     const failed=texts.filter(t=>t&&t.failed).length;
-    return {text:texts.map((t,i)=>typeof t==="string"?"Фото "+(i+1)+":\n"+t:"").filter(Boolean).join("\n"),failed,total:texts.length}};
+    return {texts,text:texts.map((t,i)=>typeof t==="string"?"Фото "+(i+1)+":\n"+t:"").filter(Boolean).join("\n"),failed,total:texts.length}};
   const sample=async(turns,opts)=>{
     opts=opts||{};
     const first=turns[0]&&turns[0].role==="user"?turns[0].content:"";
@@ -1543,15 +1544,15 @@ const AI_RULES=`Ты — второй мастер за стойкой каль�
 МИКСЫ — главное
 — Собирай как мастер. Доли только по десяткам, сумма 100: три вкуса 50/30/20, четыре вкуса 40/30/20/10. Холодок только Darkside Supernova и не больше 10%. Всегда давай проценты. Не пиши про колесо вкусов.
 — Вкусы с пометкой slow (НЕЛИКВИД) предлагай чаще. По прямому запросу «из неликвида» в каждом миксе должен быть хотя бы один подтверждённый slow-вкус, доступный на стойке и не в стопе; остальные компоненты могут его дополнять. Если метки не видны — сначала find_items с where: slow и проверь onBar и stop. Если подходящих нет, скажи об этом, не подменяй запрос обычными миксами. В гостевом описании не упоминай неликвид; сотруднику по прямому запросу можно назвать такие компоненты.
-— КРЕПОСТЬ: strength — сохранённая оценка конкретного вкуса 1–10, null или «крепость не указана» означает отсутствие данных. Называй только сохранённые оценки компонентов. Если хотя бы у одного компонента нет оценки, прямо скажи, что данных для оценки крепости микса недостаточно. Не подставляй 5 по умолчанию, не назначай миксу число или категорию крепости по бренду, сладости, сливочности, плотности вкуса либо общим знаниям. Даже при полных данных оценки компонентов не являются измерением крепости готовой чаши. Не обещай изменение крепости от замены долей без подтверждённых данных.
+— КРЕПОСТЬ: strength — сохранённая оценка конкретного вкуса 1–10, null или «крепость не указана» означает отсутствие данных. Называй только сохранённые оценки компонентов. Если пользователь спрашивает крепость и хотя бы у одного компонента нет оценки, прямо скажи, что данных для оценки крепости микса недостаточно. Не подставляй 5 по умолчанию, не назначай миксу число или категорию крепости по бренду, сладости, сливочности, плотности вкуса либо общим знаниям. Даже при полных данных оценки компонентов не являются измерением крепости готовой чаши. Не обещай изменение крепости от замены долей без подтверждённых данных.
 — ПРАКТИЧЕСКАЯ ОСНОВА МИКСОЛОГИИ: HookahPlace Obninsk, «Кальянная миксология» (hookah-obninsk.ru/mixestobacco). Для идей предпочитай понятную композицию из 2–3 ароматов: доминирующая основа, дополнение, при необходимости связующий акцент. У готового многокомпонентного вкуса опирайся на ведущую ноту из каталога. Идеи из напитков и десертов — гипотезы, а не гарантированный результат. Колесо Chabacco на странице предлагает шаблоны долей, не универсальную формулу; для ответа соблюдай правила процентов Mixora выше. Не переноси оценки отдельных брендов из статьи на весь бренд, не обещай точную смену нот при курении; чаша, жар и приготовление влияют на результат. Источник не отменяет проверку наличия, стопа, неликвида и сохранённой крепости.
 — СПРАВОЧНИК МИКСОЛОГИИ: Smokers’ Magazine, «Школа вкуса: Составляющие вкуса табака», 30.04.2015 (smokersmag.com/columns/pipes/school/542-pipetobacco-taste-part2). Используй как словарь сенсорного описания: семейство → конкретный оттенок; отдельно описывай насыщенность и характер аромата. Например, ягодный профиль можно уточнить до смородины, выпечку — до хлебной корки. Статья и колесо относятся к трубочному табаку, а не к ассортименту Mixora.
 — Применение справочника: сначала подтверди конкретные вкусы и их описания в каталоге; затем объясни роль каждого компонента (основа, дополнение, акцент). Это адаптация для Mixora, а не рецепт из статьи. Колесо из статьи о трубочном табаке не задаёт совместимость соседних или противоположных секторов, проценты, крепость либо состав конкретной банки. Не приписывай вкусу оттенок, сорт листа или способ обработки только по общему семейству или бренду. Иллюстрации не являются доказательством состава. Пользователю давай обычное описание, без экскурса про колесо; остальные ограничения миксов, неликвида и крепости сохраняются.
-— Предлагай 2–3 готовых варианта, у каждого короткое название и 1–2 фразы: что впереди, что фоном, для кого.
+— ФОРМАТ МИКСОВ: по умолчанию 2–3 варианта. Каждый: короткое название, одна строка «Бренд Вкус — 50% + Бренд Вкус — 30% + Бренд Вкус — 20%», при необходимости одна короткая фраза о вкусе. Без нумерации, цен, оценок крепости, меток НЕЛИКВИД, объяснений ролей и служебных отчётов, если пользователь их не просил. Не добавляй вступление, заключение и предложение «могу ещё». На уточнение отвечай только по вопросу. При прямом запросе крепости или меток дай только запрошенные сведения; отсутствие данных обозначь кратко.
 — Бери только то, что на стойке и не в стопе. Остаток на складе для микса не важен — не упоминай его.
 — Описания из каталога — факт о вкусе, но не цитируй их в кавычках; пиши своими словами. Общие знания о сочетаниях и характере известных вкусов (малина, лимон, мята, кола и т. п.) использовать можно. Чего не знаешь о конкретном табаке — не выдумывай, просто не бери его.
 — Парфюмная линейка Deus Perfume (Psychedelic Love, Ganymede, Black Afgano, Last Season, But Not Today, Varanasi, Buio, 100%, Oud for Happiness) — можно в миксы, но только основным вкусом (база 45–50%). Deus Red и Deus Catmint в миксы не ставь.
-— Цена: кальян без парфюма — 2 500 ₽, с парфюмом Deus Perfume — 3 200 ₽. Называй цену у каждого микса.
+— Цена: кальян без парфюма — 2 500 ₽, с парфюмом Deus Perfume — 3 200 ₽. Цену называй только по прямому запросу.
 — Сигарный лист — это Kraken и Bonche. Если в миксе есть их табак, помечай микс «на сигарном листе» (как пометку про парфюм).
 — Не задавай лишних вопросов: если запрос понятен, сразу давай результат. Уточняй только когда без ответа нельзя (например, «списал Cola» — а Cola у трёх брендов).
 
@@ -2055,13 +2056,19 @@ async function cmdFindIds(args,imgs,signal){if(signal?.aborted)throw new Error("
   if(imgs?.length&&db?.listPhotoCorrections){try{learnedPhoto=await db.listPhotoCorrections()}catch(e){learnedPhoto=[];console.warn("Mixora OCR corrections unavailable",e)}}
   const m=matchText(text,!!(imgs&&imgs.length));if(m.ambiguous.length)throw new Error("Нужно уточнение."+ambTxt(m));return{m,text,failed}}
 const photoInspection=t=>!t||/^(?:(?:пожалуйста|привет)[,!.]?\s*)?(?:что\s+(?:на|здесь|тут)|разбери|распознай|распознать|прочитай|определи|перечисли|посмотри|проверь\s+фото)/i.test(t)&&!stockAsked(t)&&!ordAsked(t)&&!/микс|рекоменд|совет/i.test(t);
+function photoInspectionText(texts){let total=0;
+ const pages=texts.map((text,index)=>{if(typeof text!=="string")return "Фото "+(index+1)+": не удалось прочитать.";
+  const labels=[...text.matchAll(/^Этикетка\s*\d+\s*:\s*(.*)$/gim)].map(m=>m[1].trim());
+  const found=[],unknown=[],uncertain=[];let count=0;
+  labels.forEach(label=>{if(!label||/[?…]|\.{2,}/.test(label)){uncertain.push(label||"?");return}count++;
+   const hit=photoMatchChunk(label,true,true).hit;
+   if(hit.length===1){const x=hit[0];found.push(label+" → "+x.b+" "+x.n+(x.l?" ["+x.l+"]":""))}else if(hit.length>1)uncertain.push(label+" — неоднозначное совпадение в каталоге");else unknown.push(label)});
+  total+=count;return "Фото "+(index+1)+": прочитано "+count+" банок."+(found.length?"\nПо этикетке → каталог:\n"+found.map(l=>"• "+l).join("\n"):"")+(unknown.length?"\nНе найдены в каталоге:\n"+unknown.map(l=>"• "+l).join("\n"):"")+(uncertain.length?"\nСомнительные и обрезанные:\n"+uncertain.map(l=>"• "+l).join("\n"):"")+(!labels.length?"\nЭтикетки не прочитаны.":"")});
+ return pages.join("\n\n")+"\n\nВсего прочитано: "+total+" банок. Сомнительные надписи в подсчёт не включены."}
 async function inspectPhoto(out,args,imgs,signal){
-  const{m,failed}=await cmdFindIds("",imgs,signal);
-  lastPhotoIds=m.found.map(x=>x.id);
-  const lines=m.found.map(x=>"• "+x.brand+" "+x.name+(x.line?" · "+x.line:"")+(x.jars>1?" ×"+x.jars:""));
-  out.textContent=(lines.length?"Распознано по каталогу:\n"+lines.join("\n"):"Не удалось уверенно распознать позиции по каталогу.")
-    +(m.not_found_lines.length?"\n\nНе распознано уверенно:\n"+m.not_found_lines.map(l=>"• "+l).join("\n"):"")
-    +photoSuggestionText(m)+(failed?"\n\nНе удалось прочитать фото: "+failed+".":"");
+ lastPhotoIds=[];if(signal?.aborted)throw new Error("Остановлено");
+ const r=await sampleFn.readLabels(imgs,signal,{inspection:true});if(signal?.aborted)throw new Error("Остановлено");
+ out.textContent=photoInspectionText(r.texts||[{failed:true}])+ (r.failed?"\nНе все фото прочитаны; итог неполный.":"");
 }
 // Corrections are suggestions only: NEVER stage stock, order or stop-list changes.
 let learnedPhoto=[];

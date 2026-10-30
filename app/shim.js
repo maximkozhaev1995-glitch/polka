@@ -212,7 +212,7 @@
   // Распознаёт фото без обращения к диалоговой модели (ocr_only) — для команд (/перенос и т.п.), где
   // решение детерминированное и модель не нужна. Возвращает сырой текст по каждому фото (может быть {failed})
   // и ocr — кто читал (sonnet/yandex), для подписи под ответом.
-  const readPhotos=async(images,signal)=>{
+  const readPhotos=async(images,signal,inspection=false)=>{
     const blocks=await Promise.all(images.map(imgToBlock));
     let ocr="";
     // Распознаём каждое фото отдельным запросом (ocr_only) — иначе на нескольких фото разом функция
@@ -223,7 +223,8 @@
     const texts=await Promise.all(blocks.map(async b=>{
       let err="";
       for(let a=0;a<2;a++){
-        try{const r=await callAI({system:"",messages:[{role:"user",content:[b]}],tools:[],ocr_only:true},signal,()=>{});
+        try{const r=await callAI({system:"",messages:[{role:"user",content:[b]}],tools:[],ocr_only:true,...(inspection?{photo_mode:"inspection"}:{})},signal,()=>{});
+          if(inspection&&!r.inspection){err="inspection_unavailable";break}
           if(!r.ocr){err="not_read";continue}
           ocr=r.ocr;return (r.ocr_texts||[])[0]||""}
         catch(e){if(e&&e.name==="AbortError")return {failed:"cancelled"};err=e&&e.code||"network";console.warn("photo read failed:",err)}}
@@ -231,10 +232,10 @@
     return {texts,ocr}};
   // Текст команды (/перенос, /пополнить, …): читает фото, без обращения к диалоговой модели.
   // Возвращает {text, failed} — text уже в формате «Этикетка N: …», готов для matchText на клиенте.
-  const readLabels=async(images,signal)=>{
-    const{texts}=await readPhotos(images,signal);
+  const readLabels=async(images,signal,options={})=>{
+    const{texts}=await readPhotos(images,signal,!!options.inspection);
     const failed=texts.filter(t=>t&&t.failed).length;
-    return {text:texts.map((t,i)=>typeof t==="string"?"Фото "+(i+1)+":\n"+t:"").filter(Boolean).join("\n"),failed,total:texts.length}};
+    return {texts,text:texts.map((t,i)=>typeof t==="string"?"Фото "+(i+1)+":\n"+t:"").filter(Boolean).join("\n"),failed,total:texts.length}};
   const sample=async(turns,opts)=>{
     opts=opts||{};
     const first=turns[0]&&turns[0].role==="user"?turns[0].content:"";
