@@ -1532,6 +1532,7 @@ const AI_RULES=`Ты — второй мастер за стойкой каль�
 
 ЧТО У ТЕБЯ ЕСТЬ
 — Ниже в этом сообщении — полный список того, что СЕЙЧАС на стойке (бренд, вкус, описание, штук на складе, стоп). Для миксов и советов гостю используй его сразу, без лишних вызовов функций.
+— Полный заказ: find_items с where: order, повторяй с offset до hasMore: false. Ручные позиции без id не меняй через set_order.
 — find_items — поиск по всему каталогу (стойка и склад), когда нужен склад, заказ или вкус не со стойки.
 — фото: приложение само сверяет текст с каталогом и даёт список «НАЙДЕНО В КАТАЛОГЕ» с id — опирайся на него, вкусов сверх него не придумывай; строки «НЕ НАШЛОСЬ» добери через find_items по одному-двум словам. match_text — для другого текста (например, вставленного списка).
 — stage_stock — черновик списания/пополнения (минус — списание). Записывается только после того, как Максим нажмёт внизу «Списание / пополнение» → «Подтвердить»; напоминай об этом одной строкой.
@@ -1920,10 +1921,12 @@ function photoTools(tools,acc){return tools.map(tool=>({...tool,execute(i){
   }
   return result;
 }}))}
+function aiOrderItems(){return orderRows().map(r=>r.x?{...aiItem(r.x),aliases:r.x.a||[]}:{brand:r.b,name:r.n,order:r.q,source:"manual",catalogLinked:false})}
 const AI_TOOLS=[
- {name:"find_items",description:"Ищет вкусы в каталоге. query — слова из бренда, линейки, названия или описания (можно пусто). where: all (по умолчанию), bar — на стойке, wh — есть на складе, none — нет на складе (0 шт., кроме выведенных из палитры), low — на складе 0–1 шт., stop, slow, order, pending — в черновике. Возвращает до limit (по умолчанию 30, максимум 80) вкусов: id, brand, line, name, desc, tags, wh (банок на складе), onBar, stop, slow, order, pending, и total — сколько всего нашлось.",
-  inputSchema:{type:"object",properties:{query:{type:"string"},where:{type:"string",enum:["all","bar","wh","none","low","stop","slow","order","pending"]},brand:{type:"string"},limit:{type:"number"}}},
+ {name:"find_items",description:"Ищет вкусы в каталоге. query — слова из бренда, линейки, названия или описания (можно пусто). where: all (по умолчанию), bar — на стойке, wh — есть на складе, none — нет на складе (0 шт., кроме выведенных из палитры), low — на складе 0–1 шт., stop, slow, order, pending — в черновике. Возвращает до limit (по умолчанию 30, максимум 80) вкусов: id, brand, line, name, desc, tags, wh (банок на складе), onBar, stop, slow, order, pending, и total — сколько всего нашлось. where: order читает полный заказ, включая ручные позиции без id каталога. Только для order: offset — число пропущенных результатов, hasMore — есть следующая страница.",
+  inputSchema:{type:"object",properties:{query:{type:"string"},where:{type:"string",enum:["all","bar","wh","none","low","stop","slow","order","pending"]},brand:{type:"string"},limit:{type:"number"},offset:{type:"integer",minimum:0}}},
   execute(i){const w=String(i.where||"all"),words=norm(String(i.query||"")).split(/\s+/).filter(Boolean),br=norm(String(i.brand||"")),lim=Math.min(80,Math.max(1,Number(i.limit)||30));
+   if(w==="order"){const rows=aiOrderItems().filter(r=>(!br||norm(r.brand).includes(br))&&words.every(t=>norm([r.brand,r.line,r.name,r.desc,(r.tags||[]).join(" "),(r.aliases||[]).join(" ")].join(" ")).includes(t)));const raw=Number(i.offset),offset=Number.isFinite(raw)?Math.max(0,Math.floor(raw)):0,limit=Math.floor(lim);return{total:rows.length,offset,hasMore:offset+limit<rows.length,items:rows.slice(offset,offset+limit),note:"Ручные позиции без id не связаны с каталогом. Похожее название не подтверждает связь; не меняй их через set_order."}}
    const ok=x=>w==="bar"?onBar(x):w==="wh"?wh(x)>0:w==="none"?!wh(x)&&!flag(x,"retired"):w==="low"?tracked(x)&&wh(x)<=1:w==="stop"?inStop(x):w==="slow"?flag(x,"slow"):w==="order"?oq(x)>0:w==="pending"?!!draft[x.id]:true;
    const hay=x=>norm([x.b,x.l,x.n,x.d,x.t.join(" "),(x.a||[]).join(" ")].join(" "));
    const r=DATA.filter(x=>ok(x)&&(!br||norm(x.b).includes(br))&&words.every(t=>hay(x).includes(t)));
@@ -2008,7 +2011,7 @@ function aiSnapshot(){
   const bar=DATA.filter(x=>onBar(x)),whP=DATA.reduce((a,x)=>a+wh(x),0);
   const by={};bar.forEach(x=>{(by[x.b]=by[x.b]||[]).push(x)});
   const list=Object.keys(by).sort().map(b=>b+": "+by[b].map(x=>x.n+(x.l?" ["+x.l+"]":"")+(x.d&&!/не искал|не нашёл/.test(x.d)?" — "+x.d:"")+(x.t.includes("соло")?" (соло)":"")+(flag(x,"stop")?" (СТОП)":"")).join("; ")).join("\n");
-  return "Сегодня "+new Date().toLocaleDateString("ru-RU")+". На стойке "+bar.length+" вкусов, на складе "+whP+" банок, в стопе "+DATA.filter(inStop).length+", в заказе "+DATA.filter(x=>oq(x)>0).length+", в черновике "+Object.keys(draft).length+" позиций.\n\nСТОЙКА СЕЙЧАС:\n"+list;
+  return "Сегодня "+new Date().toLocaleDateString("ru-RU")+". На стойке "+bar.length+" вкусов, на складе "+whP+" банок, в стопе "+DATA.filter(inStop).length+", в заказе "+orderRows().length+", в черновике "+Object.keys(draft).length+" позиций.\n\nСТОЙКА СЕЙЧАС:\n"+list;
 }
 // Кто ответил: 🧑‍🔧 ПК (локальная модель), Я YandexGPT, ☁ Gemini или ✦ Claude, и кто читал фото (📷 Sonnet или 📷 Яндекс) — подпись под ответом
 // src — «модель+кто читал фото» (см. sample в app/shim.js)
@@ -2252,9 +2255,9 @@ const HELP={
   ctx:()=>{const L=DATA.filter(x=>tracked(x)&&wh(x)<=1);return "На складе "+DATA.reduce((a,x)=>a+wh(x),0)+" шт., "+DATA.filter(x=>wh(x)>0).length+" вкусов. В черновике "+Object.keys(draft).length+" позиций.\nЗАКАНЧИВАЕТСЯ (0–1 шт.):\n"+hlpList(L,x=>"— "+hlpFlav(x)+": "+wh(x)+" шт."+(oq(x)?", в заказе "+oq(x):""))}},
  order:{q:["Что заказать?","Собери заказ по стоп-листу","Как отправить заказ поставщику?"],img:1,mgr:1,
   rules:()=>"ЗАКАЗ СОБИРАЕТСЯ ТАК: через set_order ставь только вкусы с фото банок и из стоп-листа, и только если у них нет пометки «Неликвид». Всё остальное (кончается на складе, просят гости, часто берут) — только рекомендуй дособрать заказ словами, set_order не вызывай. Исключение: человек сам прямо просит составить заказ или поставить в заказ — тогда ставь через set_order всё подходящее по 1 шт. (если не сказал другое количество), кроме неликвида. Вкус, который есть и на фото, и в стоп-листе, — одна позиция, не дублируй и не суммируй. Фото с банками (на этикетках бренд и вкус) — это фото банок, не накладная. Список «НАЙДЕНО В КАТАЛОГЕ» к фото уже сверен приложением — бери id оттуда; строки «НЕ НАШЛОСЬ» добери через find_items по одному-двум словам (рукописные этикетки могут быть по-русски). Просят собрать заказ — поставь найденное в заказ по 1–2 шт.; спрашивают только, что на фото, — перечисли и ничего не ставь. (неликвид — пропусти и скажи об этом). Не узнал вкус на фото — назови, что видишь, и спроси. Фото накладной: сверь с заказом и скажи, что пришло, а чего нет.",
-  ctx:()=>{const O=DATA.filter(x=>oq(x)>0),L=DATA.filter(x=>tracked(x)&&wh(x)<=1&&!oq(x));let w={};wishes.filter(x=>x.state==="new").forEach(x=>{const k=x.b+" "+x.f;w[k]=(w[k]||0)+1});
+  ctx:()=>{const O=orderRows(),L=DATA.filter(x=>tracked(x)&&wh(x)<=1&&!oq(x));let w={};wishes.filter(x=>x.state==="new").forEach(x=>{const k=x.b+" "+x.f;w[k]=(w[k]||0)+1});
    const S=DATA.filter(x=>inStop(x)&&!oq(x));
-   return "В ЗАКАЗЕ:\n"+hlpList(O,x=>"— "+hlpFlav(x)+": "+oq(x)+" шт. (на складе "+wh(x)+")")+"\n\nВ СТОП-ЛИСТЕ, НО НЕ В ЗАКАЗЕ:\n"+hlpList(S,x=>"— "+hlpFlav(x)+": на складе "+wh(x)+" шт."+(flag(x,"slow")?" (неликвид — не заказывать)":""))+"\n\nКОНЧАЕТСЯ, НО НЕ В ЗАКАЗЕ (только рекомендовать):\n"+hlpList(L,x=>"— "+hlpFlav(x)+": "+wh(x)+" шт.")+"\n\nПРОСЯТ ГОСТИ:\n"+hlpList(Object.entries(w),([k,n])=>"— "+k+": "+n)}},
+   return "В ЗАКАЗЕ:\n"+hlpList(O,r=>"— "+r.b+" "+r.n+(r.l?" ["+r.l+"]":"")+": "+r.q+" шт."+(r.x?" (на складе "+wh(r.x)+")":" (ручная позиция, без связи с каталогом)"))+"\n\nВ СТОП-ЛИСТЕ, НО НЕ В ЗАКАЗЕ:\n"+hlpList(S,x=>"— "+hlpFlav(x)+": на складе "+wh(x)+" шт."+(flag(x,"slow")?" (неликвид — не заказывать)":""))+"\n\nКОНЧАЕТСЯ, НО НЕ В ЗАКАЗЕ (только рекомендовать):\n"+hlpList(L,x=>"— "+hlpFlav(x)+": "+wh(x)+" шт.")+"\n\nПРОСЯТ ГОСТИ:\n"+hlpList(Object.entries(w),([k,n])=>"— "+k+": "+n)}},
  stop:{q:["Что сейчас в стопе?","Что можно вернуть из стопа?","Как поставить вкус в стоп?","Собери заказ по стоп-листу"],
   rules:()=>"Управляющий здесь тоже может собрать заказ: через set_order ставь только вкусы из стоп-листа, и только если у них нет пометки «Неликвид» (set_order сам откажет на неликвиде — объясни почему и пропусти). Вкус, который уже в заказе, не дублируй. Если просят ещё и то, что на складе заканчивается, — это уже не по стоп-листу, только порекомендуй словами, set_order не вызывай.",
   ctx:()=>{const S=DATA.filter(inStop);return "В СТОПЕ ("+S.length+"):\n"+hlpList(S,x=>"— "+hlpFlav(x)+" (на складе "+wh(x)+", "+(onBar(x)?"на стойке":"не на стойке")+(flag(x,"slow")?", неликвид":"")+(oq(x)?", в заказе "+oq(x):"")+")")}},
@@ -2285,6 +2288,7 @@ function hlpSystem(tab,photo=false){const H=HELP[tab]||HELP.home,ttl=tab==="home
   return "Ты — помощник в приложении «Mixora» (склад и табачная карта кальянной), сейчас в разделе «"+ttl+"». Помогаешь сотруднику ориентироваться в приложении и работать в этом разделе. Говоришь по-русски, коротко и по делу, без markdown (списки — строками с «— »). id вкусов — служебные, в ответе человеку их не пиши. Кнопки и разделы называй так, как они подписаны. Чего не знаешь — не выдумывай.\n\n"
    +"КТО СПРАШИВАЕТ: авторизованный сотрудник заведения.\n"+HPERM+"\n\n"
    +"ИЗМЕНЕНИЯ: меняй только функциями. Сразу ничего не записывается: человек увидит список и нажмёт «Подтвердить» — напомни об этом одной строкой. Неоднозначно или не найдено — ничего не меняй, переспроси одним вопросом. После функций всегда отвечай словами: что нашёл и что сделал.\n\n"
+   +"Для полного заказа используй find_items с where: order, переходи по offset до hasMore: false. Ручные позиции без id не меняй через set_order.\n\n"
    +(H.rules?H.rules()+"\n\n":"")
    +(H.img?"ФОТО: в этом разделе можно приложить фото кнопкой 📷 слева от поля ввода, текст с фото распознаётся. Если человек хочет что-то сделать по фото, а фото нет — попроси приложить его через 📷, не говори, что по фото нельзя. Спрашивают просто «что на фото» — перечисли найденное и ничего не меняй, пока не попросят.\n\n":"")
    +"КАК ПОЛЬЗОВАТЬСЯ ПРИЛОЖЕНИЕМ:\n"+guideSecs().map(g=>"## "+g[0]+"\n"+hlpTxt(g[1])).join("\n")+"\n\n"
