@@ -30,3 +30,6 @@ Validation: full npm test passed again, including tests/ai-mix-context.cjs (know
 - find_items(where: order) is a read-only full-order source even during a photo request; photoTools no longer filters its already paginated results or rewrites its totals. PHOTO_RULES explicitly distinguish order rows from recognition evidence. All mutation tools still require every ID to be recognized in the current photo.
 - Added regressions: stockLoaded=false with catalog plus manual rows; 102-row photo-wrapped traversal with consistent totals, final-page state and no lost manual row; off-photo/mixed-ID writes still rejected for all three mutation tools.
 - Full npm test and git diff --check passed after audit fixes. No live model/browser or production writes performed.
+
+## Mixology reference
+Read the user-provided Smokers’ Magazine article and visually inspected its six inline illustrations, including the flavor wheel. Added a short attributed sensory-description reference to mix instructions and a reviewed-image/source register in audit/MIXOLOGY_REFERENCE_20261030.md. The application-specific adaptation keeps catalog facts, actual availability and saved strength authoritative; no wheel adjacency rules, recipes, percentages or model-weight training are claimed. Prompt-wiring, helper propagation and syntax checks passed.

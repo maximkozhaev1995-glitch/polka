@@ -13,4 +13,6 @@ api.strMap.unknown=1;assert.equal(api.str(api.data[1]),1);api.strMap.unknown=10;
 const snapshot=api.snapshot();assert.match(snapshot,/Known \(НЕЛИКВИД\) \(крепость 7\/10\)/);assert.match(snapshot,/Unknown \(крепость не указана\)/);assert.match(snapshot,/Stopped \(СТОП\) \(крепость 3\/10\)/);assert.doesNotMatch(snapshot,/Warehouse/);
 const rules=s.slice(s.indexOf('МИКСЫ — главное'),s.indexOf('\n\nСКЛАД',s.indexOf('МИКСЫ — главное')));
 assert.match(rules,/хотя бы один подтверждённый slow-вкус/);assert.match(rules,/данных для оценки крепости микса недостаточно/);assert.match(rules,/не назначай миксу число или категорию крепости/);
+assert.match(rules,/СПРАВОЧНИК МИКСОЛОГИИ/);assert.match(rules,/smokersmag.com\/columns\/pipes\/school\/542-pipetobacco-taste-part2/);assert.match(rules,/Колесо не задаёт совместимость/);assert.match(rules,/сначала подтверди конкретные вкусы/);
+const helper=vm.createContext({AI_RULES:rules});const extract=s.slice(s.indexOf('const hlpMixRules='),s.indexOf('const hlpList='));vm.runInContext(extract+'globalThis.rules=hlpMixRules()',helper);assert.match(helper.rules,/СПРАВОЧНИК МИКСОЛОГИИ/);
 console.log('PASS mix context: slow, stop, warehouse exclusion, known/missing/invalid strength and grounded prompt rules');
