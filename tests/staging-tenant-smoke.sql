@@ -1,0 +1,53 @@
+-- Isolated TEST ONLY; all synthetic fixtures roll back. Never run on production.
+BEGIN;
+SET LOCAL statement_timeout='30s';
+CREATE TEMP TABLE staging_baseline_results(result jsonb);
+DO $test$
+DECLARE
+ a uuid:=gen_random_uuid(); b uuid:=gen_random_uuid();
+ actor bigint:=9400000000000+floor(random()*1000000)::bigint;
+ item text:='staging-tenant-'||gen_random_uuid()::text;
+ n integer; blocked boolean; passed text[]:='{}';
+BEGIN
+ IF to_regclass('mixora_restorecheck_1793190662565.stock') IS NULL THEN RAISE EXCEPTION 'Wrong project'; END IF;
+ INSERT INTO public.venues(id,name) VALUES(a,'Synthetic tenant A'),(b,'Synthetic tenant B');
+ INSERT INTO public.users(tg_id,venue_id,name,role) VALUES(actor,a,'Actor A','manager'),(actor+1,b,'Actor B','manager');
+ INSERT INTO public.flavors(id,brand,name,custom) VALUES(item,'TEST','Cross venue',false);
+ INSERT INTO public.stock(venue_id,flavor_id,wh,bar,stop,retired) VALUES(a,item,2,true,false,false),(b,item,2,true,false,false);
+ INSERT INTO public.orders(venue_id) VALUES(a),(b);
+ INSERT INTO public.suppliers(venue_id,name) VALUES(a,'Supplier A'),(b,'Supplier B');
+ INSERT INTO public.tasks(venue_id,text) VALUES(a,'Task A'),(b,'Task B');
+ INSERT INTO public.inv_log(venue_id,ig) VALUES(a,'A'),(b,'B');
+ PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',actor::text,'tg_id',actor,'role','authenticated','venue_id',b)::text,true);
+ EXECUTE 'SET LOCAL ROLE authenticated';
+ IF public.me_venue() IS DISTINCT FROM a THEN RAISE EXCEPTION 'Forged venue claim accepted'; END IF;
+ passed:=array_append(passed,'venue determined by server-side users record');
+ SELECT count(*) INTO n FROM public.orders; IF n<>1 THEN RAISE EXCEPTION 'orders isolation'; END IF;
+ SELECT count(*) INTO n FROM public.suppliers; IF n<>1 THEN RAISE EXCEPTION 'suppliers isolation'; END IF;
+ SELECT count(*) INTO n FROM public.tasks; IF n<>1 THEN RAISE EXCEPTION 'tasks isolation'; END IF;
+ SELECT count(*) INTO n FROM public.inv_log; IF n<>1 THEN RAISE EXCEPTION 'inv_log isolation'; END IF;
+ passed:=array_append(passed,'orders/suppliers/tasks/inv_log read filtered by tenant');
+ UPDATE public.orders SET items='{"attack":1}'::jsonb WHERE venue_id=b;
+ GET DIAGNOSTICS n=ROW_COUNT;
+ IF n<>0 THEN RAISE EXCEPTION 'cross-venue order update'; END IF;
+ blocked:=false;
+ BEGIN INSERT INTO public.suppliers(venue_id,name) VALUES(b,'Foreign');
+ EXCEPTION WHEN insufficient_privilege THEN blocked:=true; END;
+ IF NOT blocked THEN RAISE EXCEPTION 'cross-venue supplier insert'; END IF;
+ passed:=array_append(passed,'cross-venue writes denied');
+ EXECUTE 'RESET ROLE';
+ PERFORM set_config('request.jwt.claims','{}',true);
+ EXECUTE 'SET LOCAL ROLE anon';
+ SELECT count(*) INTO n FROM public.orders; IF n<>0 THEN RAISE EXCEPTION 'anon orders'; END IF;
+ SELECT count(*) INTO n FROM public.suppliers; IF n<>0 THEN RAISE EXCEPTION 'anon suppliers'; END IF;
+ passed:=array_append(passed,'anonymous cannot read orders/suppliers');
+ INSERT INTO public.wishes(venue_id,brand,flavor,device) VALUES(a,'TEST','SYNTHETIC','staging-device-1234');
+ passed:=array_append(passed,'guest wish insert works');
+ SELECT count(*) INTO n FROM public.public_stock WHERE flavor_id=item;
+ IF n<>2 THEN RAISE EXCEPTION 'public_stock test expected two synthetic rows, got %',n; END IF;
+ passed:=array_append(passed,'P0: anonymous public_stock view exposes both synthetic venues');
+ EXECUTE 'RESET ROLE';
+ INSERT INTO staging_baseline_results VALUES(jsonb_build_object('passed',cardinality(passed),'checks',passed,'cleanup','ROLLBACK'));
+END $test$;
+SELECT result FROM staging_baseline_results;
+ROLLBACK;
