@@ -1528,15 +1528,15 @@ function photoCatalogSuggestion(text,focus){
 }
 function photoSuggestionText(m){const list=m.suggestions||[];return list.length?'\n\nПохожие названия в каталоге — уточни, что на фото:\n'+list.map(s=>'— «'+s.text+'» → '+s.options.map(o=>o.brand+' '+o.name+(o.line?' · '+o.line:'')).join(' или ')).join('\n')+'\nЭто подсказки, с этими позициями ничего не сделано.':''}
 function mergePhotoMatches(results){
-  const by=new Map(),tally={},miss=[],suggestions=[];
-  results.forEach(r=>{r.found.forEach(x=>{if(by.has(x.id))by.get(x.id).jars+=x.jars;else by.set(x.id,{...x})});Object.entries(r.jars_by_brand).forEach(([b,n])=>tally[b]=(tally[b]||0)+n);miss.push(...r.not_found_lines);suggestions.push(...(r.suggestions||[]))});
-  return{found:[...by.values()],not_found_lines:miss,suggestions,jars_by_brand:tally,new_flavors:[],ambiguous:[]};
+  const by=new Map(),tally={},miss=[],suggestions=[],approved_labels=[];
+  results.forEach(r=>{r.found.forEach(x=>{if(by.has(x.id))by.get(x.id).jars+=x.jars;else by.set(x.id,{...x})});Object.entries(r.jars_by_brand).forEach(([b,n])=>tally[b]=(tally[b]||0)+n);miss.push(...r.not_found_lines);suggestions.push(...(r.suggestions||[]));approved_labels.push(...(r.approved_labels||[]))});
+  return{found:[...by.values()],not_found_lines:miss,suggestions,approved_labels,jars_by_brand:tally,new_flavors:[],ambiguous:[]};
 }
 function matchPhotoText(text,photo=true){const raw=String(text||"");
    if(photo&&/^Фото\s+\d+:\s*$/m.test(raw))return mergePhotoMatches(raw.split(/^Фото\s+\d+:\s*$/m).filter(t=>t.trim()).map(t=>matchText(t,true)));
    const focusLine=photo&&(raw.match(/^Фокус:\s*(.*)$/mi)||[])[1];
    const focusText=focusLine&&/\bmagnum\b/i.test(focusLine)?focusLine+" S00":focusLine;
-   const focus=focusText&&!/[?…]/.test(focusText)?[...new Set(DATA.map(x=>x.b))].filter(b=>photoBrandText(cnTxt(focusText)).includes(cnTxt(b))).sort((a,b)=>b.length-a.length)[0]:null;
+   const focus=focusText&&!/[?…]|\.{2,}/.test(focusText)?[...new Set(DATA.map(x=>x.b))].filter(b=>photoBrandText(cnTxt(focusText)).includes(cnTxt(b))).sort((a,b)=>b.length-a.length)[0]:null;
    if(photo&&!focus)return{found:[],not_found_lines:["Не удалось определить бренд в центре фото."],jars_by_brand:{},new_flavors:[],ambiguous:[]};
    // С фото банок сервер отдаёт текст по этикеткам («Этикетка N: …» — см. readPhotos на сервере). Разбираем каждую
    // отдельно: иначе бренд с одной банки и название с соседней, встретившиеся просто где-то в общем тексте,
@@ -1545,7 +1545,7 @@ function matchPhotoText(text,photo=true){const raw=String(text||"");
    const chunks=labels.length?labels:photo?raw.split(/\n+/).filter(l=>l.trim()&&!/^Фокус:/i.test(l)):[raw];
    // Один вкус на нескольких этикетках — это несколько банок (сервер уже склеил куски одной этикетки
    // по координатам), считаем их в jars, а не теряем вторую банку
-   const seen=new Map(),found=[],suggestions=[];
+   const seen=new Map(),found=[],suggestions=[],approved_labels=[];
    const gotLabel=new Set(),tally={},newf=[];
    // Бренд на этикетке так, как он записан в каталоге (для подсчёта банок и новых вкусов)
    const brandOf=T=>{const b=[...new Set(DATA.map(x=>x.b))].filter(b=>cnTxt(b).trim().length>2&&T.includes(cnTxt(b))).sort((a,b)=>b.length-a.length);return b[0]||""};
@@ -1558,8 +1558,10 @@ function matchPhotoText(text,photo=true){const raw=String(text||"");
      const approved=correction&&byId[correction.flavor_id];
      // A learned mapping cannot turn a health warning into a flavor or override a visibly different brand.
      const warning=/(?:^|[^\p{L}])(?:слепой|гангрена|импотенция|инфаркт|инсульт|недоношенность|слепота|мертворождение|новообразования)(?=$|[^\p{L}])|рак\s+л[её]гк|подробнее\s+о\s+последствиях/iu;
-     const visibleBrand=[...new Set(DATA.map(x=>x.b))].find(b=>photoBrandText(cnTxt(chunk)).includes(cnTxt(b)));
-     const safe=approved&&approved.b===focus&&!/[?…]/.test(focusLine||"")&&!warning.test(chunk)&&(!visibleBrand||visibleBrand===focus)&&(!detected.hit.length||detected.hit.some(x=>x.id===approved.id));
+     const visibleBrands=[...new Set(DATA.map(x=>x.b))].filter(b=>photoBrandText(cnTxt(chunk)).includes(cnTxt(b)));
+     // Keep uncertainty markers BEFORE normalization, including markers on a stored rule.
+     const safe=approved&&approved.b===focus&&!/[?…]|\.{2,}/.test(chunk)&&!/[?…]|\.{2,}/.test(correction.raw_label)&&!warning.test(chunk)&&visibleBrands.every(b=>b===focus)&&(!detected.hit.length||detected.hit.some(x=>x.id===approved.id));
+     if(safe)approved_labels.push({label:chunk,flavor_id:approved.id});
      const fuzzy=!safe&&!detected.hit.length&&!warning.test(chunk)?photoFuzzyCandidate(chunk,focus):null;
      const hit=safe?[approved]:detected.hit.length?detected.hit:fuzzy?[fuzzy]:[],byN=safe?{[cnTxt(approved.n)]:[approved]}:fuzzy?{[cnTxt(fuzzy.n)]:[fuzzy]}:detected.byN,T=detected.T,fixed=detected.fixed;if(hit.length)gotLabel.add(chunk.trim());else if(photo){const suggestion=photoCatalogSuggestion(chunk,focus);if(suggestion)suggestions.push(suggestion)}
      if(labels.length){const b=hit.length?hit[0].b:brandOf(T);tally[b||"Без бренда"]=(tally[b||"Без бренда"]||0)+1;
@@ -1577,7 +1579,7 @@ function matchPhotoText(text,photo=true){const raw=String(text||"");
    const names=found.map(x=>cnTxt(x.name));
    const lines=(labels.length?labels:raw.split(/\n+/)).map(l=>l.trim());
    const miss=lines.filter(l=>{if(gotLabel.has(l)||background.has(l)||photo&&/^Фокус:/i.test(l))return false;if(photo)return !!l.trim();const c=cnTxt(l);return c.trim().length>2&&!brands.has(c.trim())&&!names.some(n=>nameIn(c,n.trim())||c.includes(n)||n.includes(c))});
-   return{found:found.slice(0,80),suggestions,not_found_lines:miss.slice(0,40),jars_by_brand:tally,new_flavors:newf,ambiguous:[]}}
+   return{found:found.slice(0,80),suggestions,approved_labels,not_found_lines:miss.slice(0,40),jars_by_brand:tally,new_flavors:newf,ambiguous:[]}}
 // Фото, прочитанное на сервере (Sonnet или Яндекс): приложение само сверяет текст с каталогом и отдаёт модели готовый список —
 // маленькая модель на ПК иначе пропускает банки и придумывает вкусы
 // Итог по фото за один вопрос: банки по брендам и новые вкусы. Приложение само ставит его в начало ответа и
@@ -1784,11 +1786,12 @@ async function inspectPhoto(out,args,imgs,signal){
 // Corrections are suggestions only: NEVER stage stock, order or stop-list changes.
 let learnedPhoto=[];
 const learnedKey=s=>cnTxt(String(s||"").replace(/^Этикетка\s*\d+\s*:\s*/i,"")).trim();
-function learnedHints(ocr){
- const labels=[...String(ocr||"").matchAll(/^Этикетка\s*\d+\s*:\s*(.+)$/gim)].map(m=>m[1]);
+function learnedHints(ocr,matched=matchPhotoText(ocr)){
+ // Display only approvals accepted by the matcher, with each photo's own focus.
  const seen=new Set(),items=[];
- for(const label of labels){const key=learnedKey(label);if(seen.has(key))continue;seen.add(key);
-   const rec=learnedPhoto.find(x=>learnedKey(x.raw_label)===key),f=rec&&byId[rec.flavor_id];
+ for(const {label,flavor_id} of matched.approved_labels||[]){
+   const key=flavor_id+":"+learnedKey(label);if(seen.has(key))continue;seen.add(key);
+   const f=byId[flavor_id];
    if(f)items.push("— "+label+" → "+f.b+" "+f.n+" (на складе "+wh(f)+", на стойке: "+(onBar(f)?"есть":"нет")+")");
  }
  return items.length?"\n\nРанее подтверждённые соответствия (подсказка, ничего не изменено):\n"+items.join("\n"):"";
@@ -1837,9 +1840,9 @@ function offerPhotoCorrection(out,ocr){
  };
 }
 async function cmdNaiti(out,args,imgs){const{m,text}=await cmdFindIds(args,imgs,aiCtl.signal);
-  if(!m.found.length){out.textContent=(m.suggestions?.length?"Нет уверенного совпадения на фото.":"Не нашёл ничего на складе"+(args||(imgs&&imgs.length)?" по этому запросу":"")+". Пришли фото банок или напиши названия вкусов.")+photoSuggestionText(m)+(imgs?.length?learnedHints(text):"");if(imgs?.length)offerPhotoCorrection(out,text);return}
+  if(!m.found.length){out.textContent=(m.suggestions?.length?"Нет уверенного совпадения на фото.":"Не нашёл ничего на складе"+(args||(imgs&&imgs.length)?" по этому запросу":"")+". Пришли фото банок или напиши названия вкусов.")+photoSuggestionText(m)+(imgs?.length?learnedHints(text,m):"");if(imgs?.length)offerPhotoCorrection(out,text);return}
   const lines=m.found.map(x=>{const it=byId[x.id];return "— "+x.brand+" "+x.name+(imgs&&imgs.length&&x.jars>1?" ×"+x.jars:"")+": на складе "+x.wh+(x.onBar?", на стойке: есть":", на стойке: нет")+(it&&flag(it,"slow")?" (неликвид)":"")+(it&&flag(it,"stop")?" (стоп)":"")});
-  out.textContent=(imgs&&imgs.length?"Распознано по каталогу:\n":"Нашёл на складе и стойке:\n")+lines.join("\n")+(m.not_found_lines.length?"\n\nНе распознано уверенно:\n"+m.not_found_lines.map(l=>"— "+l).join("\n"):"")+photoSuggestionText(m)+(imgs?.length?learnedHints(text):"");if(imgs?.length)offerPhotoCorrection(out,text)}
+  out.textContent=(imgs&&imgs.length?"Распознано по каталогу:\n":"Нашёл на складе и стойке:\n")+lines.join("\n")+(m.not_found_lines.length?"\n\nНе распознано уверенно:\n"+m.not_found_lines.map(l=>"— "+l).join("\n"):"")+photoSuggestionText(m)+(imgs?.length?learnedHints(text,m):"");if(imgs?.length)offerPhotoCorrection(out,text)}
 function transferQuantity(args){
  const text=String(args||"").trim();
  const matches=[...text.matchAll(/(?:^|\s)(\d+)\s*(?:шт\.?|штук[аи]?|упаков(?:ка|ки|ок))(?=\s|$)/gi)];
