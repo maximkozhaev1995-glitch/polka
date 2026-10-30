@@ -1,34 +1,27 @@
-# © 2026 Максим Кожаев. Все права защищены. Копирование, распространение и использование без письменного согласия автора запрещены.
-# Собирает karta/index.html: каталог вкусов (все 570 с категориями) вшивается в страницу, а наличие и миксы карта берёт из базы при открытии.
-# Нужен токен Supabase в SUPABASE_ACCESS_TOKEN. Шаблон страницы: karta/template.html.
-import json,os,re,sys,urllib.request
-sys.path.insert(0,os.path.dirname(__file__))
-from classify import classify
-REF='qnohynnwasoyjakrrrhb';VENUE='e58bb6aa-8a0e-4697-9ef6-0bc001f0e21e'
-root=os.path.join(os.path.dirname(__file__),'..')
-if '--reuse-data' in sys.argv:
-    # Offline UI rebuild: retain the exact previously committed catalog snapshot.
-    old=open(root+'/karta/index.html').read()
-    data=re.search(r'const DATA=(\[.*?\]);const ALL=',old).group(1)
-    json.loads(data)
-    s=open(root+'/karta/template.html').read().replace('__DATA__',data)
-    open(root+'/karta/index.html','w').write(s)
-    print('karta/index.html rebuilt using existing snapshot (no network)')
-    sys.exit(0)
-T=os.environ['SUPABASE_ACCESS_TOKEN']
-def sql(q):
-    req=urllib.request.Request(f'https://api.supabase.com/v1/projects/{REF}/database/query',data=json.dumps({'query':q}).encode(),headers={'Authorization':'Bearer '+T,'Content-Type':'application/json','User-Agent':'polka'},method='POST')
-    return json.loads(urllib.request.urlopen(req,timeout=90).read())
-st=json.loads(re.search(r'const DATA=(\[.*?\]);\n',open(root+'/src/stoika.html').read()).group(1))
-status={x['id']:x.get('s') for x in st}
-rows=sql(f"select f.id,f.brand b,f.line l,f.name n,f.descr d,f.tags t,f.strength st,coalesce(s.bar and not s.stop and not s.retired,false) ob,coalesce(s.slow,false) sl from flavors f left join stock s on s.flavor_id=f.id and s.venue_id='{VENUE}' where not f.custom")
-G=[]
-for r in rows:
-    d='' if status.get(r['id'])=='pend' else (r['d'] or '')
-    g={'id':r['id'],'b':r['b'],'l':r['l'] or '','n':r['n'],'d':d,'t':r['t'] or [],'ob':bool(r['ob'])}
-    if r['sl']:g['sl']=True
-    if r['st']:g['st']=r['st']
-    g['c']=classify(g);G.append(g)
-s=open(root+'/karta/template.html').read().replace('__DATA__',json.dumps(G,ensure_ascii=False))
-open(root+'/karta/index.html','w').write(s)
-print('karta/index.html',len(G),'вкусов, на стойке по снимку',sum(1 for g in G if g['ob']))
+# Staging-only offline guest-card builder. It never connects to any Supabase project.
+# This branch is not ready for deployment until the test catalog is fully reproduced.
+from pathlib import Path
+import json
+import re
+import sys
+
+STAGING_REF = "qnohynnwasoyjakrrrhb"
+STAGING_VENUE = "10000000-0000-0000-0000-000000000001"
+if "--reuse-data" not in sys.argv:
+    raise SystemExit("Staging prohibits online catalog rebuilding. Use --reuse-data; do not deploy until verified.")
+
+root = Path(__file__).resolve().parent.parent
+template = (root / "karta/template.html").read_text()
+previous = (root / "karta/index.html").read_text()
+match = re.search(r"const DATA=(\[.*?\]);const ALL=", previous, re.S)
+if not match:
+    raise SystemExit("Embedded catalog snapshot is unavailable")
+snapshot = match.group(1)
+json.loads(snapshot)
+for source in (template, previous):
+    if STAGING_REF not in source or STAGING_VENUE not in source:
+        raise SystemExit("Staging config is missing from guest card")
+if template.count("__DATA__") != 1:
+    raise SystemExit("Unexpected guest-card catalog placeholder count")
+(root / "karta/index.html").write_text(template.replace("__DATA__", snapshot))
+print("Staging guest card rebuilt offline; catalog still requires live test-data validation")
