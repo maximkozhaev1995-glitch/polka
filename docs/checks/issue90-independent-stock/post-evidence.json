@@ -1,0 +1,153 @@
+{
+  "summary": {
+    "result": {
+      "level": "independent SQL roles, not HTTP",
+      "tests": [
+        "anon: SELECT both views preserved; INSERT/UPDATE both views denied 42501; DELETE denied by effective privilege check without executing DELETE",
+        "authenticated: SELECT both views preserved; INSERT/UPDATE both views denied 42501; DELETE denied by effective privilege check without executing DELETE",
+        "Authenticated own-venue apply_stock updates quantity 2 to 1, revision 0 to 1, creates one attributed movement",
+        "Authenticated own-venue base mixes edit remains allowed"
+      ],
+      "cleanup": "ROLLBACK; one movement identity allocation may remain as sequence gap",
+      "project": "qnohynnwasoyjakrrrhb"
+    },
+    "rollback_equal_tables": 10,
+    "sequence_before": {
+      "last_value": 34,
+      "is_called": true
+    },
+    "sequence_after": {
+      "last_value": 35,
+      "is_called": true
+    },
+    "sequence_delta": 1,
+    "sha256": {
+      "postchange.sql": "9f7fad181dc426dfb14dcd23b50faa46df113973e0336800c6a4e34b54b35028",
+      "post-result.json": "f24a42b2a7ab2fc24cf1227163ccefe7e2a7940210a8e5fcc1194b80d572726c",
+      "post-before.json": "84d00d28cd587db686a1d66d084bab03cad0df3f6c2a1454071b5bbb5a3855e2",
+      "post-after.json": "4d97a65c829d64f0d54185995a75269d036bd3c3c6dbc9f3a4c1e3bcae405819",
+      "post-sequence-before.json": "c0d79accdc1b54d2616a991fdef2ff61cfd4768fa6b844f209860e0a474f25e0",
+      "post-sequence-after.json": "ce344253a51c946839e58315be27e0f6935fbb32f3c6661af33e80ebe3609e12"
+    }
+  },
+  "before": [
+    {
+      "table_name": "public.venues",
+      "row_count": 2,
+      "row_fingerprint": "94866b058cff6fbbd0940538c0b7c1be"
+    },
+    {
+      "table_name": "public.users",
+      "row_count": 4,
+      "row_fingerprint": "852905071c525c26b25431040f24245e"
+    },
+    {
+      "table_name": "public.flavors",
+      "row_count": 26,
+      "row_fingerprint": "5724795f22eb08464d11a0ff44511c0c"
+    },
+    {
+      "table_name": "public.stock",
+      "row_count": 2,
+      "row_fingerprint": "3fae89a990f72fb0ced4eb8935a7c19c"
+    },
+    {
+      "table_name": "public.moves",
+      "row_count": 0,
+      "row_fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "public.mixes",
+      "row_count": 0,
+      "row_fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "public.guest_mixes",
+      "row_count": 0,
+      "row_fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "public.flavor_strengths",
+      "row_count": 0,
+      "row_fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "public.flavor_packs",
+      "row_count": 0,
+      "row_fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "mixora_private.stock_requests",
+      "row_count": 0,
+      "row_fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    }
+  ],
+  "after": [
+    {
+      "table_name": "public.venues",
+      "row_count": 2,
+      "row_fingerprint": "94866b058cff6fbbd0940538c0b7c1be"
+    },
+    {
+      "table_name": "public.users",
+      "row_count": 4,
+      "row_fingerprint": "852905071c525c26b25431040f24245e"
+    },
+    {
+      "table_name": "public.flavors",
+      "row_count": 26,
+      "row_fingerprint": "5724795f22eb08464d11a0ff44511c0c"
+    },
+    {
+      "table_name": "public.stock",
+      "row_count": 2,
+      "row_fingerprint": "3fae89a990f72fb0ced4eb8935a7c19c"
+    },
+    {
+      "table_name": "public.moves",
+      "row_count": 0,
+      "row_fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "public.mixes",
+      "row_count": 0,
+      "row_fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "public.guest_mixes",
+      "row_count": 0,
+      "row_fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "public.flavor_strengths",
+      "row_count": 0,
+      "row_fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "public.flavor_packs",
+      "row_count": 0,
+      "row_fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "mixora_private.stock_requests",
+      "row_count": 0,
+      "row_fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    }
+  ],
+  "result": [
+    {
+      "result": {
+        "level": "independent SQL roles, not HTTP",
+        "tests": [
+          "anon: SELECT both views preserved; INSERT/UPDATE both views denied 42501; DELETE denied by effective privilege check without executing DELETE",
+          "authenticated: SELECT both views preserved; INSERT/UPDATE both views denied 42501; DELETE denied by effective privilege check without executing DELETE",
+          "Authenticated own-venue apply_stock updates quantity 2 to 1, revision 0 to 1, creates one attributed movement",
+          "Authenticated own-venue base mixes edit remains allowed"
+        ],
+        "cleanup": "ROLLBACK; one movement identity allocation may remain as sequence gap",
+        "project": "qnohynnwasoyjakrrrhb"
+      }
+    }
+  ],
+  "sanitization": "Only query result data retained; connector wrappers omitted. Original response hashes recorded in summary."
+}
