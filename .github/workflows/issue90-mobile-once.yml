@@ -1,0 +1,52 @@
+name: Mixora UI-01 one-off isolated browser
+"on":
+  push:
+    branches: [audit/mixora-chief-engineer-20261031]
+    paths:
+      - .github/workflows/issue90-mobile-once.yml
+      - tests/issue90-mobile-browser.mjs
+permissions:
+  contents: read
+concurrency:
+  group: mixora-ui90-one-off
+  cancel-in-progress: false
+jobs:
+  ui:
+    if: >-
+      github.run_attempt == 1 && github.event.head_commit.message == 'test: run isolated UI-01 once [ui90-20261031]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Verify reviewed dependency manifests
+        run: |
+          echo '214b56c640293675754dd487656f8cf713f1db4377decd902d51f8d4ce9286cb  package.json' | sha256sum --check --status
+          echo 'f782ffbe342e7b22010fd4d73151aeaf4196c8af16af13368c33a5b1715b4bae  package-lock.json' | sha256sum --check --status
+      - name: Install locked dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Install pinned Playwright Chromium
+        run: npx --no-install playwright install --with-deps chromium
+      - name: Run isolated mobile-viewport UI checks
+        env:
+          MIXORA_UI_ARTIFACT_DIR: ${{ runner.temp }}/ui90-${{ github.run_id }}-${{ github.run_attempt }}
+        run: node tests/issue90-mobile-browser.mjs
+      - name: Upload only synthetic screenshots and sanitized summary
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ui90-isolated-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/ui90-${{ github.run_id }}-${{ github.run_attempt }}/01-home-390.png
+            ${{ runner.temp }}/ui90-${{ github.run_id }}-${{ github.run_attempt }}/02-photo-composer-390x600.png
+            ${{ runner.temp }}/ui90-${{ github.run_id }}-${{ github.run_attempt }}/03-photo-composer-390x844.png
+            ${{ runner.temp }}/ui90-${{ github.run_id }}-${{ github.run_attempt }}/summary.json
+          if-no-files-found: warn
+          retention-days: 1
+          include-hidden-files: false
+
