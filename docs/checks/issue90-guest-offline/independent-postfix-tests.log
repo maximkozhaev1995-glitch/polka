@@ -1,0 +1,44 @@
+✔ karta/template.html: second save failure never acknowledges unsaved second delivery (24.129498ms)
+✔ karta/template.html: failed save preserves preexisting favorite (3.592441ms)
+✔ karta/template.html: missing receipt identity never saves or acknowledges (3.4587ms)
+✔ karta/template.html: session switch while reading does not misattribute old receipt (2.459771ms)
+✔ karta/template.html: session switch during first ACK does not process remaining old-session receipt (2.766522ms)
+✔ karta/template.html: failed GET makes no changes and releases busy guard (2.940313ms)
+✔ karta/index.html: second save failure never acknowledges unsaved second delivery (2.696887ms)
+✔ karta/index.html: failed save preserves preexisting favorite (2.09871ms)
+✔ karta/index.html: missing receipt identity never saves or acknowledges (2.478128ms)
+✔ karta/index.html: session switch while reading does not misattribute old receipt (2.387863ms)
+✔ karta/index.html: session switch during first ACK does not process remaining old-session receipt (1.934553ms)
+✔ karta/index.html: failed GET makes no changes and releases busy guard (2.489406ms)
+✔ karta/template.html: failed durable save does not ACK or report success and rolls back memory (22.420854ms)
+✔ karta/template.html: saves delivery ID before ACK, duplicate rows and retries do not duplicate (4.877208ms)
+✔ karta/template.html: throw ACK failure stays retryable across reload without duplicate (6.11719ms)
+✔ karta/template.html: http-error ACK failure stays retryable across reload without duplicate (5.42748ms)
+✔ karta/template.html: timeout ACK failure stays retryable across reload without duplicate (7.53715ms)
+✔ karta/template.html: distinct delivery IDs keep identical recipe content as two intentional deliveries (3.064378ms)
+✔ karta/template.html: guest change during read abandons stale response without save or ACK (2.040532ms)
+✔ karta/template.html: saved receipt dedup is scoped to guest identity (2.326681ms)
+✔ karta/template.html: ACK applied but response lost preserves one favorite and no retry duplication (3.088104ms)
+✔ karta/template.html: deleting an unacknowledged favorite is not delivery cancellation; pending read restores one copy (2.897212ms)
+✔ karta/template.html: partial batch keeps first saved delivery but never ACKs second failed save (2.344578ms)
+✔ karta/template.html: guest switch during first ACK prevents remaining batch entering another session (2.787463ms)
+✔ karta/index.html: failed durable save does not ACK or report success and rolls back memory (2.313812ms)
+✔ karta/index.html: saves delivery ID before ACK, duplicate rows and retries do not duplicate (2.366421ms)
+✔ karta/index.html: throw ACK failure stays retryable across reload without duplicate (3.938009ms)
+✔ karta/index.html: http-error ACK failure stays retryable across reload without duplicate (4.624159ms)
+✔ karta/index.html: timeout ACK failure stays retryable across reload without duplicate (6.549188ms)
+✔ karta/index.html: distinct delivery IDs keep identical recipe content as two intentional deliveries (2.346802ms)
+✔ karta/index.html: guest change during read abandons stale response without save or ACK (2.063797ms)
+✔ karta/index.html: saved receipt dedup is scoped to guest identity (2.117538ms)
+✔ karta/index.html: ACK applied but response lost preserves one favorite and no retry duplication (2.229575ms)
+✔ karta/index.html: deleting an unacknowledged favorite is not delivery cancellation; pending read restores one copy (2.16592ms)
+✔ karta/index.html: partial batch keeps first saved delivery but never ACKs second failed save (2.298469ms)
+✔ karta/index.html: guest switch during first ACK prevents remaining batch entering another session (2.123226ms)
+ℹ tests 36
+ℹ suites 0
+ℹ pass 36
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 200.935753
