@@ -932,16 +932,26 @@ let gid="";try{gid=localStorage.getItem("karta-gid")||"";if(!gid){gid="g"+Math.r
 let QRL=null;function loadQR(){return QRL||(QRL=new Promise((ok,no)=>{if(window.qrcode)return ok(window.qrcode);const sc=document.createElement("script");sc.src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js";sc.onload=()=>ok(window.qrcode);sc.onerror=()=>{QRL=null;no()};document.head.append(sc)}))}
 function qrSvg(text){const q=window.qrcode(0,"M");q.addData(text);q.make();const n=q.getModuleCount(),c=6;let d="";for(let r=0;r<n;r++)for(let k=0;k<n;k++)if(q.isDark(r,k))d+="M"+(k*c)+" "+(r*c)+"h"+c+"v"+c+"h-"+c+"z";const w=n*c;return '<svg viewBox="-12 -12 '+(w+24)+" "+(w+24)+'" width="100%" xmlns="http://www.w3.org/2000/svg"><rect x="-12" y="-12" width="'+(w+24)+'" height="'+(w+24)+'" fill="#fff"/><path d="'+d+'" fill="#140c07"/></svg>'}
 let gmTimer=null,gmBusy=false;
-async function pollGuestMix(){const C=window.POLKA_CONFIG;if(!C||gmBusy)return;gmBusy=true;
-  try{const r=await fetch(C.url+"/rest/v1/guest_mixes?gid=eq."+encodeURIComponent(gid)+"&taken=eq.false&select=id,name,parts,note,created_at",{headers:{apikey:C.anon,Authorization:"Bearer "+C.anon}});
-    if(!r.ok)return;const rows=await r.json();if(!rows.length)return;
+async function pollGuestMix(){const C=window.POLKA_CONFIG;if(!C||gmBusy)return;gmBusy=true;const guestId=gid;
+  try{const r=await fetch(C.url+"/rest/v1/guest_mixes?gid=eq."+encodeURIComponent(guestId)+"&taken=eq.false&select=id,name,parts,note,created_at",{headers:{apikey:C.anon,Authorization:"Bearer "+C.anon}});
+    if(!r.ok)return;const rows=await r.json();if(!rows.length||gid!==guestId)return;
+    let added=0,ackFailed=false;
     for(const row of rows){
-      mine.unshift({name:row.name||"Микс от мастера",parts:row.parts||[],note:row.note||"",date:new Date().toLocaleDateString("ru-RU"),by:"мастер"});
-      try{await fetch(C.url+"/rest/v1/rpc/claim_guest_mix",{method:"POST",headers:{apikey:C.anon,Authorization:"Bearer "+C.anon,"Content-Type":"application/json"},body:JSON.stringify({p_id:row.id})})}catch(e){}
+      if(gid!==guestId)return;
+      if(!row.id)continue;
+      // The server's pending row is the retry queue. Persist its identity with
+      // the favorite BEFORE receipt ACK; a reload/retry must not add it twice.
+      if(!mine.some(m=>m.delivery_id===row.id&&m.delivery_gid===guestId)){
+        mine.unshift({name:row.name||"Микс от мастера",parts:row.parts||[],note:row.note||"",date:new Date().toLocaleDateString("ru-RU"),by:"мастер",delivery_id:row.id,delivery_gid:guestId});
+        if(!saveMine()){mine.shift();toast2("Браузер не дал сохранить микс. Получение не подтверждено — попробуем снова.");return}
+        added++;
+      }
+      const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),10000);
+      try{const ack=await fetch(C.url+"/rest/v1/rpc/claim_guest_mix",{method:"POST",headers:{apikey:C.anon,Authorization:"Bearer "+C.anon,"Content-Type":"application/json"},body:JSON.stringify({p_id:row.id}),signal:ctl.signal});if(!ack.ok)ackFailed=true}catch(e){ackFailed=true}finally{clearTimeout(timer)}
     }
-    saveMine();st.meTab="ms";toast2(rows.length>1?"Мастер записал "+rows.length+" микса, они у тебя в избранном":"Мастер записал микс, он у тебя в избранном");
-    const dd=$("#qrd");if(dd&&dd.open){try{dd.close()}catch(e){dd.removeAttribute("open")}}
-    if(st.tab==="me")render()
+    if(ackFailed)toast2("Микс сохранён в этом браузере. Подтверждение получения не удалось — повторим без новой копии.");
+    else if(added)toast2(added>1?"Мастер записал "+added+" микса, они у тебя в избранном":"Мастер записал микс, он у тебя в избранном");
+    if(added){st.meTab="ms";const dd=$("#qrd");if(dd&&dd.open&&!ackFailed){try{dd.close()}catch(e){dd.removeAttribute("open")}}if(st.tab==="me")render()}
   }catch(e){}finally{gmBusy=false}}
 pollGuestMix();
 async function openQR(){const url="https://t.me/PolkaHookahbot/PolkaSklad?startapp=guest_"+gid;
@@ -1395,3 +1405,4 @@ window.bindWish=function(){document.querySelectorAll("[data-wk]").forEach(functi
   send(b,f,matchCatalog(b,f)).then(function(r){s.disabled=false;if(r==="ok"){document.getElementById("wbr").value="";document.getElementById("wfl").value="";msg("Спасибо, пожелание принято.")}else msg(r==="limit"?"На сегодня хватит пожеланий, попробуйте завтра.":"Не получилось отправить. Попробуйте позже.")})}};
 })();
 </script><script>(function(){const d=document.getElementById("pv");document.getElementById("pv-open").onclick=e=>{e.preventDefault();try{d.showModal()}catch(x){d.setAttribute("open","")}};document.getElementById("pv-close").onclick=()=>d.close();d.addEventListener("click",e=>{if(e.target===d)d.close()})})();</script>
+

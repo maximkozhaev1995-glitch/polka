@@ -1,0 +1,41 @@
+{
+  "scope": "Independently pixel-verified manual label transcriptions; offline text-stage regression, NOT live OCR. Original private evidence retained separately, not published.",
+  "catalogue_check": "Reviewer verified unknown brand absent in authoritative catalogue snapshot.",
+  "photos": [
+    {
+      "filename": "manual-photo-A",
+      "labels": [
+        {
+          "brand": "DAILY HOOKAH",
+          "flavor": "МЯТНАЯ ПАСТИЛКА",
+          "position": "top left"
+        },
+        {
+          "brand": "DAILY HOOKAH",
+          "flavor": "ЯГОДНЫЙ СОРБЕТ",
+          "position": "top right"
+        }
+      ],
+      "neighbor": {
+        "brand": "STARLINE",
+        "flavor": "БЕЛЬГИЙСКИЕ ВАФЛИ",
+        "position": "below left"
+      }
+    },
+    {
+      "filename": "manual-photo-B",
+      "labels": [
+        {
+          "brand": "DAILY HOOKAH",
+          "flavor": "ВИНОГРАДНОЕ ЖЕЛЕ",
+          "position": "third jar from top"
+        }
+      ],
+      "neighbor": {
+        "brand": "STARLINE",
+        "flavor": "МАРЦИПАН",
+        "position": "fourth jar from top"
+      }
+    }
+  ]
+}

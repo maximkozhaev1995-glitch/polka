@@ -246,7 +246,7 @@
       // opts.photo — приложение само сверяет текст с каталогом; сверка — наш код, может споткнуться на непредвиденном
       // тексте с фото: тогда не роняем весь запрос, а откатываемся к сырому OCR-тексту для этой картинки
       photo=texts.map((t,i)=>{if(t&&t.failed)return "[Фото "+(i+1)+" не удалось прочитать (ошибка: "+t.failed+"). Скажи человеку, что это фото не прочиталось, и попроси прислать его ещё раз. Вкусы с него не угадывай.]";
-        try{return opts.photo?opts.photo(t||""):"[Фото, текст прочитан с фото]\n"+(t||"(текста на фото не нашлось)")}
+        try{return opts.photo?opts.photo(t||"",{photo_index:i+1}):"[Фото, текст прочитан с фото]\n"+(t||"(текста на фото не нашлось)")}
         catch(e){console.warn("photo match failed:",e);return "[Фото, текст прочитан с фото]\n"+(t||"(текста на фото не нашлось)")}});
       const last=msgs[msgs.length-1];
       last.content=[...photo.map(t=>({type:"text",text:t})),{type:"text",text:String(last.content)}]}
@@ -283,3 +283,4 @@
     if(k==="sample"){await readyP;return sample}
     return null}};
 })();
+
