@@ -1,0 +1,156 @@
+{
+  "scope": "independent SQL role reproduction on test project only; not HTTP",
+  "summary": {
+    "independent_reproduction": {
+      "scope": "independent SQL-role reproduction, not HTTP",
+      "claims": "empty",
+      "cleanup": "ROLLBACK, no identity allocation",
+      "project": "qnohynnwasoyjakrrrhb",
+      "is_staff": false,
+      "moves_after": 0,
+      "moves_before": 0,
+      "fixture_venue": "aa94619d-7eb0-42ec-9b46-7125fda2a81d",
+      "execution_role": "anon",
+      "fixture_flavor": "issue90-independent-aa94619d-7eb0-42ec-9b46-7125fda2a81d",
+      "revision_after": 0,
+      "revision_before": 0,
+      "stock_slow_after": true,
+      "public_view_changed_rows": 1,
+      "direct_stock_update_sqlstate": "42501"
+    },
+    "rollback_tables_equal": 10,
+    "sha256": {
+      "after.json": "368c4e904404bc63a8ee26ecd2b38e29b9a86c98bfa29ee27c441f8ac0f2705f",
+      "result.json": "e9c2ee7e72e3c05696cb94a3284ea65cbd50e2028de38c0c73a9d8fc904f4158",
+      "before.json": "ed0a3d15dddb0956dca5523dfd7f589911df19bf531a69ef636b9b6e403f0f98",
+      "reproduce.sql": "6cd6bdf8de7a96c1a75af5bf85d396ba1c00ada1b1aae8ce24db6c9d42ce55ee",
+      "fingerprint.sql": "ccf2e5fb92944429a4e715b050ef300ee9f6d72597477f21579330521a09beb8"
+    }
+  },
+  "before": [
+    {
+      "table_name": "public.venues",
+      "row_count": 2,
+      "row_fingerprint": "94866b058cff6fbbd0940538c0b7c1be"
+    },
+    {
+      "table_name": "public.users",
+      "row_count": 4,
+      "row_fingerprint": "852905071c525c26b25431040f24245e"
+    },
+    {
+      "table_name": "public.flavors",
+      "row_count": 26,
+      "row_fingerprint": "5724795f22eb08464d11a0ff44511c0c"
+    },
+    {
+      "table_name": "public.stock",
+      "row_count": 2,
+      "row_fingerprint": "3fae89a990f72fb0ced4eb8935a7c19c"
+    },
+    {
+      "table_name": "public.moves",
+      "row_count": 0,
+      "row_fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "public.mixes",
+      "row_count": 0,
+      "row_fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "public.guest_mixes",
+      "row_count": 0,
+      "row_fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "public.flavor_strengths",
+      "row_count": 0,
+      "row_fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "public.flavor_packs",
+      "row_count": 0,
+      "row_fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "mixora_private.stock_requests",
+      "row_count": 0,
+      "row_fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    }
+  ],
+  "after": [
+    {
+      "table_name": "public.venues",
+      "row_count": 2,
+      "row_fingerprint": "94866b058cff6fbbd0940538c0b7c1be"
+    },
+    {
+      "table_name": "public.users",
+      "row_count": 4,
+      "row_fingerprint": "852905071c525c26b25431040f24245e"
+    },
+    {
+      "table_name": "public.flavors",
+      "row_count": 26,
+      "row_fingerprint": "5724795f22eb08464d11a0ff44511c0c"
+    },
+    {
+      "table_name": "public.stock",
+      "row_count": 2,
+      "row_fingerprint": "3fae89a990f72fb0ced4eb8935a7c19c"
+    },
+    {
+      "table_name": "public.moves",
+      "row_count": 0,
+      "row_fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "public.mixes",
+      "row_count": 0,
+      "row_fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "public.guest_mixes",
+      "row_count": 0,
+      "row_fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "public.flavor_strengths",
+      "row_count": 0,
+      "row_fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "public.flavor_packs",
+      "row_count": 0,
+      "row_fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "mixora_private.stock_requests",
+      "row_count": 0,
+      "row_fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    }
+  ],
+  "result": [
+    {
+      "result": {
+        "scope": "independent SQL-role reproduction, not HTTP",
+        "claims": "empty",
+        "cleanup": "ROLLBACK, no identity allocation",
+        "project": "qnohynnwasoyjakrrrhb",
+        "is_staff": false,
+        "moves_after": 0,
+        "moves_before": 0,
+        "fixture_venue": "aa94619d-7eb0-42ec-9b46-7125fda2a81d",
+        "execution_role": "anon",
+        "fixture_flavor": "issue90-independent-aa94619d-7eb0-42ec-9b46-7125fda2a81d",
+        "revision_after": 0,
+        "revision_before": 0,
+        "stock_slow_after": true,
+        "public_view_changed_rows": 1,
+        "direct_stock_update_sqlstate": "42501"
+      }
+    }
+  ],
+  "sanitization": "Only query result data retained; connector wrappers omitted. Original response hashes are in summary."
+}
