@@ -1,0 +1,105 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> test:issue90
+> node tests/photo-outcomes.cjs && node tests/photo-provenance.cjs && node tests/drive-unknown-brand-transcriptions.cjs && node tests/guest-delivery-save.cjs
+
+✔ src/stoika.html: four outcomes keep raw text and never add unknown catalogue entries (103.864121ms)
+✔ src/stoika.html: unknown focus must be corroborated on its own label (68.110475ms)
+✔ src/stoika.html: uncertain, warning and conflicting labels are never new-brand/flavor candidates (174.921428ms)
+✔ src/stoika.html: missing flavor and ambiguous product variant are not new flavors (57.076468ms)
+✔ src/stoika.html: packaging warnings are not candidates or counted products (8.031402ms)
+✔ src/stoika.html: unknown brands sharing known flavor words remain review-only (7.155277ms)
+✔ src/stoika.html: conflicting focus and missing label fail closed (40.707284ms)
+✔ src/stoika.html: background brand is not converted into foreground review candidate (26.523571ms)
+✔ src/stoika.html: multi-photo results retain independent outcomes (39.029317ms)
+✔ src/stoika.html: inspection preserves raw unknown label without inventing multiword brand boundary (5.25772ms)
+✔ src/stoika.html: photo chat uses strict matcher and cannot queue automatic new-flavor proposals (42.434506ms)
+✔ src/stoika.html: /найти reports recognition outcomes, not empty inventory (68.533179ms)
+✔ index.html: four outcomes keep raw text and never add unknown catalogue entries (87.771748ms)
+✔ index.html: unknown focus must be corroborated on its own label (66.664646ms)
+✔ index.html: uncertain, warning and conflicting labels are never new-brand/flavor candidates (204.242051ms)
+✔ index.html: missing flavor and ambiguous product variant are not new flavors (75.421069ms)
+✔ index.html: packaging warnings are not candidates or counted products (7.666575ms)
+✔ index.html: unknown brands sharing known flavor words remain review-only (7.414116ms)
+✔ index.html: conflicting focus and missing label fail closed (38.894754ms)
+✔ index.html: background brand is not converted into foreground review candidate (27.886837ms)
+✔ index.html: multi-photo results retain independent outcomes (38.547964ms)
+✔ index.html: inspection preserves raw unknown label without inventing multiword brand boundary (5.096597ms)
+✔ index.html: photo chat uses strict matcher and cannot queue automatic new-flavor proposals (50.36688ms)
+✔ index.html: /найти reports recognition outcomes, not empty inventory (72.520643ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 24
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1341.086651
+✔ src/stoika.html: repeated labels retain source photo and label numbers without merging candidates (42.62641ms)
+✔ src/stoika.html: empty label never absorbs neighbor and empty focus never borrows next line (49.040479ms)
+✔ src/stoika.html: separate brand and flavor jars cannot combine (44.147269ms)
+✔ src/stoika.html: inspection preserves original index after failed photo (2.944218ms)
+✔ src/stoika.html: general photo chat receives explicit attachment index and stores no add proposals (14.934772ms)
+✔ index.html: repeated labels retain source photo and label numbers without merging candidates (27.12208ms)
+✔ index.html: empty label never absorbs neighbor and empty focus never borrows next line (43.59199ms)
+✔ index.html: separate brand and flavor jars cannot combine (42.060348ms)
+✔ index.html: inspection preserves original index after failed photo (2.081143ms)
+✔ index.html: general photo chat receives explicit attachment index and stores no add proposals (13.085507ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 291.974342
+✔ src/stoika.html: manual-photo-A МЯТНАЯ ПАСТИЛКА remains review-only (39.882849ms)
+✔ src/stoika.html: manual-photo-A ЯГОДНЫЙ СОРБЕТ remains review-only (29.597816ms)
+✔ src/stoika.html: manual-photo-B ВИНОГРАДНОЕ ЖЕЛЕ remains review-only (27.835801ms)
+✔ src/stoika.html: manual-photo-A DAILY and neighboring STARLINE never combine (17.360472ms)
+✔ src/stoika.html: manual-photo-B DAILY and neighboring STARLINE never combine (17.681854ms)
+✔ index.html: manual-photo-A МЯТНАЯ ПАСТИЛКА remains review-only (29.005366ms)
+✔ index.html: manual-photo-A ЯГОДНЫЙ СОРБЕТ remains review-only (27.731876ms)
+✔ index.html: manual-photo-B ВИНОГРАДНОЕ ЖЕЛЕ remains review-only (27.123141ms)
+✔ index.html: manual-photo-A DAILY and neighboring STARLINE never combine (16.587503ms)
+✔ index.html: manual-photo-B DAILY and neighboring STARLINE never combine (16.805709ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 259.238763
+✔ karta/template.html: failed durable save does not ACK or report success and rolls back memory (16.733912ms)
+✔ karta/template.html: saves delivery ID before ACK, duplicate rows and retries do not duplicate (3.779792ms)
+✔ karta/template.html: throw ACK failure stays retryable across reload without duplicate (4.572452ms)
+✔ karta/template.html: http-error ACK failure stays retryable across reload without duplicate (4.482106ms)
+✔ karta/template.html: timeout ACK failure stays retryable across reload without duplicate (5.179642ms)
+✔ karta/template.html: distinct delivery IDs keep identical recipe content as two intentional deliveries (3.722676ms)
+✔ karta/template.html: guest change during read abandons stale response without save or ACK (2.191919ms)
+✔ karta/template.html: saved receipt dedup is scoped to guest identity (2.270758ms)
+✔ karta/template.html: ACK applied but response lost preserves one favorite and no retry duplication (2.691038ms)
+✔ karta/template.html: deleting an unacknowledged favorite is not delivery cancellation; pending read restores one copy (2.384238ms)
+✔ karta/template.html: partial batch keeps first saved delivery but never ACKs second failed save (1.977467ms)
+✔ karta/template.html: guest switch during first ACK prevents remaining batch entering another session (2.689687ms)
+✔ karta/index.html: failed durable save does not ACK or report success and rolls back memory (2.416316ms)
+✔ karta/index.html: saves delivery ID before ACK, duplicate rows and retries do not duplicate (2.249786ms)
+✔ karta/index.html: throw ACK failure stays retryable across reload without duplicate (3.826672ms)
+✔ karta/index.html: http-error ACK failure stays retryable across reload without duplicate (8.372333ms)
+✔ karta/index.html: timeout ACK failure stays retryable across reload without duplicate (5.842587ms)
+✔ karta/index.html: distinct delivery IDs keep identical recipe content as two intentional deliveries (2.388294ms)
+✔ karta/index.html: guest change during read abandons stale response without save or ACK (2.03211ms)
+✔ karta/index.html: saved receipt dedup is scoped to guest identity (2.181564ms)
+✔ karta/index.html: ACK applied but response lost preserves one favorite and no retry duplication (2.222475ms)
+✔ karta/index.html: deleting an unacknowledged favorite is not delivery cancellation; pending read restores one copy (2.367442ms)
+✔ karta/index.html: partial batch keeps first saved delivery but never ACKs second failed save (2.428925ms)
+✔ karta/index.html: guest switch during first ACK prevents remaining batch entering another session (2.226932ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 24
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 101.120821
