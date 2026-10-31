@@ -42,7 +42,7 @@ for(const path of ['src/stoika.html','index.html']){
   }
  });
  test(path+': unknown brands sharing known flavor words remain review-only',()=>{
-  for(const label of ['NOVABRAND MANGO','DAILY HOOKAH Мятная пастилка']){
+  for(const label of ['NOVABRAND MANGO','ZZTESTBRANDUNLISTED Мятная пастилка']){
    assert.equal(c.photoOutcome(label).status,'unknown_brand');assert.equal(c.photoOutcome(label).brand,null);
    assert.match(c.photoInspectionText(['Этикетка 1: '+label]),/строка ещё не подтверждена как название товара/);
   }

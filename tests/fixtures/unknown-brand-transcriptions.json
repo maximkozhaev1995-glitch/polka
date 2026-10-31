@@ -1,6 +1,6 @@
 {
-  "scope": "Independently pixel-verified manual label transcriptions; offline text-stage regression, NOT live OCR. Original private evidence retained separately, not published.",
-  "catalogue_check": "Reviewer verified unknown brand absent in authoritative catalogue snapshot.",
+  "scope": "Corrected owner-confirmed historical brand: DAILY HOOKAH is Starline. Independently pixel-verified text-stage regression only, NOT live OCR. Old unknown-brand expectations superseded; original private evidence stays local.",
+  "catalogue_check": "Fresh authoritative catalogue has exact flavor names under Starline; alias relation supplied by owner, alias-sheet templates still empty.",
   "photos": [
     {
       "filename": "manual-photo-A",
@@ -8,18 +8,24 @@
         {
           "brand": "DAILY HOOKAH",
           "flavor": "МЯТНАЯ ПАСТИЛКА",
-          "position": "top left"
+          "position": "top left",
+          "canonical_brand": "Starline",
+          "expected_id": "b0ce70454b00"
         },
         {
           "brand": "DAILY HOOKAH",
           "flavor": "ЯГОДНЫЙ СОРБЕТ",
-          "position": "top right"
+          "position": "top right",
+          "canonical_brand": "Starline",
+          "expected_id": "6f285d308079"
         }
       ],
       "neighbor": {
         "brand": "STARLINE",
         "flavor": "БЕЛЬГИЙСКИЕ ВАФЛИ",
-        "position": "below left"
+        "position": "below left",
+        "canonical_brand": "Starline",
+        "expected_id": "ee621548205a"
       }
     },
     {
@@ -28,13 +34,17 @@
         {
           "brand": "DAILY HOOKAH",
           "flavor": "ВИНОГРАДНОЕ ЖЕЛЕ",
-          "position": "third jar from top"
+          "position": "third jar from top",
+          "canonical_brand": "Starline",
+          "expected_id": "f51b4d9c7a68"
         }
       ],
       "neighbor": {
         "brand": "STARLINE",
         "flavor": "МАРЦИПАН",
-        "position": "fourth jar from top"
+        "position": "fourth jar from top",
+        "canonical_brand": "Starline",
+        "expected_id": "cf260a3d0e3a"
       }
     }
   ]

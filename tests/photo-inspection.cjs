@@ -7,7 +7,8 @@ vm.runInContext(s.slice(s.indexOf('function photoInspectionText('),s.indexOf('//
 const groups=[['Deus',['Black JI','Pink Skittles','Strawberry','Base','Guinness','Blackberry Wine','Peonies','Red','Vanilla Berries','Kiwi']],['Palitra',['Lemon Marmelade','Grapefruit Juice','Sour Raspberry','Margarita','Carrot Fresh','Sauvignon Blanc','Grape Green Mint','Wood Berry','Cola','Gum Boom']],['Starline',['Бельгийские вафли','Черничный крамбл','Нугатий','Клубничный мильфей']],['Darkside',['Grape','Barvy Orange','Ice Granny','Red Alert','Extragon','Breaking Red','Bananapapa','Raf in the Jungle','Wildberry','Помелоу','Eclipse','Falling Star']],['Satyr',['Jungle',"Queen Ann's Revenge",'Bacon','Jah Grapefruit','Turbo','Squirt']]];
 const texts=groups.map(([b,n])=>n.map(x=>b+' '+x));texts[2].unshift('Daily Hookah Мятная пастилка','Daily Hookah Ягодный сорбет');const raw=texts.map(lines=>lines.map((x,i)=>'Этикетка '+(i+1)+': '+x).join('\n'));
 const result=c.photoInspectionText(raw);assert.match(result,/Всего прочитано: 44 банок/);assert.match(result,/Фото 3: прочитано 6 банок/);
-assert.match(result,/Не найдены в каталоге:\n• Daily Hookah Мятная пастилка\n• Daily Hookah Ягодный сорбет/);assert.doesNotMatch(result,/Daily Hookah[^\n]*→ Starline/);
+// Owner correction: Daily Hookah is the historical Starline brand; exact flavors already exist.
+assert.match(result,/Daily Hookah Мятная пастилка → Starline Мятная пастилка/);assert.match(result,/Daily Hookah Ягодный сорбет → Starline Ягодный сорбет/);
 const duplicate=c.photoInspectionText(['Этикетка 1: Deus Kiwi\nЭтикетка 2: Deus Kiwi\nЭтикетка 3: Satyr ?\nЭтикетка 4: ?']);assert.match(duplicate,/Всего прочитано: 2 банок/);assert.match(duplicate,/Сомнительные и обрезанные/);assert.equal((duplicate.match(/→ Deus Kiwi/g)||[]).length,2);
 assert.match(c.photoInspectionText([{failed:'network'},raw[2]]),/Фото 1: не удалось прочитать/);
 let captured;const sc=vm.createContext({Deno:{env:{get:()=>null}}});vm.runInContext(server.slice(server.indexOf('const PHOTO_PROMPT = `'),server.indexOf('// Human-verified')),sc);vm.runInContext(stripTypeScriptTypes(server.slice(server.indexOf('async function claudeReadPhotos('),server.indexOf('// Чем читать фото:')),{mode:'strip'}),sc);
@@ -17,3 +18,4 @@ assert.match(server,/photo_mode === "inspection" \? await readPhotos\(claude, me
 const shim=fs.readFileSync('app/shim.js','utf8');assert.match(shim,/inspection\?\{photo_mode:"inspection"\}/);assert.match(shim,/inspection&&!r.inspection/);
 assert.match(s,/ФОРМАТ МИКСОВ/);assert.match(s,/Цену называй только по прямому запросу/);assert.doesNotMatch(s,/Называй цену у каждого микса/);
 console.log('PASS: mixed 44-label inspection, unknown brand retained, uncertain counts, duplicate jars, read-only routing and separate OCR prompts; concise mix guidance');})().catch(e=>{console.error(e);process.exitCode=1});
+

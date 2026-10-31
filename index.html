@@ -1691,6 +1691,11 @@ function photoBrandText(T){
   // Only explicit, user-confirmed brand aliases. Never infer a brand from a flavor alone.
   const all=brands.filter(b=>b);const exact=(part)=>all.find(b=>cnTxt(b).trim()===part);
   const wto=exact("world tobacco original"),trofim=exact("trofimoff s"),kraken=exact("kraken"),sarma=exact("сарма");
+  // Owner-confirmed historical name: DAILY HOOKAH -> Starline (2026-10-31).
+  // Only a leading complete brand label/focus, not a mention in another label's prose.
+  // This changes brand lookup only; flavor matching remains on each individual label.
+  const starline=exact("starline");
+  if(starline)T=T.replace(/^ daily hookah /," "+starline+" ");
   // САРМА360 is the packaging/strength marking of brand Сарма, not a different brand.
   if(sarma)T=T.replace(/ сарма\s*360 /g," "+sarma+" ");
   if(wto)T=T.replace(/ (?:vto|wto) /g," "+wto+" ");
