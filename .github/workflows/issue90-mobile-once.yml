@@ -12,8 +12,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   ui:
-    if: >-
-      github.run_attempt == 1 && github.event.head_commit.message == 'test: run isolated UI-01 once [ui90-20261031]'
+    if: ${{ false }} # One authorized run completed; preserved inert for audit history.
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
