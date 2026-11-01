@@ -5,7 +5,7 @@
       "id": "m-01",
       "text": "Этикетка 1: DARKSIDE SUPERNOVA",
       "want": [
-        "Darkside|Supernova"
+        "Darkside|Core|Supernova"
       ]
     },
     {
@@ -47,8 +47,8 @@
       "id": "m-07",
       "text": "Этикетка 1: Darkside Barvy Orange\nЭтикетка 2: Darkside Barvy Orange",
       "want": [
-        "Darkside|Barvy Orange",
-        "Darkside|Barvy Orange"
+        "Darkside|Core|Barvy Orange",
+        "Darkside|Core|Barvy Orange"
       ],
       "note": "две банки одного вкуса"
     },
@@ -56,7 +56,7 @@
       "id": "m-08",
       "text": "Этикетка 1: BARVYORANGE",
       "want": [
-        "Darkside|Barvy Orange"
+        "Darkside|Core|Barvy Orange"
       ],
       "note": "слитно и без бренда (типичная ошибка OCR)"
     },
@@ -64,7 +64,7 @@
       "id": "m-09",
       "text": "Этикетка 1: DARKSIDE SUPERNOV?",
       "want": [
-        "Darkside|Supernova"
+        "Darkside|Core|Supernova"
       ],
       "note": "обрезано краем кадра"
     },
@@ -89,7 +89,7 @@
       "text": "Этикетка 1: MUSTHAVE PINKMAN\nЭтикетка 2: DARKSIDE GRAPE\nЭтикетка 3: SEBERO GRAPE",
       "want": [
         "Musthave|Pinkman",
-        "Darkside|Grape",
+        "Darkside|Core|Grape",
         "Sebero|Grape"
       ]
     },
@@ -129,7 +129,7 @@
       "text": "Sebero Grape\nDarkside Supernova",
       "want": [
         "Sebero|Grape",
-        "Darkside|Supernova"
+        "Darkside|Core|Supernova"
       ],
       "note": "текст команды в две строки — бренд одной строки не переносится на другую"
     },
@@ -167,7 +167,7 @@
       "text": "Sebero Grape, Darkside Supernova; Musthave Pinkman",
       "want": [
         "Sebero|Grape",
-        "Darkside|Supernova",
+        "Darkside|Core|Supernova",
         "Musthave|Pinkman"
       ],
       "note": "список через запятую и точку с запятой"
@@ -177,7 +177,7 @@
       "text": "Sebero Grape 3\nDarkside Supernova 2 шт",
       "want": [
         "Sebero|Grape",
-        "Darkside|Supernova"
+        "Darkside|Core|Supernova"
       ],
       "note": "строки с количеством"
     },
@@ -192,7 +192,7 @@
       "id": "m-25",
       "text": "Этикетка 1: SPACELYCHEE",
       "want": [
-        "Darkside|Space Lychee"
+        "Darkside|Core|Space Lychee"
       ],
       "note": "слитно, другой вкус"
     },
@@ -206,7 +206,7 @@
       "id": "m-27",
       "text": "Darkside Grape\nTangiers Grape",
       "want": [
-        "Darkside|Grape",
+        "Darkside|Core|Grape",
         "Tangiers|Grape"
       ],
       "note": "одно название, разные бренды на разных строках"

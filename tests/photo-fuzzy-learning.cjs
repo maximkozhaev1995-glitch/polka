@@ -24,7 +24,8 @@ const fakeData=[
 const context={DATA:fakeData,cnTxt:s=>" "+String(s||"").toLowerCase().replace(/ё/g,"е").replace(/[^a-zа-я0-9]+/g," ").trim()+" ",
  photoBrandText:s=>s};
 vm.createContext(context);
-vm.runInContext(utils+app.slice(levStart,levEnd)+helper,context);
+const lines=app.slice(app.indexOf('function photoCatalogueReady('),app.indexOf('function photoLineReview('));
+vm.runInContext(utils+app.slice(levStart,levEnd)+lines+helper,context);
 const match=(s,brand)=>vm.runInContext("photoFuzzyCandidate("+JSON.stringify(s)+","+JSON.stringify(brand)+")",context);
 assert.equal(match("PALITRA Lemon marmalade","Palitra")?.id,"pal-lemon","Marmalade/Marmelade typography");
 assert.equal(match("Palitra woob berry","Palitra")?.id,"pal-wood","Woob/Wood OCR correction");
@@ -42,3 +43,4 @@ assert(app.includes('finally{b.disabled=false}'),"correction button should re-en
 assert(built.includes(helper),"built app must include exactly same brand-aware helper");
 assert(built.includes("Исправить ещё одну этикетку"),"built app must include multi correction UI");
 console.log("PASS: brand-aware fuzzy photo OCR, font differences, no cross-brand or line conflation, multi-label learning");
+

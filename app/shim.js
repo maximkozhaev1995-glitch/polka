@@ -132,7 +132,15 @@
       return [...rows.values()].map(r=>({id:r.flavor_id,data:()=>m.toDoc(r)}));
     }
     const m=MAP[c];if(!m)return[];const rows=await rest(m.list());return rows.map(r=>({id:String(r[m.key]),data:()=>m.toDoc(r)}))};
-  async function refresh(c){const s=subs[c];if(!s)return;try{const docs=await snapDocs(c);const h=JSON.stringify(docs.map(d=>[d.id,d.data()]));if(h!==s.hash){s.hash=h;s.fns.forEach(f=>f({docs}))}}catch(e){s.errs.forEach(f=>f(e))}}
+  async function refresh(c){const s=subs[c];if(!s)return;
+    const scope=c==="items"?V()+":"+session.user.tg_id:null;
+    const request=c==="items"?(s.request=(s.request||0)+1):0;
+    try{const docs=await snapDocs(c);
+      if(c==="items"&&request!==s.request)return;
+      if(c==="items"&&scope!==V()+":"+session.user.tg_id)throw Error("Заведение изменилось во время загрузки каталога");
+      const h=JSON.stringify(docs.map(d=>[d.id,d.data()]));
+      if(h!==s.hash||c==="items"&&s.failed){s.hash=h;s.failed=false;s.fns.forEach(f=>f(c==="items"?{docs,catalogue_scope:scope}:{docs}))}
+    }catch(e){if(c==="items"&&request!==s.request)return;if(c==="items")s.failed=true;s.errs.forEach(f=>f(e))}}
   setInterval(()=>{if(!document.hidden&&session)Object.keys(subs).forEach(refresh)},6000);
   document.addEventListener("visibilitychange",()=>{if(!document.hidden&&session)Object.keys(subs).forEach(refresh)});
   const bump=c=>setTimeout(()=>refresh(c),150);

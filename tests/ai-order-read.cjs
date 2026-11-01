@@ -23,7 +23,8 @@ vm.runInContext("for(let i=0;i<100;i++)orderM['extra'+i]={b:'Test',n:'Flavor '+i
 let pages=[],offset=0;do{r=c.find({where:'order',limit:80,offset});pages.push(...r.items);offset+=r.items.length}while(r.hasMore);assert.equal(pages.length,102);assert.equal(new Set(pages.map(x=>x.brand+':'+x.name)).size,102);assert.equal(c.find({where:'order',limit:80,offset:80}).hasMore,false);
 assert.equal(c.find({where:'order',brand:'Test',query:'flavor 99'}).items[0].name,'Flavor 99');
 const photo=s.slice(s.indexOf('function photoTools('),s.indexOf('function aiOrderItems('));
-vm.runInContext(photo+"globalThis.photoFind=photoTools(AI_TOOLS,{jars:{a:1}})[0].execute",c);
+const readiness=s.slice(s.indexOf('function photoCatalogueReady('),s.indexOf('function photoLineEvidence('));
+vm.runInContext(readiness+photo+"globalThis.photoFind=photoTools(AI_TOOLS,{jars:{a:1}})[0].execute",c);
 let photoPages=[],photoOffset=0;do{r=c.photoFind({where:'order',limit:30,offset:photoOffset});assert.equal(r.total,102);photoPages.push(...r.items);photoOffset+=r.items.length}while(r.hasMore);
 assert.equal(photoPages.length,102);assert.ok(photoPages.some(x=>x.source==='manual'&&x.name==='Honey melon'));
 assert.equal(new Set(photoPages.map(x=>x.brand+':'+x.name)).size,102);
@@ -32,3 +33,4 @@ c.mutationTools=['stage_stock','set_order','set_flag'].map(name=>({name,execute:
 vm.runInContext("globalThis.photoMut=photoTools(mutationTools,{jars:{a:1}})",c);
 for(const tool of c.photoMut){assert.throws(()=>tool.execute({id:'extra99',where:'order'}),/основного бренда/);assert.throws(()=>tool.execute({ids:['a','extra99']}),/основного бренда/);assert.throws(()=>tool.execute({id:'a'}),/executed/)}
 console.log('PASS: catalog + manual order, brand/name filters, quantities, zero rows, limit and no invented catalog ID');
+

@@ -1,10 +1,13 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const source=fs.readFileSync('src/stoika.html','utf8');
 const tools=source.slice(source.indexOf('const AI_TOOLS='),source.indexOf('function aiSnapshot()'));
+// This extracted action fixture has a complete synthetic catalogue; bootstrap is tested separately.
+const readiness=source.slice(source.indexOf('function photoCatalogueReady('),source.indexOf('function photoLineKey('));
 const send=source.slice(source.indexOf('async function aiSend()'),source.indexOf('// Короткая память чата:'));
 const fixes=source.slice(source.indexOf('function orderFixBox('),source.indexOf('// «Перенеси со склада'));
 const ctx=vm.createContext({console,AbortController,setTimeout,clearTimeout});
 vm.runInContext(`
+let photoCatalogueState="ready",photoCatalogueScope=null;
 let writes=[],fail=false,stock={a:{wh:3}},draft={},orderQ={},orderM={},lastOrderAt=null,oTimer=null;
 let staffReady=true,aiOrdPhoto=false,aiOrdAsk=true,aiOrdSeen=new Set(),inCmd=false,cmdDraftIds=new Set();
 const DATA=[{id:'a',b:'Brand',n:'A',l:'Strong',t:[]},{id:'b',b:'Brand',n:'B',t:[]}],byId=Object.fromEntries(DATA.map(x=>[x.id,x]));
@@ -13,7 +16,7 @@ const nm=x=>x.b+' '+x.n,aiItem=x=>({id:x.id,brand:x.b,name:x.n}),ordGate=()=>nul
 const saveDraft=()=>{},render=()=>{},saveOrder=()=>{throw Error('unexpected legacy save')},revertWish=()=>{},wishIdsFor=()=>[];
 const db={doc:path=>({set:async value=>{if(fail)throw Error('API failed');writes.push({path,value})}}),applyStock:async entries=>{if(fail)throw Error('API failed');writes.push({entries});return entries.map(e=>({id:e.id,doc:{...e.doc,revision:e.revision+1}}))}};
 const esc=s=>String(s);let boxes=[];const document={createElement:()=>{const buttons=[{},{}];const box={querySelectorAll:()=>buttons,buttons};boxes.push(box);return box}};
-`+source.slice(source.indexOf('function stockEntry('),source.indexOf('async function toBar('))+tools+fixes+`
+`+readiness+source.slice(source.indexOf('function stockEntry('),source.indexOf('async function toBar('))+tools+fixes+`
 let input={value:'поставь в заказ'},aiImgs=[],aiCtl=null,photoAcc=null,aiTurns=[],aiView=[],sampleFn;
 let cmdMatch={found:[],ambiguous:[],not_found_lines:[]};const matchText=()=>cmdMatch,ambTxt=()=>'';const $=()=>input,renderAiImgs=()=>{},parseCmd=()=>null,ordAsked=()=>true,photoAccNew=()=>({}),attachMessagePhotos=node=>node,aiBubble=()=>({classList:{remove(){},add(){}},append(){}}),aiUi=()=>{},AI_RULES='',aiSnapshot=()=>'',photoNote=()=>{},photoHead=()=>'',aiSrc=()=>{},aiScroll=()=>{},aiErr=()=>'',aiKeep=()=>{};
 `+source.slice(source.indexOf('async function cmdFindIds('),source.indexOf('async function aiSend()'))+send+`;globalThis.api={tools:AI_TOOLS,proposal:aiProposalTools,box:aiProposalBox,commit:aiCommitProposal,cancel:cancelAiProposals};`,ctx);
@@ -42,3 +45,4 @@ await test('failed OCR command leaves no draft',async()=>{run(`sampleFn={readLab
 await test('stopped OCR command leaves no draft',async()=>{run(`sampleFn={readLabels:async()=>{aiCtl.abort();return {text:'Brand A'}}}`);await assert.rejects(run(`cmdPerenos(out,'',[{}])`));assert.equal(run('Object.keys(draft).length'),0);assert.equal(run('writes.length'),2)});
 console.log(count+' action tests passed');
 })().catch(e=>{console.error(e);process.exitCode=1});
+
