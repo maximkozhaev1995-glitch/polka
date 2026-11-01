@@ -20,20 +20,23 @@ await test('explicit recovery replays original and returns items for reconciliat
 await test('definite SQL rejection releases pending identity',async()=>{fail=true;await assert.rejects(db.applyStock(items),/stock_stale/);assert(!db.hasPendingStock());fail=false});
 await test('storage failure prevents a request from being sent',async()=>{const old=localStorage.setItem;localStorage.setItem=()=>{throw Error('storage full')};const n=requests.length;await assert.rejects(db.applyStock(items),/storage full/);assert.equal(requests.length,n);localStorage.setItem=old});
 // Execute the real review handler with a transactional API stub.
+// These legacy unit scenarios explicitly model manual intents; real edit/photo persistence is covered separately.
 const ui=vm.createContext({localStorage,window:{},console});
 vm.runInContext(`let stock={a:{wh:3,revision:4},b:{wh:2,revision:1}},draft={a:{d:-1},b:{d:1}},busy=false,fail=false,writes=0,closed=false;
 let nodes={'#dlg-ok':{disabled:false},'#stock-recover':{}},cmdDraftIds=new Set(),byId={a:{id:'a'},b:{id:'b'}};
 const $=s=>nodes[s],wh=x=>stock[x.id].wh,saveDraft=()=>{},closeDlg=()=>closed=true,setStatus=()=>{},render=()=>{};
 const db={stockScope:()=> 'venue:1',hasPendingStock:()=>false,applyStock:async entries=>{writes++;if(fail)throw Error('stock_stale_revision');return entries.map(e=>({id:e.id,doc:{...e.doc,revision:e.revision+1}}))}};
 `+source.slice(source.indexOf('function stockEntry('),source.indexOf('async function toBar('))+
-source.slice(source.indexOf('async function commit(){'),source.indexOf('function askUndo(')),ui);
-await test('review uses one batch and double click persists once',async()=>{await Promise.all([vm.runInContext('commit()',ui),vm.runInContext('commit()',ui)]);assert.equal(vm.runInContext('writes',ui),1);assert.equal(vm.runInContext('Object.keys(draft).length',ui),0);assert.equal(vm.runInContext('stock.a.wh',ui),2)});
-await test('failed batch keeps every reviewed draft item',async()=>{vm.runInContext('draft={a:{d:-1},b:{d:1}};fail=true',ui);await vm.runInContext('commit()',ui);assert.equal(vm.runInContext('Object.keys(draft).length',ui),2);assert.equal(vm.runInContext('busy',ui),false)});
-await test('post-commit order error cannot leave a replayable draft',async()=>{vm.runInContext('draft={a:{d:-2}};fail=false',ui);await vm.runInContext('commit()',ui);assert.equal(vm.runInContext('Object.keys(draft).length',ui),0);assert.equal(vm.runInContext('stock.a.wh',ui),0)});
+source.slice(source.indexOf('function stockDraftIdentity('),source.indexOf('function photoLineKey('))+
+source.slice(source.indexOf('async function commit(){'),source.indexOf('function askUndo('))+
+`;function markManualFixture(){for(const id of Object.keys(draft))if(!draft[id].guard)draft[id].guard=stockDraftGuard(byId[id],'manual')}`,ui);
+await test('review uses one batch and double click persists once',async()=>{await Promise.all([vm.runInContext('markManualFixture();commit()',ui),vm.runInContext('markManualFixture();commit()',ui)]);assert.equal(vm.runInContext('writes',ui),1);assert.equal(vm.runInContext('Object.keys(draft).length',ui),0);assert.equal(vm.runInContext('stock.a.wh',ui),2)});
+await test('failed batch keeps every reviewed draft item',async()=>{vm.runInContext('draft={a:{d:-1},b:{d:1}};fail=true',ui);await vm.runInContext('markManualFixture();commit()',ui);assert.equal(vm.runInContext('Object.keys(draft).length',ui),2);assert.equal(vm.runInContext('busy',ui),false)});
+await test('post-commit order error cannot leave a replayable draft',async()=>{vm.runInContext('draft={a:{d:-2}};fail=false',ui);await vm.runInContext('markManualFixture();commit()',ui);assert.equal(vm.runInContext('Object.keys(draft).length',ui),0);assert.equal(vm.runInContext('stock.a.wh',ui),0)});
 await test('legacy direct stock/journal writes absent from app source',async()=>{assert(!/db\.doc\("(?:stock|moves)\//.test(source));assert(!/db\.collection\("moves"\)\.add/.test(source));assert(!/setStockBatch/.test(source));assert.match(shim,/if\(c==="stock"\|\|c==="moves"\)throw/)});
 await test('reviewed transfer preserves automatic stop and slow flag',async()=>{
  vm.runInContext('stock.a={wh:3,revision:4,bar:false,stop:true,stopAuto:true,slow:true};draft={a:{d:-1,bar:true}};fail=false',ui);
- await vm.runInContext('commit()',ui);
+ await vm.runInContext('markManualFixture();commit()',ui);
  assert.equal(vm.runInContext('stock.a.stop',ui),true);assert.equal(vm.runInContext('stock.a.stopAuto',ui),true);
  assert.equal(vm.runInContext('stock.a.slow',ui),true);assert.equal(vm.runInContext('stock.a.bar',ui),true);
 });
