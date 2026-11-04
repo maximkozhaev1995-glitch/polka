@@ -63,6 +63,16 @@ test('409 displays an incompatible client error without retry or mutation fallba
  assert.equal(mutations,0);
 });
 
+test('inspection keeps structured observations aligned with their photos',async()=>{
+ const target={raw_label:'Overdose амбровый ба?ан',visibility:'target'};
+ const fragment={raw_label:'Black Burn Pudding',visibility:'fragment'};
+ const {readLabels,requests}=client(()=>Response.json({...success,inspection:true,observations:[[target,fragment]]}));
+ const result=await readLabels([photo,photo],null,{inspection:true});
+ assert.deepEqual(JSON.parse(JSON.stringify(result.observations)),[[target,fragment],[target,fragment]]);
+ assert.equal(requests.length,2);
+ assert.equal(Object.hasOwn(await readLabels([photo]),'observations'),false);
+});
+
 test('local ai handler accepts the version as an unknown field',async()=>{
  let handler;
  const ocrModes=[];

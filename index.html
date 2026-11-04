@@ -831,22 +831,24 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
     // Отдельные запросы быстрее по одному и не считаются в дневной лимит (там модель не вызывается).
     // Не прочиталось — пробуем ещё раз; не вышло и со второго раза — фото помечаем как непрочитанное,
     // а не пустым текстом: иначе дальше уверенно решают, что на фото ни одного вкуса
-    const texts=await Promise.all(blocks.map(async b=>{
+    const observations=[];
+    const texts=await Promise.all(blocks.map(async (b,index)=>{
       let err="";
       for(let a=0;a<2;a++){
         try{const r=await callAI({system:"",messages:[{role:"user",content:[b]}],tools:[],ocr_only:true,...(inspection?{photo_mode:"inspection",observation_schema_version:1}:{})},signal,()=>{});
           if(inspection&&!r.inspection){err="inspection_unavailable";break}
           if(!r.ocr){err="not_read";continue}
+          if(inspection&&Array.isArray(r.observations?.[0]))observations[index]=r.observations[0];
           ocr=r.ocr;return (r.ocr_texts||[])[0]||""}
         catch(e){if(e?.code==="client_update_required")throw e;if(e&&e.name==="AbortError")return {failed:"cancelled"};err=e&&e.code||"network";console.warn("photo read failed:",err)}}
       return {failed:err}}));
-    return {texts,ocr}};
+    return {texts,ocr,observations}};
   // Текст команды (/перенос, /пополнить, …): читает фото, без обращения к диалоговой модели.
   // Возвращает {text, failed} — text уже в формате «Этикетка N: …», готов для matchText на клиенте.
   const readLabels=async(images,signal,options={})=>{
-    const{texts}=await readPhotos(images,signal,!!options.inspection);
+    const{texts,observations}=await readPhotos(images,signal,!!options.inspection);
     const failed=texts.filter(t=>t&&t.failed).length;
-    return {texts,text:texts.map((t,i)=>typeof t==="string"?"Фото "+(i+1)+":\n"+t:"").filter(Boolean).join("\n"),failed,total:texts.length}};
+    return {texts,text:texts.map((t,i)=>typeof t==="string"?"Фото "+(i+1)+":\n"+t:"").filter(Boolean).join("\n"),failed,total:texts.length,...(options.inspection?{observations}:{})}};
   const sample=async(turns,opts)=>{
     opts=opts||{};
     const first=turns[0]&&turns[0].role==="user"?turns[0].content:"";
@@ -2292,19 +2294,22 @@ async function cmdFindIds(args,imgs,signal){if(signal?.aborted)throw new Error("
   if(imgs?.length&&db?.listPhotoCorrections){try{learnedPhoto=await db.listPhotoCorrections()}catch(e){learnedPhoto=[];console.warn("Mixora OCR corrections unavailable",e)}}
   const m=matchText(text,!!(imgs&&imgs.length));if(m.ambiguous.length)throw new Error("Нужно уточнение."+ambTxt(m));return{m,text,failed}}
 const photoInspection=t=>!t||/^(?:(?:пожалуйста|привет)[,!.]?\s*)?(?:что\s+(?:на|здесь|тут)|разбери|распознай|распознать|прочитай|определи|перечисли|посмотри|проверь\s+фото)/i.test(t)&&!stockAsked(t)&&!ordAsked(t)&&!/микс|рекоменд|совет/i.test(t);
-function photoInspectionText(texts){let total=0;
+function photoInspectionText(texts,observations=[]){let total=0,counted=0;
  const pages=texts.map((text,index)=>{if(typeof text!=="string")return "Фото "+(index+1)+": не удалось прочитать.";
-  const labels=[...text.matchAll(/^Этикетка\s*\d+\s*:\s*(.*)$/gim)].map(m=>m[1].trim());
-  const found=[],unknown=[],uncertain=[];let count=0;
-  labels.forEach(label=>{if(!label||/[?…]|\.{2,}/.test(label)){uncertain.push(label||"?");return}count++;
+  const items=observations[index];
+  if(!Array.isArray(items))return "Фото "+(index+1)+": нет данных для подсчёта.";
+  const targets=items.filter(item=>item?.visibility==="target");
+  counted++;total+=targets.length;
+  const found=[],unknown=[],uncertain=[];
+  targets.forEach(item=>{const label=(item.raw_label||"").trim();if(!label||/[?…]|\.{2,}/.test(label)){uncertain.push(label||"?");return}
    const hit=photoMatchChunk(label,true,true).hit;
    if(hit.length===1){const x=hit[0];found.push(label+" → "+x.b+" "+x.n+(x.l?" ["+x.l+"]":""))}else if(hit.length>1)uncertain.push(label+" — неоднозначное совпадение в каталоге");else unknown.push(label)});
-  total+=count;return "Фото "+(index+1)+": прочитано "+count+" банок."+(found.length?"\nПо этикетке → каталог:\n"+found.map(l=>"• "+l).join("\n"):"")+(unknown.length?"\nНе найдены в каталоге:\n"+unknown.map(l=>"• "+l).join("\n"):"")+(uncertain.length?"\nСомнительные и обрезанные:\n"+uncertain.map(l=>"• "+l).join("\n"):"")+(!labels.length?"\nЭтикетки не прочитаны.":"")});
- return pages.join("\n\n")+"\n\nВсего прочитано: "+total+" банок. Сомнительные надписи в подсчёт не включены."}
+  return "Фото "+(index+1)+": банок — "+targets.length+"."+(found.length?"\nПо этикетке → каталог:\n"+found.map(l=>"• "+l).join("\n"):"")+(unknown.length?"\nНе найдены в каталоге:\n"+unknown.map(l=>"• "+l).join("\n"):"")+(uncertain.length?"\nСомнительные надписи:\n"+uncertain.map(l=>"• "+l).join("\n"):"")});
+ return pages.join("\n\n")+(counted?"\n\nВсего банок: "+total+(counted<texts.length?". Итог по фото, для которых доступен подсчёт.":"."):"")}
 async function inspectPhoto(out,args,imgs,signal){
  lastPhotoIds=[];if(signal?.aborted)throw new Error("Остановлено");
  const r=await sampleFn.readLabels(imgs,signal,{inspection:true});if(signal?.aborted)throw new Error("Остановлено");
- out.textContent=photoInspectionText(r.texts||[{failed:true}])+ (r.failed?"\nНе все фото прочитаны; итог неполный.":"");
+ out.textContent=photoInspectionText(r.texts||[{failed:true}],r.observations)+ (r.failed?"\nНе все фото прочитаны; итог неполный.":"");
 }
 // Corrections are suggestions only: NEVER stage stock, order or stop-list changes.
 let learnedPhoto=[];

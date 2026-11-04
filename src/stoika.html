@@ -1996,19 +1996,22 @@ async function cmdFindIds(args,imgs,signal){if(signal?.aborted)throw new Error("
   if(imgs?.length&&db?.listPhotoCorrections){try{learnedPhoto=await db.listPhotoCorrections()}catch(e){learnedPhoto=[];console.warn("Mixora OCR corrections unavailable",e)}}
   const m=matchText(text,!!(imgs&&imgs.length));if(m.ambiguous.length)throw new Error("Нужно уточнение."+ambTxt(m));return{m,text,failed}}
 const photoInspection=t=>!t||/^(?:(?:пожалуйста|привет)[,!.]?\s*)?(?:что\s+(?:на|здесь|тут)|разбери|распознай|распознать|прочитай|определи|перечисли|посмотри|проверь\s+фото)/i.test(t)&&!stockAsked(t)&&!ordAsked(t)&&!/микс|рекоменд|совет/i.test(t);
-function photoInspectionText(texts){let total=0;
+function photoInspectionText(texts,observations=[]){let total=0,counted=0;
  const pages=texts.map((text,index)=>{if(typeof text!=="string")return "Фото "+(index+1)+": не удалось прочитать.";
-  const labels=[...text.matchAll(/^Этикетка\s*\d+\s*:\s*(.*)$/gim)].map(m=>m[1].trim());
-  const found=[],unknown=[],uncertain=[];let count=0;
-  labels.forEach(label=>{if(!label||/[?…]|\.{2,}/.test(label)){uncertain.push(label||"?");return}count++;
+  const items=observations[index];
+  if(!Array.isArray(items))return "Фото "+(index+1)+": нет данных для подсчёта.";
+  const targets=items.filter(item=>item?.visibility==="target");
+  counted++;total+=targets.length;
+  const found=[],unknown=[],uncertain=[];
+  targets.forEach(item=>{const label=(item.raw_label||"").trim();if(!label||/[?…]|\.{2,}/.test(label)){uncertain.push(label||"?");return}
    const hit=photoMatchChunk(label,true,true).hit;
    if(hit.length===1){const x=hit[0];found.push(label+" → "+x.b+" "+x.n+(x.l?" ["+x.l+"]":""))}else if(hit.length>1)uncertain.push(label+" — неоднозначное совпадение в каталоге");else unknown.push(label)});
-  total+=count;return "Фото "+(index+1)+": прочитано "+count+" банок."+(found.length?"\nПо этикетке → каталог:\n"+found.map(l=>"• "+l).join("\n"):"")+(unknown.length?"\nНе найдены в каталоге:\n"+unknown.map(l=>"• "+l).join("\n"):"")+(uncertain.length?"\nСомнительные и обрезанные:\n"+uncertain.map(l=>"• "+l).join("\n"):"")+(!labels.length?"\nЭтикетки не прочитаны.":"")});
- return pages.join("\n\n")+"\n\nВсего прочитано: "+total+" банок. Сомнительные надписи в подсчёт не включены."}
+  return "Фото "+(index+1)+": банок — "+targets.length+"."+(found.length?"\nПо этикетке → каталог:\n"+found.map(l=>"• "+l).join("\n"):"")+(unknown.length?"\nНе найдены в каталоге:\n"+unknown.map(l=>"• "+l).join("\n"):"")+(uncertain.length?"\nСомнительные надписи:\n"+uncertain.map(l=>"• "+l).join("\n"):"")});
+ return pages.join("\n\n")+(counted?"\n\nВсего банок: "+total+(counted<texts.length?". Итог по фото, для которых доступен подсчёт.":"."):"")}
 async function inspectPhoto(out,args,imgs,signal){
  lastPhotoIds=[];if(signal?.aborted)throw new Error("Остановлено");
  const r=await sampleFn.readLabels(imgs,signal,{inspection:true});if(signal?.aborted)throw new Error("Остановлено");
- out.textContent=photoInspectionText(r.texts||[{failed:true}])+ (r.failed?"\nНе все фото прочитаны; итог неполный.":"");
+ out.textContent=photoInspectionText(r.texts||[{failed:true}],r.observations)+ (r.failed?"\nНе все фото прочитаны; итог неполный.":"");
 }
 // Corrections are suggestions only: NEVER stage stock, order or stop-list changes.
 let learnedPhoto=[];

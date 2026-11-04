@@ -227,22 +227,24 @@
     // Отдельные запросы быстрее по одному и не считаются в дневной лимит (там модель не вызывается).
     // Не прочиталось — пробуем ещё раз; не вышло и со второго раза — фото помечаем как непрочитанное,
     // а не пустым текстом: иначе дальше уверенно решают, что на фото ни одного вкуса
-    const texts=await Promise.all(blocks.map(async b=>{
+    const observations=[];
+    const texts=await Promise.all(blocks.map(async (b,index)=>{
       let err="";
       for(let a=0;a<2;a++){
         try{const r=await callAI({system:"",messages:[{role:"user",content:[b]}],tools:[],ocr_only:true,...(inspection?{photo_mode:"inspection",observation_schema_version:1}:{})},signal,()=>{});
           if(inspection&&!r.inspection){err="inspection_unavailable";break}
           if(!r.ocr){err="not_read";continue}
+          if(inspection&&Array.isArray(r.observations?.[0]))observations[index]=r.observations[0];
           ocr=r.ocr;return (r.ocr_texts||[])[0]||""}
         catch(e){if(e?.code==="client_update_required")throw e;if(e&&e.name==="AbortError")return {failed:"cancelled"};err=e&&e.code||"network";console.warn("photo read failed:",err)}}
       return {failed:err}}));
-    return {texts,ocr}};
+    return {texts,ocr,observations}};
   // Текст команды (/перенос, /пополнить, …): читает фото, без обращения к диалоговой модели.
   // Возвращает {text, failed} — text уже в формате «Этикетка N: …», готов для matchText на клиенте.
   const readLabels=async(images,signal,options={})=>{
-    const{texts}=await readPhotos(images,signal,!!options.inspection);
+    const{texts,observations}=await readPhotos(images,signal,!!options.inspection);
     const failed=texts.filter(t=>t&&t.failed).length;
-    return {texts,text:texts.map((t,i)=>typeof t==="string"?"Фото "+(i+1)+":\n"+t:"").filter(Boolean).join("\n"),failed,total:texts.length}};
+    return {texts,text:texts.map((t,i)=>typeof t==="string"?"Фото "+(i+1)+":\n"+t:"").filter(Boolean).join("\n"),failed,total:texts.length,...(options.inspection?{observations}:{})}};
   const sample=async(turns,opts)=>{
     opts=opts||{};
     const first=turns[0]&&turns[0].role==="user"?turns[0].content:"";
