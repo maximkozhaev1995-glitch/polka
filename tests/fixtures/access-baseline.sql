@@ -12,7 +12,7 @@ create table public.knowledge_cat(id bigint primary key,venue_id uuid,protected 
 create table public.knowledge(id bigint primary key,venue_id uuid,cat_id bigint);
 create table public.mixes(id text,venue_id uuid,by_tg bigint,in_karta boolean,hidden boolean);
 create table public.inv_log(id text,venue_id uuid);
-create table public.guest_mixes(id text,venue_id uuid,taken boolean);
+create table public.guest_mixes(id uuid primary key,venue_id uuid,gid text,name text,parts jsonb,note text,taken boolean default false,created_at timestamptz default now());
 create table public.pack_sizes(brand text);
 create table public.tasks(id text,venue_id uuid);
 create table public.task_log(id text,venue_id uuid);

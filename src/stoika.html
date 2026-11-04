@@ -2357,7 +2357,7 @@ function hlpUi(){$("#hlp-btn").hidden=!sampleFn||st.tab==="ai"||st.tab==="home"}
     catch(e){if(/stock_/.test(e.message))localStorage.removeItem(reviewedKey);message="Не удалось восстановить результат: "+e.message}
     finally{busy=false;recovery.disabled=false;showStockRecovery(message);render()}};
   {const tgw=window.Telegram&&window.Telegram.WebApp,sp=tgw&&tgw.initDataUnsafe&&tgw.initDataUnsafe.start_param;
-   if(sp&&/^guest_/i.test(sp)){const gid=parseGuestCode(sp);if(gid)setTimeout(()=>openGuestMix(gid),400)}}
+if(sp&&/^guest_/i.test(sp)){const gid=parseGuestCode(sp);if(gid)setTimeout(()=>openGuestMix(gid),400);else setStatus("Попроси гостя обновить карту и показать новый QR")}}
   db.collection("stock").onSnapshot(s=>{for(const k in stock)delete stock[k];s.docs.forEach(d=>{stock[d.id]=d.data()});stockLoaded=true;render()},e=>setStatus("Склад не загрузился: "+e.message,true));
   restoreOrderDraft();
   $("#order-save-retry").onclick=reviewOrderConflict;
@@ -2732,14 +2732,14 @@ function openMix(m){const mx=m?{id:m.id,title:m.title,kind:m.kind||"master",note
       if(m)await db.doc("mixes/"+m.id).set(d);else await db.collection("mixes").add(d);closeDlg()}};
   draw()}
 function parseGuestCode(raw){const s=String(raw||"").trim();
-  let m=s.match(/[?&]startapp=guest_([A-Za-z0-9_-]+)/i);if(m)return m[1];
-  m=s.match(/^polka-guest:(.+)$/i);if(m)return m[1].trim();
-  return s.replace(/^guest_/i,"").slice(0,40)}
+  const m=s.match(/[?&]startapp=guest_([A-Za-z0-9_-]+)/i);
+  const code=m?m[1]:s.replace(/^polka-guest:/i,"").replace(/^guest_/i,"").trim();
+  return /^g[0-9a-f]{32}$/.test(code)?code:""}
 function scanGuestMix(){
   const tgw=window.Telegram&&window.Telegram.WebApp;
-  const go=code=>{const gid=parseGuestCode(code);if(gid)openGuestMix(gid)};
+  const go=code=>{const gid=parseGuestCode(code);if(gid)openGuestMix(gid);else setStatus("Попроси гостя обновить карту и показать новый QR")};
   if(tgw&&tgw.showScanQrPopup){try{tgw.showScanQrPopup({text:"Наведи камеру на QR гостя"},text=>{tgw.closeScanQrPopup&&tgw.closeScanQrPopup();go(text);return true});return}catch(e){}}
-  showDlg('<h2>Код гостя</h2><p class="muted small">Спроси код у гостя (под QR в его карте) и впиши сюда.</p><input id="gm-code" class="scq" placeholder="Например: gr1namq" autocomplete="off" maxlength="40"><div class="dlg-btns"><button class="btn go" type="button" id="gm-go">Далее</button><button class="btn" type="button" id="dlg-back">Отмена</button></div>');
+  showDlg('<h2>Код гостя</h2><p class="muted small">Спроси код у гостя (под QR в его карте) и впиши сюда.</p><input id="gm-code" class="scq" placeholder="Код из нового QR гостя" autocomplete="off" maxlength="40"><div class="dlg-btns"><button class="btn go" type="button" id="gm-go">Далее</button><button class="btn" type="button" id="dlg-back">Отмена</button></div>');
   $("#dlg-back").onclick=closeDlg;$("#gm-go").onclick=()=>{const v=$("#gm-code").value.trim();if(v){closeDlg();go(v)}};
 }
 function openGuestMix(gid){const mx={title:"",note:"",parts:[{id:"",b:"",pct:""},{id:"",b:"",pct:""}]};

@@ -928,23 +928,26 @@ function showForm(sel,fromMaster){
 function toast2(t){let el=$("#toast2");if(!el){el=document.createElement("div");el.id="toast2";el.className="toast2";document.body.append(el)}el.textContent=t;el.hidden=false;clearTimeout(el._t);el._t=setTimeout(()=>{el.hidden=true},4000)}
 // QR: гость показывает код мастеру, мастер вносит микс — он попадает в избранное гостя.
 // В демо экран мастера имитируется здесь же; в приложении микс придёт на телефон гостя через сервер.
-let gid="";try{gid=localStorage.getItem("karta-gid")||"";if(!gid){gid="g"+Math.random().toString(36).slice(2,8);localStorage.setItem("karta-gid",gid)}}catch(e){gid="g"+Math.random().toString(36).slice(2,8)}
+let gid="";try{const saved=localStorage.getItem("karta-gid")||"";if(/^g[0-9a-f]{32}$/.test(saved)){gid=saved}else{if(saved)localStorage.setItem("karta-gid-legacy",saved);const bytes=crypto.getRandomValues(new Uint8Array(16));const fresh="g"+Array.from(bytes,b=>b.toString(16).padStart(2,"0")).join("");localStorage.setItem("karta-gid",fresh);gid=fresh}}catch(e){gid=""}
 let QRL=null;function loadQR(){return QRL||(QRL=new Promise((ok,no)=>{if(window.qrcode)return ok(window.qrcode);const sc=document.createElement("script");sc.src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js";sc.onload=()=>ok(window.qrcode);sc.onerror=()=>{QRL=null;no()};document.head.append(sc)}))}
 function qrSvg(text){const q=window.qrcode(0,"M");q.addData(text);q.make();const n=q.getModuleCount(),c=6;let d="";for(let r=0;r<n;r++)for(let k=0;k<n;k++)if(q.isDark(r,k))d+="M"+(k*c)+" "+(r*c)+"h"+c+"v"+c+"h-"+c+"z";const w=n*c;return '<svg viewBox="-12 -12 '+(w+24)+" "+(w+24)+'" width="100%" xmlns="http://www.w3.org/2000/svg"><rect x="-12" y="-12" width="'+(w+24)+'" height="'+(w+24)+'" fill="#fff"/><path d="'+d+'" fill="#140c07"/></svg>'}
 let gmTimer=null,gmBusy=false;
-async function pollGuestMix(){const C=window.POLKA_CONFIG;if(!C||gmBusy)return;gmBusy=true;
-  try{const r=await fetch(C.url+"/rest/v1/guest_mixes?gid=eq."+encodeURIComponent(gid)+"&taken=eq.false&select=id,name,parts,note,created_at",{headers:{apikey:C.anon,Authorization:"Bearer "+C.anon}});
+async function pollGuestMix(){const C=window.POLKA_CONFIG;if(!C||!gid||gmBusy)return;gmBusy=true;
+  const headers={apikey:C.anon,Authorization:"Bearer "+C.anon,"Content-Type":"application/json"};
+  try{const r=await fetch(C.url+"/rest/v1/rpc/list_guest_mixes",{method:"POST",headers,body:JSON.stringify({p_gid:gid})});
     if(!r.ok)return;const rows=await r.json();if(!rows.length)return;
     for(const row of rows){
-      mine.unshift({name:row.name||"Микс от мастера",parts:row.parts||[],note:row.note||"",date:new Date().toLocaleDateString("ru-RU"),by:"мастер"});
-      try{await fetch(C.url+"/rest/v1/rpc/claim_guest_mix",{method:"POST",headers:{apikey:C.anon,Authorization:"Bearer "+C.anon,"Content-Type":"application/json"},body:JSON.stringify({p_id:row.id})})}catch(e){}
+      const added=!mine.some(m=>m.guestMixId===row.id);
+      if(added)mine.unshift({guestMixId:row.id,name:row.name||"Микс от мастера",parts:row.parts||[],note:row.note||"",date:new Date().toLocaleDateString("ru-RU"),by:"мастер"});
+      if(!saveMine()){if(added)mine.shift();toast2("Не удалось сохранить микс. Освободи место в браузере и повтори.");return}
+      try{await fetch(C.url+"/rest/v1/rpc/claim_guest_mix",{method:"POST",headers,body:JSON.stringify({p_id:row.id,p_gid:gid})})}catch(e){}
     }
-    saveMine();st.meTab="ms";toast2(rows.length>1?"Мастер записал "+rows.length+" микса, они у тебя в избранном":"Мастер записал микс, он у тебя в избранном");
+    st.meTab="ms";toast2(rows.length>1?"Мастер записал "+rows.length+" микса, они у тебя в избранном":"Мастер записал микс, он у тебя в избранном");
     const dd=$("#qrd");if(dd&&dd.open){try{dd.close()}catch(e){dd.removeAttribute("open")}}
     if(st.tab==="me")render()
   }catch(e){}finally{gmBusy=false}}
 pollGuestMix();
-async function openQR(){const url="https://t.me/PolkaHookahbot/PolkaSklad?startapp=guest_"+gid;
+async function openQR(){if(!gid){toast2("Для QR нужно разрешить сохранение данных в браузере.");return}const url="https://t.me/PolkaHookahbot/PolkaSklad?startapp=guest_"+gid;
   clearInterval(gmTimer);gmTimer=setInterval(pollGuestMix,4000);
   const d=$("#qrd");d.innerHTML='<div class="sh-h"><i class="handle"></i><button class="x-close" type="button" data-qx aria-label="Закрыть">×</button></div><h2>Покажи QR мастеру</h2><p class="note" style="margin:0">Мастер наведёт камеру и внесёт микс. Он появится в твоём избранном.</p><div class="qrbox" id="qrbox"><span class="muted">Рисую код…</span></div><div class="qrid">Код гостя: <b>'+esc(gid)+'</b></div><p class="muted small" style="margin:6px 0 0">Если мастер не отсканирует сразу, скажи ему код — он впишет его вручную.</p>';
   try{d.showModal()}catch(e){d.setAttribute("open","")}

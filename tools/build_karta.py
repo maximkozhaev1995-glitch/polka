@@ -12,7 +12,7 @@ if '--reuse-data' in sys.argv:
     data=re.search(r'const DATA=(\[.*?\]);const ALL=',old).group(1)
     json.loads(data)
     s=open(root+'/karta/template.html').read().replace('__DATA__',data)
-    open(root+'/karta/index.html','w').write(s)
+    open(root+'/karta/index.html','w',encoding='utf-8',newline='\n').write(s)
     print('karta/index.html rebuilt using existing snapshot (no network)')
     sys.exit(0)
 T=os.environ['SUPABASE_ACCESS_TOKEN']
@@ -30,5 +30,5 @@ for r in rows:
     if r['st']:g['st']=r['st']
     g['c']=classify(g);G.append(g)
 s=open(root+'/karta/template.html').read().replace('__DATA__',json.dumps(G,ensure_ascii=False))
-open(root+'/karta/index.html','w').write(s)
+open(root+'/karta/index.html','w',encoding='utf-8',newline='\n').write(s)
 print('karta/index.html',len(G),'вкусов, на стойке по снимку',sum(1 for g in G if g['ob']))

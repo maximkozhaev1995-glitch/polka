@@ -1,0 +1,45 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import {localPostgres} from './local-postgres.mjs';
+const pg=await localPostgres();
+try{
+ const db=await pg.connect();
+ await db.query("create role anon;create role authenticated;create table guest_mixes(id uuid primary key,venue_id uuid,gid text,name text,parts jsonb,note text,taken boolean default false,created_at timestamptz default now());alter table guest_mixes enable row level security;grant select on guest_mixes to anon;create policy guest_mixes_guest_read on guest_mixes for select to anon using(not taken);create function claim_guest_mix(p_id uuid) returns void language sql security definer as $$update guest_mixes set taken=true where id=p_id$$;grant execute on function claim_guest_mix(uuid) to anon;");
+ const gid='g'+'1'.repeat(32),wrong='g'+'2'.repeat(32),id=crypto.randomUUID(),other=crypto.randomUUID();
+ await db.query(`create table public.users(tg_id bigint primary key,venue_id uuid);
+ create function public.me_venue() returns uuid language sql stable security definer set search_path='' as $$select venue_id from public.users where tg_id=(nullif(current_setting('request.jwt.claims',true),'')::jsonb->>'sub')::bigint$$;`);
+ const venue='10000000-0000-0000-0000-000000000001',foreign='10000000-0000-0000-0000-000000000002';
+ await db.query("insert into users values(1,$1),(2,$2)",[venue,foreign]);
+ await db.query("create policy guest_mixes_staff_read on guest_mixes for select to authenticated using(venue_id=public.me_venue());create policy guest_mixes_staff_insert on guest_mixes for insert to authenticated with check(venue_id=public.me_venue());grant select,insert on guest_mixes to authenticated;grant select(gid) on guest_mixes to anon");
+ await db.query("insert into guest_mixes(id,gid,name,venue_id) values($1,$2,'own',$5),($3,$4,'other',$6)",[id,gid,other,wrong,venue,foreign]);
+ await db.query(fs.readFileSync('supabase/migrations/20261104222043_secure_guest_capability.sql','utf8'));
+ await db.query('set role anon');
+ await assert.rejects(db.query('select * from guest_mixes'),e=>e.code==='42501');
+ await assert.rejects(db.query('select gid from guest_mixes'),e=>e.code==='42501');
+ await assert.rejects(db.query('select claim_guest_mix($1)',[id]),e=>e.code==='42883');
+ assert.deepEqual((await db.query('select name from list_guest_mixes($1)',[gid])).rows,[{name:'own'}]);
+ await assert.rejects(db.query("select * from list_guest_mixes('gshort')"),e=>e.code==='42501');
+ assert.equal((await db.query('select claim_guest_mix($1,$2) ok',[id,wrong])).rows[0].ok,false);
+ assert.equal((await db.query('select claim_guest_mix($1,$2) ok',[id,gid])).rows[0].ok,true);
+ assert.equal((await db.query('select claim_guest_mix($1,$2) ok',[id,gid])).rows[0].ok,false);
+ assert.equal((await db.query('select * from list_guest_mixes($1)',[gid])).rowCount,0);
+ assert.equal((await db.query('select * from list_guest_mixes($1)',[wrong])).rowCount,1);
+ const second=await pg.connect();await second.query('set role anon');
+ const race=await Promise.all([db.query('select claim_guest_mix($1,$2) ok',[other,wrong]),second.query('select claim_guest_mix($1,$2) ok',[other,wrong])]);
+ assert.deepEqual(race.map(r=>r.rows[0].ok).sort(),[false,true]);
+ await db.query('set role authenticated');
+ await db.query("select set_config('request.jwt.claims','{\"sub\":\"1\"}',false)");
+ await db.query("insert into guest_mixes(id,venue_id,gid,name) values($1,$2,$3,'staff owned')",[crypto.randomUUID(),venue,gid]);
+ await assert.rejects(db.query("insert into guest_mixes(id,venue_id,gid) values($1,$2,$3)",[crypto.randomUUID(),foreign,gid]),e=>e.code==='42501');
+ const staffRows=(await db.query('select * from guest_mixes')).rows;
+ assert.equal(staffRows.length,2);assert(staffRows.every(r=>r.venue_id===venue));
+ await db.query('reset role');await db.query('delete from users where tg_id=1');await db.query('set role authenticated');
+ await assert.rejects(db.query("insert into guest_mixes(id,venue_id,gid) values($1,$2,$3)",[crypto.randomUUID(),venue,gid]),e=>e.code==='42501');
+ console.log('PASS staff tenant insert/read retained; other venue and revoked member denied; anonymous column grants revoked');
+ assert.equal((await db.query('select claim_guest_mix($1,$2) ok',[id,wrong])).rows[0].ok,false);
+ await assert.rejects(db.query('select claim_guest_mix($1)',[id]),e=>e.code==='42883');
+ await assert.rejects(db.query('select * from list_guest_mixes(null)'),e=>e.code==='42501');
+ console.log('PASS two clients claim concurrently: exactly one transition; authenticated role does not bypass capability');
+ console.log('PASS guest scope: no enumeration/legacy claim; strong capability only; foreign claim denied; repeated claim no second effect');
+}finally{await pg.close();}
+
