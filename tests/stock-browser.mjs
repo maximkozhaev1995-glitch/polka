@@ -200,6 +200,92 @@ try{
   });
  }
  await test('desktop home restores lost response and clears the reviewed draft',async()=>{await checkRecoveryOnHome(page)});
+ const mobileFailures=[];
+ for(const [width,height] of [[320,568],[360,800],[390,844],[430,932],[844,390],[390,460]]){
+  const size=width+'x'+height;
+  const mobile=await newContext({viewport:{width,height},isMobile:true,hasTouch:true,deviceScaleFactor:1});
+  const p=await mobile.newPage();
+  const check=async(defect,fn)=>{
+   try{await test(defect+' mobile '+size,fn)}
+   catch(error){mobileFailures.push(error);console.error('FAIL',defect,size,error.message)}
+  };
+  try{
+   const home=tab=>p.locator('#home-screen [data-home="'+tab+'"]');
+   const row=p.locator('[data-row="'+ids[0]+'"]');
+   const toast=p.locator('#toast');
+   await check('D6 stock toast leaves AI controls reachable',async()=>{
+    await p.clock.install();
+    await reset([p]);
+    await home('wh').tap();
+    await p.locator('#q').fill(catalog[0].name);
+    // Use a click for selection here so D6 can be reproduced independently of D7.
+    await row.click();
+    await row.locator('[data-v="tobar"]').tap();
+    await toast.waitFor({state:'visible'});
+    assert(await toast.locator('#t-undo').isVisible());
+    const transferred=await values();
+    assert.equal(transferred.moves.length,1);
+    assert.equal(transferred.stock.find(x=>x.flavor_id===ids[0]).wh,1);
+    await p.locator('#home-btn').tap();
+    await home('ai').tap();
+    assert.equal(await toast.evaluate(el=>el.hidden),false,'Toast timer must still be active when entering AI');
+    const blocked=await p.evaluate(()=>['#ai-in','#ai-send'].map(selector=>{
+     const el=document.querySelector(selector),r=el.getBoundingClientRect();
+     const hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);
+     return {selector,hit:hit?.id||hit?.closest('#toast')?.id,reachable:r.width>0&&r.height>0&&r.left>=0&&r.top>=0&&r.right<=innerWidth&&r.bottom<=innerHeight&&el.contains(hit)};
+    }).filter(control=>!control.reachable));
+    assert.deepEqual(blocked,[],'AI controls must receive touches during the stock toast');
+    await p.screenshot({path:'.local-tests/mobile-ai-'+size+'.png'});
+    const input=p.locator('#ai-in');
+    await input.tap();
+    assert(await input.evaluate(el=>document.activeElement===el));
+    await input.pressSequentially('Mixora');
+    assert.equal(await input.inputValue(),'Mixora');
+    await p.locator('#ai-send').tap({trial:true,timeout:2000});
+    await p.locator('#home-btn').tap();
+    assert(await toast.locator('#t-undo').isVisible(),'Undo remains available outside AI until the toast expires');
+    await p.clock.fastForward(6001);
+    assert(await toast.isHidden());
+    await p.reload();
+    await p.waitForFunction(()=>stockLoaded);
+    await home('ai').tap();
+    assert(await input.isVisible());
+    assert(await toast.isHidden());
+    assert.deepEqual(await values(),transferred);
+   });
+   await check('D7 rapid touches on different controls are preserved',async()=>{
+    await reset([p]);
+    await home('wh').click();
+    await p.locator('#q').fill(catalog[0].name);
+    const cancelled=await row.evaluate(el=>{
+     const touch=target=>target.dispatchEvent(new Event('touchend',{bubbles:true,cancelable:true}));
+     return [touch(document.querySelector('#q')),touch(el.querySelector('.nm'))];
+    });
+    const inputBox=await p.locator('#q').boundingBox(),rowBox=await row.locator('.nm').boundingBox();
+    await p.touchscreen.tap(inputBox.x+inputBox.width/2,inputBox.y+inputBox.height/2);
+    await p.touchscreen.tap(rowBox.x+rowBox.width/2,rowBox.y+rowBox.height/2);
+    assert.deepEqual({touches:cancelled,actions:await row.locator('[data-v="tobar"]').count()},{touches:[true,true],actions:1});
+    assert.equal(await p.locator('html').evaluate(el=>getComputedStyle(el).touchAction),'pan-x pan-y');
+    await p.screenshot({path:'.local-tests/mobile-search-'+size+'.png'});
+    await p.touchscreen.tap(rowBox.x+rowBox.width/2,rowBox.y+rowBox.height/2);
+    await p.touchscreen.tap(rowBox.x+rowBox.width/2,rowBox.y+rowBox.height/2);
+    assert.equal(await p.evaluate(()=>visualViewport.scale),1);
+    await p.locator('#q').fill(catalog[0].brand);
+    await p.evaluate(()=>{document.activeElement.blur();scrollTo(0,0)});
+    const beforeSwipe=await p.evaluate(()=>({y:scrollY,remaining:document.scrollingElement.scrollHeight-innerHeight-scrollY}));
+    assert(beforeSwipe.remaining>100,'Catalog search must produce a scrollable list');
+    const session=await mobile.newCDPSession(p);
+    const y=height-60;
+    await session.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:width/2,y}]});
+    for(let distance=30;distance<=150;distance+=30){
+     await session.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:width/2,y:y-distance}]});
+    }
+    await session.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+    await p.waitForFunction(previous=>scrollY>previous,beforeSwipe.y,{timeout:2000});
+   });
+  }finally{await mobile.close()}
+ }
+ if(mobileFailures.length)throw new AggregateError(mobileFailures,'Mobile UI regressions');
  await test('expired token refresh reuses one operation identity',async()=>{await reset();await prepare(page,{[ids[0]]:{d:-1}});expireNext=true;const before=rpcCalls;await confirm(page);assert.equal(rpcCalls-before,2);assert.equal((await values()).moves.length,1)});
  await test('two tabs cannot both consume the same reviewed revision',async()=>{const other=await context.newPage();await reset([page,other]);const changes={[ids[0]]:{d:-2}};await prepare(page,changes);await prepare(other,changes);await Promise.all([confirm(page),confirm(other)]);assert.equal((await values()).moves.length,1);assert.equal((await admin.query('select wh from stock where flavor_id=$1',[ids[0]])).rows[0].wh,0);await other.close()});
  await test('insufficient stock preserves every draft row',async()=>{await reset();await prepare(page,{[ids[0]]:{d:-3},[ids[1]]:{d:1}});await confirm(page);assert.equal((await values()).moves.length,0);assert.equal(await page.evaluate(()=>Object.keys(draft).length),2)});
