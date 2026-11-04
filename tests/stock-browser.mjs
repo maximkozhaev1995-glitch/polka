@@ -20,7 +20,20 @@ const server=http.createServer(async(req,res)=>{const url=new URL(req.url,origin
   if(url.pathname==='/rest/v1/rpc/ai_hit')return send(200,1);
   if(url.pathname==='/rest/v1/rpc/apply_stock'){
    rpcCalls++;if(expireNext){expireNext=false;return send(401,{message:'expired test token'})}
-   const c=await pg.connect();try{await c.query('set role authenticated');await c.query("select set_config('request.jwt.claims',$1,false)",[JSON.stringify({sub:'1',tg_id:1,role:'authenticated'})]);const r=await c.query('select public.apply_stock($1,$2::jsonb) result',[body.p_request_id,JSON.stringify(body.p_items)]);if(dropNext){dropNext=false;res.writeHead(200,{'content-type':'application/json'});res.end('{');return}return send(200,r.rows[0].result)}finally{await c.end()}
+   const c=await pg.connect();
+   try{
+    await c.query('set role authenticated');
+    await c.query("select set_config('request.jwt.claims',$1,false)",[JSON.stringify({sub:'1',tg_id:1,role:'authenticated'})]);
+    const r=await c.query('select public.apply_stock($1,$2::jsonb) result',[body.p_request_id,JSON.stringify(body.p_items)]);
+    if(dropNext){
+     dropNext=false;
+     // Interrupt the HTTP response after PostgreSQL has committed the RPC.
+     res.writeHead(200,{'content-type':'application/json','content-length':'2'});
+     res.write('{',()=>res.destroy());
+     return;
+    }
+    return send(200,r.rows[0].result);
+   }finally{await c.end()}
   }
   if(url.pathname.startsWith('/rest/v1/')){
    const table=url.pathname.slice(9);if(['stock','moves','users','flavors'].includes(table)){
@@ -42,9 +55,14 @@ try{
  await admin.query(`insert into venues values('${venue}');insert into users(tg_id,venue_id,name,role) values(1,'${venue}','Local manager','manager');`);
  for(const f of fs.readdirSync('supabase/migrations').sort())await admin.query(fs.readFileSync('supabase/migrations/'+f,'utf8'));
  await new Promise(ok=>server.listen(port,'127.0.0.1',ok));
- browser=await chromium.launch({...(process.env.MIXORA_CHROMIUM?{executablePath:process.env.MIXORA_CHROMIUM}:{channel:'chrome'}),headless:true,args:['--no-sandbox']});const context=await browser.newContext();
- const blocked=[];await context.route('**/*',route=>{const u=new URL(route.request().url());return u.origin===origin?route.continue():(blocked.push(u.origin),route.abort())});
- await context.addInitScript(()=>{window.Telegram={WebApp:{initData:'local-test',ready(){},expand(){}}}});
+ browser=await chromium.launch({...(process.env.MIXORA_CHROMIUM?{executablePath:process.env.MIXORA_CHROMIUM}:{channel:'chrome'}),headless:true,args:['--no-sandbox']});
+ async function newContext(options){
+  const ctx=await browser.newContext(options);
+  await ctx.route('**/*',route=>new URL(route.request().url()).origin===origin?route.continue():route.abort());
+  await ctx.addInitScript(()=>{window.Telegram={WebApp:{initData:'local-test',ready(){},expand(){}}}});
+  return ctx;
+ }
+ const context=await newContext();
  const page=await context.newPage();await page.goto(origin);await page.waitForFunction(()=>typeof DATA!=='undefined'&&stockLoaded);
  const catalog=await page.evaluate(()=>DATA.map(x=>({id:x.id,brand:x.b,name:x.n,line:x.l||''})));
  await admin.query(`insert into flavors(id,brand,name,line) select id,brand,name,line from jsonb_to_recordset($1::jsonb) as t(id text,brand text,name text,line text)`,[JSON.stringify(catalog)]);
@@ -55,7 +73,97 @@ try{
  const confirm=async p=>{await p.locator('#dlg-ok').click();await p.waitForFunction(()=>!busy);if(await p.locator('#status').evaluate(e=>e.classList.contains('err')))console.log('UI',await p.locator('#status').textContent())};
  const values=async()=>({stock:(await admin.query('select * from stock order by flavor_id')).rows,moves:(await admin.query('select * from moves order by id')).rows});
  await test('real browser review persists two stock rows and movements atomically',async()=>{await reset();await prepare(page,{[ids[0]]:{d:-1},[ids[1]]:{d:1}});await confirm(page);const v=await values();assert.equal(v.moves.length,2);assert.equal(await page.evaluate(()=>Object.keys(draft).length),0)});
- await test('lost response, reload and recovery do not duplicate the batch',async()=>{await reset();await prepare(page,{[ids[0]]:{d:-1},[ids[1]]:{d:1}});dropNext=true;await confirm(page);assert.equal((await values()).moves.length,2);assert.equal(await page.evaluate(()=>Object.keys(draft).length),2);await page.reload();await page.waitForFunction(()=>stockLoaded);await page.locator('#stock-recover').click();await page.waitForFunction(()=>!busy);assert.equal((await values()).moves.length,2);assert.equal(await page.evaluate(()=>Object.keys(draft).length),0)});
+ async function checkRecoveryOnHome(p,mobile=false){
+  await reset([p]);
+  const recovery=p.locator('#stock-recover');
+  await p.locator('#home-screen').waitFor({state:'visible'});
+  assert(await recovery.isHidden());
+  assert(await p.locator('#stock-recovery').isHidden());
+  assert.equal(await p.evaluate(()=>db.hasPendingStock()),false);
+  await prepare(p,{[ids[0]]:{d:-1},[ids[1]]:{d:1}});
+  const stockPost=r=>r.method()==='POST'&&new URL(r.url()).pathname==='/rest/v1/rpc/apply_stock';
+  const first=p.waitForRequest(stockPost);
+  dropNext=true;
+  await confirm(p);
+  const original=(await first).postDataJSON();
+  const committed=await values();
+  assert.equal(committed.moves.length,2);
+  assert.deepEqual(ids.map(id=>committed.stock.find(row=>row.flavor_id===id).wh),[1,3]);
+  assert.equal(await p.evaluate(()=>Object.keys(draft).length),2);
+  await p.reload();
+  await p.waitForFunction(()=>stockLoaded);
+  await p.locator('#home-screen').waitFor({state:'visible'});
+  assert.equal(await p.evaluate(()=>db.hasPendingStock()),true);
+  await recovery.waitFor({state:'visible',timeout:5000});
+  const message=p.locator('#stock-recovery-message');
+  const route='**/rest/v1/rpc/apply_stock';
+  if(mobile){
+   const box=await recovery.boundingBox(),view=p.viewportSize();
+   assert(box&&box.x>=0&&box.y>=0&&box.x+box.width<=view.width&&box.y+box.height<=view.height);
+   assert(await recovery.evaluate(el=>{
+    const r=el.getBoundingClientRect();
+    return el.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));
+   }),'the recovery button must receive touches without scrolling');
+   await p.screenshot({path:`.local-tests/stock-recovery-mobile-${view.width}-pending.png`});
+  }
+  if(mobile&&p.viewportSize().width===320){
+   const before=rpcCalls;
+   await p.route(route,request=>request.fulfill({
+    status:503,contentType:'application/json',body:JSON.stringify({message:'Тестовый сбой связи'}),
+   }),{times:1});
+   const failed=p.waitForRequest(stockPost);
+   await recovery.tap();
+   assert.deepEqual((await failed).postDataJSON(),original);
+   await p.waitForFunction(()=>!busy);
+   assert(await message.isVisible());
+   assert.match(await message.innerText(),/Не удалось восстановить результат/);
+   assert(await recovery.isVisible());
+   assert(await recovery.isEnabled());
+   assert.equal(await p.evaluate(()=>db.hasPendingStock()),true);
+   assert.equal(rpcCalls,before);
+   assert.deepEqual(await values(),committed);
+   await p.screenshot({path:'.local-tests/stock-recovery-mobile-320-error.png'});
+  }
+  let release;
+  const gate=new Promise(resolve=>{release=resolve});
+  let attempts=0;
+  await p.route(route,async request=>{attempts++;await gate;await request.continue()});
+  const before=rpcCalls;
+  try{
+   const replay=p.waitForRequest(stockPost);
+   if(mobile)await recovery.tap();else await recovery.click();
+   assert.deepEqual((await replay).postDataJSON(),original);
+   assert(await recovery.isDisabled());
+   // Exercise the handler guard as well as the disabled button.
+   await recovery.dispatchEvent('click');
+   release();
+   await p.waitForFunction(()=>!busy&&!db.hasPendingStock());
+   assert.equal(attempts,1);
+   assert.equal(rpcCalls,before+1);
+  }finally{
+   release();
+   await p.unroute(route);
+  }
+  assert.deepEqual(await values(),committed);
+  assert.equal(await p.evaluate(()=>Object.keys(draft).length),0);
+  assert(await recovery.isHidden());
+  assert(await message.isVisible());
+  assert.match(await message.innerText(),/Результат восстановлен/);
+  if(mobile)await p.screenshot({path:`.local-tests/stock-recovery-mobile-${p.viewportSize().width}-complete.png`});
+  await p.reload();
+  await p.waitForFunction(()=>stockLoaded);
+  assert(await recovery.isHidden());
+  assert(await p.locator('#stock-recovery').isHidden());
+  assert.equal(await p.evaluate(()=>db.hasPendingStock()),false);
+  assert.equal(rpcCalls,before+1);
+ }
+ for(const viewport of [{width:320,height:568},{width:390,height:844}]){
+  await test(`mobile ${viewport.width}x${viewport.height} home restores lost response with one exact replay`,async()=>{
+   const mobile=await newContext({viewport,isMobile:true,hasTouch:true,deviceScaleFactor:1});
+   try{await checkRecoveryOnHome(await mobile.newPage(),true)}finally{await mobile.close()}
+  });
+ }
+ await test('desktop home restores lost response and clears the reviewed draft',async()=>{await checkRecoveryOnHome(page)});
  await test('expired token refresh reuses one operation identity',async()=>{await reset();await prepare(page,{[ids[0]]:{d:-1}});expireNext=true;const before=rpcCalls;await confirm(page);assert.equal(rpcCalls-before,2);assert.equal((await values()).moves.length,1)});
  await test('two tabs cannot both consume the same reviewed revision',async()=>{const other=await context.newPage();await reset([page,other]);const changes={[ids[0]]:{d:-2}};await prepare(page,changes);await prepare(other,changes);await Promise.all([confirm(page),confirm(other)]);assert.equal((await values()).moves.length,1);assert.equal((await admin.query('select wh from stock where flavor_id=$1',[ids[0]])).rows[0].wh,0);await other.close()});
  await test('insufficient stock preserves every draft row',async()=>{await reset();await prepare(page,{[ids[0]]:{d:-3},[ids[1]]:{d:1}});await confirm(page);assert.equal((await values()).moves.length,0);assert.equal(await page.evaluate(()=>Object.keys(draft).length),2)});
@@ -65,7 +173,7 @@ try{
   for(const legacy of ['master','manager']){await admin.query('update users set role=$1,perms=\'{}\' where tg_id=1',[legacy]);user.role=legacy;await reset();await page.waitForFunction(()=>staffReady);
    assert.equal(await page.locator('#view-sw,#role-sw,[data-pm]').count(),0);
    await prepare(page,{[ids[0]]:{d:1}});await confirm(page);await page.waitForFunction(()=>moves.length===1);
-   await page.locator('#bnav [data-n="log"]').click();assert.equal(await page.locator('#sect').textContent(),'Журнал');assert.equal(await page.locator('[data-undo]').count(),1);
+   await page.locator('#home-screen [data-home="log"]').click();assert.equal(await page.locator('#sect').textContent(),'Журнал');assert.equal(await page.locator('[data-undo]').count(),1);
    await page.evaluate(id=>undoMove(String(id)),(await values()).moves[0].id);assert.equal((await values()).moves.length,2);
   }
  });
