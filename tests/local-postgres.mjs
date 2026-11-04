@@ -12,7 +12,11 @@ export async function localPostgres(){
   const root=path.join(workspace,'.local-tests');await fs.mkdir(root,{recursive:true});
   // Retain only test data for diagnostics. Never delete a computed directory.
   const databaseDir=await fs.mkdtemp(path.join(root,'pg-')),port=await freePort(),password=crypto.randomUUID();
-  const binaries=await import(`@embedded-postgres/${process.platform==='win32'?'windows':process.platform}-${process.arch}`);
+  const binDir=process.env.MIXORA_TEST_PG_BIN;
+  const suffix=process.platform==='win32'?'.exe':'';
+  const binaries=binDir
+    ? {initdb:path.join(binDir,'initdb'+suffix),pg_ctl:path.join(binDir,'pg_ctl'+suffix)}
+    : await import(`@embedded-postgres/${process.platform==='win32'?'windows':process.platform}-${process.arch}`);
   const initdb=shortPath(binaries.initdb),pgctl=shortPath(binaries.pg_ctl);
   const pwfile=path.join(databaseDir,'init-password');await fs.writeFile(pwfile,password,{mode:0o600});
   function run(exe,args){return new Promise((ok,no)=>{const p=spawn(exe,args,{windowsHide:true,env:{...process.env,LC_MESSAGES:'C'}});let output='';p.stdout.on('data',b=>output+=b);p.stderr.on('data',b=>output+=b);p.on('error',no);p.on('exit',code=>code===0?ok(output):no(Error(output)))})}
@@ -20,7 +24,15 @@ export async function localPostgres(){
   finally{await fs.unlink(pwfile)}
   // pg_ctl creates the restricted Windows token required by PostgreSQL; no
   // system account or service is created. The server binds to loopback only.
-  await run(pgctl,['-D',path.join(databaseDir,'data'),'-l',path.join(databaseDir,'server.log'),'-o',`-p ${port} -h 127.0.0.1`,'start','-w']);
+  const socketOption=binDir&&process.platform!=='win32'?' -c unix_socket_directories=':'';
+  const logFile=path.join(databaseDir,'server.log');
+  try{
+    await run(pgctl,['-D',path.join(databaseDir,'data'),'-l',logFile,'-o',`-p ${port} -h 127.0.0.1${socketOption}`,'start','-w']);
+  }catch(error){
+    const details=await fs.readFile(logFile,'utf8').catch(()=>null);
+    if(details)console.error(`Test PostgreSQL startup log (${logFile}):\n${details}`);
+    throw error;
+  }
   const clients=new Set();
   async function connect(){const c=new Client({host:'127.0.0.1',port,user:'postgres',password,database:'postgres'});c.on('error',()=>{});c.once('end',()=>clients.delete(c));await c.connect();clients.add(c);return c}
   async function close(){for(const c of clients)await c.end().catch(()=>{});await run(pgctl,['-D',path.join(databaseDir,'data'),'stop','-m','fast','-w'])}

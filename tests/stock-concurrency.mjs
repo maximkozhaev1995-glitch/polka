@@ -26,5 +26,6 @@ try{
  await test('foreign custom catalog item is rejected',async()=>{const other='10000000-0000-0000-0000-000000000002';await admin.query('insert into venues values($1)',[other]);await admin.query("insert into flavors(id,brand,name,custom,venue_id) values('foreign','Test','Foreign',true,$1)",[other]);await assert.rejects(call(clients[0],[item('foreign',0,2)]),/unknown_item/)});
  await test('master cannot self-promote through existing users RLS',async()=>{await auth(clients[0],2);const r=await clients[0].query("update users set role='manager' where tg_id=2");assert.equal(r.rowCount,0);await auth(clients[0])});
  await test('take cannot convert a manual stop into an automatic stop',async()=>{await seed('manual-stop',0);await admin.query("update stock set stop=true where flavor_id='manual-stop';update users set perms=array['take'] where tg_id=2");await auth(clients[0],2);await assert.rejects(call(clients[0],[{...item('manual-stop',0,0,{bar:false,stop:true,stopAuto:true}),kind:'fin'}]),/stock_forbidden/);await check('manual-stop',0,0);await auth(clients[0])});
- console.log(`${count} multi-session PostgreSQL 17 tests passed`);
+ const {rows:[{server_version}]}=await admin.query('show server_version');
+ console.log(`${count} multi-session tests passed on PostgreSQL ${server_version}`);
 }finally{await pg.close()}

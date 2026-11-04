@@ -26,5 +26,6 @@ try{
  await test('foreign custom catalog item is rejected',async()=>{const other='10000000-0000-0000-0000-000000000002';await admin.query('insert into venues values($1)',[other]);await admin.query("insert into flavors(id,brand,name,custom,venue_id) values('foreign','Test','Foreign',true,$1)",[other]);await assert.rejects(call(clients[0],[item('foreign',0,2)]),/unknown_item/)});
  await test('legacy role fields do not divide capabilities',async()=>{await auth(clients[0],2);const r=await clients[0].query("update users set role='manager' where tg_id=2");assert.equal(r.rowCount,1);await seed('equal-rights',2);await call(clients[0],[{...item('equal-rights',0,1),kind:'wo'}]);await auth(clients[0])});
  await test('manual stop survives stock-only replenishment',async()=>{await seed('manual-stop',0);await admin.query("update stock set stop=true where flavor_id='manual-stop'");await auth(clients[0],2);await call(clients[0],[item('manual-stop',0,2,{bar:false,stop:true,stopAuto:false})]);assert.equal((await admin.query("select stop from stock where flavor_id='manual-stop'")).rows[0].stop,true);await auth(clients[0])});
- console.log(`${count} multi-session PostgreSQL 17 tests passed`);
+ const {rows:[{server_version}]}=await admin.query('show server_version');
+ console.log(`${count} multi-session tests passed on PostgreSQL ${server_version}`);
 }finally{await pg.close()}
