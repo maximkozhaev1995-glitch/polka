@@ -73,7 +73,7 @@ test('inspection keeps structured observations aligned with their photos',async(
  assert.equal(Object.hasOwn(await readLabels([photo]),'observations'),false);
 });
 
-test('local ai handler accepts the version as an unknown field',async()=>{
+test('local ai handler supports versioned inspection and regular OCR',async()=>{
  let handler;
  const ocrModes=[];
  const local=vm.createContext({
@@ -83,7 +83,7 @@ test('local ai handler accepts the version as an unknown field',async()=>{
   venuePhotoHints:async()=>'',out:(body,status=200)=>Response.json(body,{status}),
   readPhotos:async (provider,messages,hints,inspection)=>{
    ocrModes.push(inspection===true);
-   return {by:success.ocr,texts:success.ocr_texts};
+   return {by:success.ocr,texts:success.ocr_texts,...(inspection?{inspection:true,observation_schema_version:1,observations:[[]]}:{})};
   },
  });
  vm.runInContext(stripTypeScriptTypes(server.slice(server.indexOf('Deno.serve(')),{mode:'strip'}),local);
