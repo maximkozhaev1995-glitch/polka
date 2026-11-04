@@ -3,7 +3,7 @@ const source=fs.readFileSync('src/stoika.html','utf8');
 const tools=source.slice(source.indexOf('const AI_TOOLS='),source.indexOf('function aiSnapshot()'));
 const send=source.slice(source.indexOf('async function aiSend()'),source.indexOf('// Короткая память чата:'));
 const fixes=source.slice(source.indexOf('function orderFixBox('),source.indexOf('// «Перенеси со склада'));
-const ctx=vm.createContext({console,AbortController,setTimeout,clearTimeout});
+const ctx=vm.createContext({console,AbortController,setTimeout,clearTimeout,crypto:require('node:crypto').webcrypto});
 vm.runInContext(`
 let writes=[],fail=false,stock={a:{wh:3}},draft={},orderQ={},orderM={},lastOrderAt=null,orderVer=0;
 let staffReady=true,aiOrdPhoto=false,aiOrdAsk=true,aiOrdSeen=new Set(),inCmd=false,cmdDraftIds=new Set();
@@ -11,7 +11,13 @@ const DATA=[{id:'a',b:'Brand',n:'A',l:'Strong',t:[]},{id:'b',b:'Brand',n:'B',t:[
 const wh=x=>stock[x.id]?.wh||0,onBar=x=>!!stock[x.id]?.bar,flag=(x,k)=>!!stock[x.id]?.[k],oq=x=>orderQ[x.id]||0;
 const nm=x=>x.b+' '+x.n,aiItem=x=>({id:x.id,brand:x.b,name:x.n}),ordGate=()=>null,can=()=>true;
 const saveDraft=()=>{},render=()=>{},setStatus=()=>{},revertWish=()=>{},wishIdsFor=()=>[];
-const db={doc:path=>({set:async value=>{if(fail)throw Error('API failed');writes.push({path,value})}}),applyStock:async entries=>{if(fail)throw Error('API failed');writes.push({entries});return entries.map(e=>({id:e.id,doc:{...e.doc,revision:e.revision+1}}))}};
+let remoteOrder={q:{},m:{},revision:0};
+const db={applyOrder:async (id,changes)=>{
+  if(fail)throw Error('API failed');
+  remoteOrder=JSON.parse(JSON.stringify(remoteOrder));remoteOrder.revision++;
+  for(const c of changes){if(c.after===null)delete remoteOrder[c.map][c.id];else remoteOrder[c.map][c.id]=c.after}
+  writes.push({id,changes});return {status:'applied',order:remoteOrder};
+},applyStock:async entries=>{if(fail)throw Error('API failed');writes.push({entries});return entries.map(e=>({id:e.id,doc:{...e.doc,revision:e.revision+1}}))}};
 const esc=s=>String(s);let boxes=[];const document={createElement:()=>{const buttons=[{},{}];const box={querySelectorAll:()=>buttons,buttons};boxes.push(box);return box}};
 `+source.slice(source.indexOf('function stockEntry('),source.indexOf('async function toBar('))+
 source.slice(source.indexOf('let oTimer=null'),source.indexOf('function addAllStop()'))+tools+fixes+`

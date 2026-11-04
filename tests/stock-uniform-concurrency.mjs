@@ -10,6 +10,7 @@ async function seed(id,wh=1){await admin.query('insert into flavors(id,brand,nam
 const check=async(id,wh,n)=>{assert.equal((await admin.query('select wh from stock where flavor_id=$1',[id])).rows[0].wh,wh);assert.equal(Number((await admin.query('select count(*) n from moves where flavor_id=$1',[id])).rows[0].n),n)};
 try{
  await admin.query(fs.readFileSync('tests/fixtures/stock-baseline.sql','utf8'));
+ await admin.query(fs.readFileSync('tests/fixtures/access-baseline.sql','utf8'));
  await admin.query(`insert into venues values('${venue}');insert into users(tg_id,venue_id,name,role) values(1,'${venue}','Manager','manager'),(2,'${venue}','Master','master');`);
  const migration=fs.readdirSync('supabase/migrations').find(x=>x.endsWith('_stock_rpc.sql'));
  for(const f of fs.readdirSync('supabase/migrations').sort())await admin.query(fs.readFileSync('supabase/migrations/'+f,'utf8'));

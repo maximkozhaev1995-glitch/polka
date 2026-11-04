@@ -7,6 +7,16 @@ const source=fs.readFileSync('src/stoika.html','utf8'),shim=fs.readFileSync('app
 let html=source.replace('<script>',`<script>window.POLKA_CONFIG={url:${JSON.stringify(origin)},anon:"stand-anon"};</script><script>${shim}</script><script>`).replace(/<link[^>]+fonts\.googleapis[^>]*>/g,'');
 const token=Buffer.from('{"alg":"none"}').toString('base64url')+'.'+Buffer.from('{"sub":"1","tg_id":1,"role":"authenticated"}').toString('base64url')+'.local';
 const user={tg_id:1,venue_id:venue,name:'Local test manager',role:'manager',perms:[]};
+let dropOrderResponse=false;
+const orderRequests=[];
+async function orderQuery(sql,args){
+ const c=await pg.connect();
+ try{
+  await c.query('set role authenticated');
+  await c.query("select set_config('request.jwt.claims',$1,false)",[JSON.stringify({sub:'1',tg_id:1,role:'authenticated'})]);
+  return (await c.query(sql,args)).rows;
+ }finally{await c.end()}
+}
 const server=http.createServer(async(req,res)=>{const url=new URL(req.url,origin);let raw='';for await(const b of req)raw+=b;let body;try{body=raw?JSON.parse(raw):{}}catch{body={}}
  const send=(code,value,type='application/json')=>{res.writeHead(code,{'content-type':type+'; charset=utf-8'});res.end(type==='application/json'?JSON.stringify(value):value)};
  try{
@@ -18,6 +28,20 @@ const server=http.createServer(async(req,res)=>{const url=new URL(req.url,origin
    const data=await r.json();aiLog.push({status:r.status,model:data.model,usage:data.usage,toolCalls:(data.content||[]).filter(b=>b.type==='tool_use').map(b=>({name:b.name,input:b.input})),text:(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('')});return send(r.status,data);
   }
   if(url.pathname==='/rest/v1/rpc/ai_hit')return send(200,1);
+  if(url.pathname==='/rest/v1/orders'&&req.method==='GET'){
+   return send(200,await orderQuery('select items,revision from orders'));
+  }
+  if(url.pathname==='/rest/v1/rpc/apply_order'){
+   orderRequests.push(body);
+   const [row]=await orderQuery('select public.apply_order($1,$2,$3::jsonb) result',[body.p_venue_id,body.p_request_id,JSON.stringify(body.p_changes)]);
+   if(dropOrderResponse){
+    dropOrderResponse=false;
+    res.writeHead(200,{'content-type':'application/json','content-length':'2'});
+    res.write('{',()=>res.destroy());
+    return;
+   }
+   return send(200,row.result);
+  }
   if(url.pathname==='/rest/v1/rpc/apply_stock'){
    rpcCalls++;if(expireNext){expireNext=false;return send(401,{message:'expired test token'})}
    const c=await pg.connect();
@@ -52,6 +76,7 @@ let browser;
 const test=async(name,fn)=>{await fn();console.log('PASS',name);count++};
 try{
  await admin.query(fs.readFileSync('tests/fixtures/stock-baseline.sql','utf8'));
+ await admin.query(fs.readFileSync('tests/fixtures/access-baseline.sql','utf8'));
  await admin.query(`insert into venues values('${venue}');insert into users(tg_id,venue_id,name,role) values(1,'${venue}','Local manager','manager');`);
  for(const f of fs.readdirSync('supabase/migrations').sort())await admin.query(fs.readFileSync('supabase/migrations/'+f,'utf8'));
  await new Promise(ok=>server.listen(port,'127.0.0.1',ok));
@@ -68,7 +93,18 @@ try{
  await admin.query(`insert into flavors(id,brand,name,line) select id,brand,name,line from jsonb_to_recordset($1::jsonb) as t(id text,brand text,name text,line text)`,[JSON.stringify(catalog)]);
  const ids=catalog.slice(0,2).map(x=>x.id);
  await admin.query('insert into stock(venue_id,flavor_id,wh) select $1,x,2 from unnest($2::text[]) x',[venue,ids]);
- async function reset(pages=[page]){await admin.query('truncate moves,mixora_private.stock_requests');await admin.query('update stock set wh=2,revision=0,bar=false,stop=false,stop_auto=false,slow=false,retired=false');for(const p of pages){await p.goto(origin);await p.evaluate(()=>localStorage.clear());misc.clear();await p.reload();await p.waitForFunction(()=>stockLoaded&&!!sampleFn)} }
+ async function reset(pages=[page]){
+  await Promise.all(pages.map(p=>p.goto('about:blank')));
+  await admin.query('truncate moves,mixora_private.stock_requests,orders,mixora_private.order_requests');
+  await admin.query('update stock set wh=2,revision=0,bar=false,stop=false,stop_auto=false,slow=false,retired=false');
+  misc.clear();
+  for(const p of pages){
+   await p.goto(origin);
+   await p.evaluate(()=>{localStorage.clear();sessionStorage.clear()});
+   await p.reload();
+   await p.waitForFunction(()=>stockLoaded&&!!sampleFn);
+  }
+ }
  const prepare=async(p,changes)=>p.evaluate(changes=>{draft=changes;saveDraft();openReview()},changes);
  const confirm=async p=>{await p.locator('#dlg-ok').click();await p.waitForFunction(()=>!busy);if(await p.locator('#status').evaluate(e=>e.classList.contains('err')))console.log('UI',await p.locator('#status').textContent())};
  const values=async()=>({stock:(await admin.query('select * from stock order by flavor_id')).rows,moves:(await admin.query('select * from moves order by id')).rows});
@@ -194,6 +230,89 @@ try{
   },ids[0]);
   for(const r of result){assert.ok(!r.text.includes('Jent'),r.cmd);assert.ok(!r.text.includes('Starline'),r.cmd);assert.ok(r.draft.every(id=>id===ids[0]),r.cmd);assert.deepEqual(r.order,[],r.cmd)}
   assert.equal((await values()).moves.length,0);
+ });
+ await test('independent clients save manual and AI orders, review conflict, and replay after reload',async()=>{
+  const otherContext=await newContext();
+  try{
+   const second=await otherContext.newPage(),[a,b]=ids;
+   await admin.query('truncate orders,mixora_private.order_requests');
+   await admin.query('insert into orders(venue_id,items,revision) values($1,$2,1)',[venue,{q:{[a]:1},m:{}}]);
+   const stored=async()=>(await admin.query('select items,revision::int revision from orders')).rows[0];
+   await Promise.all([page.reload(),second.goto(origin)]);
+   await Promise.all([page,second].map(p=>p.waitForFunction(id=>orderQ[id]===1,a)));
+   await Promise.all([
+    page.evaluate(id=>{orderQ[id]=2;saveOrder();return flushOrder()},a),
+    second.evaluate(id=>aiCommitProposal([{t:'order',id,qty:3}]),b),
+   ]);
+   assert.deepEqual((await stored()).items.q,{[a]:2,[b]:3});
+   await Promise.all([page,second].map(p=>p.waitForFunction(([a,b])=>orderQ[a]===2&&orderQ[b]===3,ids)));
+
+   // Freeze the second client's reads so it edits the version it actually saw.
+   const orderRead='**/rest/v1/orders?**';
+   await second.route(orderRead,r=>r.abort());
+   await page.evaluate(id=>{orderQ[id]=4;saveOrder();return flushOrder()},a);
+   await second.evaluate(id=>{orderQ[id]=5;saveOrder();return flushOrder()},a);
+   const message=second.locator('#order-save-message');
+   assert(await message.isVisible());
+   assert.match(await message.innerText(),/Заказ изменён на другом устройстве/);
+   assert.equal(await second.evaluate(id=>orderQ[id],a),5);
+   assert.equal((await stored()).items.q[a],4);
+   await second.reload();
+   await second.waitForFunction(()=>!!orderConflict);
+   assert.equal(await second.evaluate(id=>orderQ[id],a),5);
+   await second.locator('#order-save-retry').click();
+   assert.match(await second.locator('#dlg-body').innerText(),/на сервере 4 шт\. · ваша правка 5 шт\./);
+   await second.locator('#order-apply-draft').click();
+   await second.waitForFunction(()=>!oSaving&&!oDirty);
+   assert.deepEqual((await stored()).items.q,{[a]:5,[b]:3});
+   await second.unroute(orderRead);
+
+   dropOrderResponse=true;
+   await assert.rejects(second.evaluate(id=>aiCommitProposal([{t:'order',id,qty:6}]),b),/сохранение заказа не подтверждено/);
+   const lost=orderRequests.at(-1);
+   assert.equal((await stored()).items.q[b],6);
+   await page.reload();
+   await page.waitForFunction(id=>orderQ[id]===6,b);
+   await page.evaluate(id=>{orderQ[id]=7;saveOrder();return flushOrder()},b);
+   const newer=await stored();
+   await second.reload();
+   await second.waitForFunction(()=>!!orderRequest);
+   assert.equal(await second.evaluate(id=>orderQ[id],b),6);
+   await second.locator('#order-save-retry').click();
+   await second.waitForFunction(id=>!oSaving&&!oDirty&&orderQ[id]===7,b);
+   assert.deepEqual(orderRequests.at(-1),lost);
+   assert.deepEqual(await stored(),newer);
+   assert.deepEqual(newer.items.q,{[a]:5,[b]:7});
+
+   // Confirming the displayed quantity is still checked against the server.
+   await second.route(orderRead,r=>r.abort());
+   await page.evaluate(id=>{orderQ[id]=8;saveOrder();return flushOrder()},b);
+   await assert.rejects(second.evaluate(([a,b])=>aiCommitProposal([{t:'order',id:b,qty:7},{t:'order',id:a,qty:6}]),ids),/Заказ изменён/);
+   assert.equal((await stored()).items.q[a],5,'the stale AI line rejects the whole batch');
+   await second.locator('#order-save-retry').click();
+   assert.match(await second.locator('#dlg-body').innerText(),/на сервере 8 шт\. · ваша правка 7 шт\./);
+   await second.unroute(orderRead);
+   await page.evaluate(id=>{orderQ[id]=9;saveOrder();return flushOrder()},b);
+   await second.waitForFunction(id=>orderRemote.q[id]===9,b);
+   await second.locator('#order-discard-draft').click();
+   assert.equal(await second.evaluate(id=>orderQ[id],b),9);
+   assert.equal((await stored()).items.q[b],9);
+
+   // A live snapshot may update the model while a focused input keeps the
+   // old on-screen value. The input must still compare against that value.
+   await second.evaluate(id=>{
+    go('order');$('#q').value=byId[id].n;$('#q').dispatchEvent(new Event('input',{bubbles:true}));
+   },b);
+   const input=second.locator('#list input.oin[data-id="'+b+'"]');
+   await input.fill('10');
+   await page.evaluate(id=>{orderQ[id]=11;saveOrder();return flushOrder()},b);
+   await second.waitForFunction(id=>orderQ[id]===11,b);
+   assert.equal(await input.inputValue(),'10');
+   await input.blur();
+   await second.waitForFunction(()=>!!orderConflict);
+   assert.equal(await second.evaluate(id=>orderQ[id],b),10);
+   assert.equal((await stored()).items.q[b],11);
+  }finally{await otherContext.close()}
  });
  if(process.env.RUN_CLAUDE==='1'){
    const {loadLocalAI}=await import('./local-ai-runtime.mjs');aiHandler=await loadLocalAI(origin);

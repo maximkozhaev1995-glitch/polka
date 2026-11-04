@@ -121,7 +121,7 @@
   };
   const subs={};
   const snapDocs=async c=>{
-    if(c==="order"){const rows=await rest("orders?select=items&venue_id=eq."+V());return rows.length?[{id:"current",data:()=>rows[0].items}]:[]}
+    if(c==="order"){const rows=await rest("orders?select=items,revision&venue_id=eq."+V());return rows.length?[{id:"current",data:()=>({...rows[0].items,revision:rows[0].revision})}]:[]}
     if(c==="strength"||c==="pack"){
       const m=MAP[c],field=c==="strength"?"strength":"pack_g";
       // Shared values remain defaults. A venue override never edits the catalog.
@@ -138,6 +138,13 @@
   const bump=c=>setTimeout(()=>refresh(c),150);
   const listen=c=>({onSnapshot:(f,err)=>{const s=subs[c]||(subs[c]={fns:[],errs:[],hash:""});s.fns.push(f);if(err)s.errs.push(err);refresh(c)}});
   const db={
+    orderScope:()=>({venue:V(),actor:session.user.tg_id}),
+    applyOrder:async(id,changes,scope)=>{
+      if(scope?.venue!==V()||scope?.actor!==session.user.tg_id)throw Error("Сменилось заведение или учётная запись");
+      const result=await rest("rpc/apply_order",{method:"POST",body:JSON.stringify({p_venue_id:scope.venue,p_request_id:id,p_changes:changes})});
+      bump("order");
+      return result;
+    },
     // Venue-scoped, read-only at application level except user-approved correction writes.
     listPhotoCorrections:async()=>rest("photo_corrections?select=raw_label,flavor_id,confirmed_at&venue_id=eq."+V()+"&order=confirmed_at.desc&limit=500"),
     savePhotoCorrection:async(raw,flavorId)=>{
@@ -179,7 +186,7 @@
     doc:p=>{const [c,id]=p.split("/");return{
       set:async o=>{
         if(c==="stock"||c==="moves")throw new Error("Используйте складскую операцию");
-        if(c==="order"){await rest("orders?on_conflict=venue_id",{method:"POST",headers:Object.assign(H(),{Prefer:"resolution=merge-duplicates"}),body:JSON.stringify({venue_id:V(),items:o,updated_at:new Date().toISOString()})});bump(c);return}
+        if(c==="order")throw Error("Используйте сохранение позиций заказа");
         const m=MAP[c];if(m.patch){await rest(m.table+"?"+m.key+"=eq."+encodeURIComponent(id)+(m.table==="flavors"?"":"&venue_id=eq."+V()),{method:"PATCH",body:JSON.stringify(m.fromDoc(id,o))});bump(c);return}
         await rest(m.table+"?on_conflict="+(m.conflict||m.key),{method:"POST",headers:Object.assign(H(),{Prefer:"resolution=merge-duplicates"}),body:JSON.stringify(m.fromDoc(id,o))});bump(c)},
       delete:async()=>{if(c==="stock"||c==="moves")throw new Error("Журнал нельзя удалять");const m=MAP[c];await rest(m.table+"?"+m.key+"=eq."+encodeURIComponent(id)+"&venue_id=eq."+V(),{method:"DELETE"});bump(c)}}},

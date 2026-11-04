@@ -472,9 +472,9 @@ body{margin:0}
 .home-hero{min-height:106px;background:var(--surface);border-color:var(--accent)}
 .home-title{font-size:15px;color:var(--muted);margin:12px 0 10px}
 .home-mode .search,.home-mode #brands,.home-mode #filters,.home-mode .legend,.home-mode #omanual,.home-mode #list,.home-mode #chat,.home-mode #sup,.home-mode #logbox,.home-mode #tray,.home-mode #otray{display:none!important}
-#stock-recovery{padding:12px;border:1px solid var(--accent);border-radius:12px;background:var(--surface)}
-#stock-recovery-message{margin:0;font-size:14px;overflow-wrap:anywhere}
-#stock-recover{width:100%;min-height:44px;margin-top:8px;white-space:normal}
+#stock-recovery,#order-save-problem{padding:12px;border:1px solid var(--accent);border-radius:12px;background:var(--surface)}
+#stock-recovery-message,#order-save-message{margin:0;font-size:14px;overflow-wrap:anywhere}
+#stock-recover,#order-save-retry{width:100%;min-height:44px;margin-top:8px;white-space:normal}
 #home-screen[hidden]{display:none!important}
 #home-btn{font-size:20px;min-width:40px;min-height:40px;border:1px solid var(--line);background:var(--surface);border-radius:12px;color:var(--fg);cursor:pointer}
 body.home-mode .stats{display:none}
@@ -494,6 +494,10 @@ body.hasnav{padding-bottom:0}
   <section id="stock-recovery" hidden aria-label="Восстановление складской операции">
     <p id="stock-recovery-message" role="status"></p>
     <button class="btn" id="stock-recover" type="button" hidden>Восстановить результат складской операции</button>
+  </section>
+  <section id="order-save-problem" hidden aria-label="Сохранение заказа">
+    <p id="order-save-message" role="status"></p>
+    <button class="btn" id="order-save-retry" type="button">Повторить сохранение заказа</button>
   </section>
   <section id="home-screen" hidden aria-label="Рабочее меню Mixora">
     <p class="home-title">Все инструменты под рукой</p>
@@ -720,7 +724,7 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
   };
   const subs={};
   const snapDocs=async c=>{
-    if(c==="order"){const rows=await rest("orders?select=items&venue_id=eq."+V());return rows.length?[{id:"current",data:()=>rows[0].items}]:[]}
+    if(c==="order"){const rows=await rest("orders?select=items,revision&venue_id=eq."+V());return rows.length?[{id:"current",data:()=>({...rows[0].items,revision:rows[0].revision})}]:[]}
     if(c==="strength"||c==="pack"){
       const m=MAP[c],field=c==="strength"?"strength":"pack_g";
       // Shared values remain defaults. A venue override never edits the catalog.
@@ -737,6 +741,13 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
   const bump=c=>setTimeout(()=>refresh(c),150);
   const listen=c=>({onSnapshot:(f,err)=>{const s=subs[c]||(subs[c]={fns:[],errs:[],hash:""});s.fns.push(f);if(err)s.errs.push(err);refresh(c)}});
   const db={
+    orderScope:()=>({venue:V(),actor:session.user.tg_id}),
+    applyOrder:async(id,changes,scope)=>{
+      if(scope?.venue!==V()||scope?.actor!==session.user.tg_id)throw Error("Сменилось заведение или учётная запись");
+      const result=await rest("rpc/apply_order",{method:"POST",body:JSON.stringify({p_venue_id:scope.venue,p_request_id:id,p_changes:changes})});
+      bump("order");
+      return result;
+    },
     // Venue-scoped, read-only at application level except user-approved correction writes.
     listPhotoCorrections:async()=>rest("photo_corrections?select=raw_label,flavor_id,confirmed_at&venue_id=eq."+V()+"&order=confirmed_at.desc&limit=500"),
     savePhotoCorrection:async(raw,flavorId)=>{
@@ -778,7 +789,7 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
     doc:p=>{const [c,id]=p.split("/");return{
       set:async o=>{
         if(c==="stock"||c==="moves")throw new Error("Используйте складскую операцию");
-        if(c==="order"){await rest("orders?on_conflict=venue_id",{method:"POST",headers:Object.assign(H(),{Prefer:"resolution=merge-duplicates"}),body:JSON.stringify({venue_id:V(),items:o,updated_at:new Date().toISOString()})});bump(c);return}
+        if(c==="order")throw Error("Используйте сохранение позиций заказа");
         const m=MAP[c];if(m.patch){await rest(m.table+"?"+m.key+"=eq."+encodeURIComponent(id)+(m.table==="flavors"?"":"&venue_id=eq."+V()),{method:"PATCH",body:JSON.stringify(m.fromDoc(id,o))});bump(c);return}
         await rest(m.table+"?on_conflict="+(m.conflict||m.key),{method:"POST",headers:Object.assign(H(),{Prefer:"resolution=merge-duplicates"}),body:JSON.stringify(m.fromDoc(id,o))});bump(c)},
       delete:async()=>{if(c==="stock"||c==="moves")throw new Error("Журнал нельзя удалять");const m=MAP[c];await rest(m.table+"?"+m.key+"=eq."+encodeURIComponent(id)+"&venue_id=eq."+V(),{method:"DELETE"});bump(c)}}},
@@ -1033,7 +1044,7 @@ async function finish(x){if(!db||busy)return;busy=true;const id=x.id,n=wh(x),at=
   try{await stockOne(id,Object.assign({},stock[id]||{},patch),mv)}catch(e){busy=false;setStatus("Не сохранилось: "+(e&&e.message||"нет доступа"),true);return}
   busy=false;const k=autoOrder(x,n>0?n-1:0);
   toast('<b>'+esc(nm(x))+'</b>: '+(n>0?"ещё одна штука со склада, осталось "+(n-1):"убран со стойки и добавлен в стоп-лист")+(k?" · в заказ "+k+" шт.":""),()=>{if(k){delete orderQ[id];saveOrder()}askUndo(id)});render()}
-let renderLater=false,lastOrderAt="";
+let renderLater=false;
 // ===== Стойка / Склад / Стоп-лист / Неликвид: нажал на вкус — появились нужные действия =====
 const V2=new Set(["bar","wh","stop","slow"]);
 let selId="",whLow=false,invNoSz=false,staffReady=false;
@@ -1320,28 +1331,154 @@ function askUndo(id){const m=lastMove(id);if(!m)return;
 }
 let oTimer=null,oSaving=null,oDirty=false;
 const orderSaveError="Сохранение заказа не подтверждено.";
-function markOrderDirty(){oDirty=true;return ++orderVer}
+const orderConflictMessage="Заказ изменён на другом устройстве. Ваши правки сохранены в черновике. Сверьте позиции перед записью.";
+let orderBase={q:{},m:{},revision:0},orderRemote=orderBase,orderRequest=null,orderConflict=null,orderDraftKey=null;
+let orderScope=null,orderChecks=[];
+const orderCopy=value=>JSON.parse(JSON.stringify(value));
+const orderSnapshot=()=>orderCopy({q:orderQ,m:orderM});
+const orderValue=(doc,map,id)=>Object.hasOwn(doc[map],id)?doc[map][id]:null;
+const orderJSON=value=>JSON.stringify(value,(_,v)=>v&&typeof v==="object"&&!Array.isArray(v)
+  ? Object.fromEntries(Object.keys(v).sort().map(k=>[k,v[k]])):v);
+function orderChanges(base,desired){
+  const changes=[];
+  for(const map of ["q","m"]){
+    for(const id of new Set([...Object.keys(base[map]),...Object.keys(desired[map])])){
+      const before=orderValue(base,map,id),after=orderValue(desired,map,id);
+      if(orderJSON(before)!==orderJSON(after))changes.push({map,id,before,after});
+    }
+  }
+  return changes;
+}
+function includeOrderChecks(changes,base,desired){
+  for(const check of orderChecks){
+    if(orderValue(desired,"q",check.id)===check.value&&!changes.some(c=>c.map==="q"&&c.id===check.id)){
+      changes.push({map:"q",id:check.id,before:orderValue(base,"q",check.id),after:check.value});
+    }
+  }
+  return changes;
+}
+function orderOverlay(doc,changes,field){
+  const next=orderCopy(doc);
+  for(const change of changes){
+    const value=change[field];
+    if(value===null)delete next[change.map][change.id];
+    else Object.defineProperty(next[change.map],change.id,{value,writable:true,enumerable:true,configurable:true});
+  }
+  return next;
+}
+function displayOrder(doc){const copy=orderCopy(doc);orderQ=copy.q;orderM=copy.m}
+function keepOrderInputExpectation(map,id,seen){
+  // A snapshot may have changed the model while render was deferred for
+  // the focused field. Compare with the value the user actually edited.
+  if(orderJSON(orderValue({q:orderQ,m:orderM},map,id))!==orderJSON(seen)){
+    orderBase=orderOverlay(orderBase,[{map,id,before:seen}],"before");
+  }
+}
+function receiveOrder(doc){
+  if(orderScope&&orderJSON(db.orderScope())!==orderJSON(orderScope))return;
+  const next={q:doc?.q||{},m:doc?.m||{},revision:Number(doc?.revision)||0};
+  if(next.revision>=orderRemote.revision)orderRemote=next;
+  if(!oDirty&&!oSaving){orderBase=orderRemote;displayOrder(orderBase)}
+  render();
+}
+function showOrderProblem(message=""){
+  const panel=$("#order-save-problem");
+  if(!panel)return;
+  panel.hidden=!message;
+  $("#order-save-message").textContent=message;
+  $("#order-save-retry").textContent=orderConflict?"Сверить правки заказа":"Повторить сохранение заказа";
+}
+function persistOrderDraft(){
+  if(!orderDraftKey)return;
+  if(!oDirty)sessionStorage.removeItem(orderDraftKey);
+  else sessionStorage.setItem(orderDraftKey,JSON.stringify({
+    base:orderBase,local:orderSnapshot(),request:orderRequest,conflict:orderConflict,version:orderVer,checks:orderChecks,
+  }));
+}
+function restoreOrderDraft(){
+  if(!db.orderScope)return;
+  orderScope=db.orderScope();
+  orderDraftKey="mixora-order-draft:"+orderScope.venue+":"+orderScope.actor;
+  try{
+    const saved=JSON.parse(sessionStorage.getItem(orderDraftKey)||"null");
+    if(!saved)return;
+    orderBase=saved.base;orderRemote={q:{},m:{},revision:0};
+    orderRequest=saved.request;orderConflict=saved.conflict;orderVer=saved.version;
+    orderChecks=saved.checks||[];
+    displayOrder(saved.local);oDirty=true;
+    showOrderProblem(orderConflict?orderConflictMessage:"Есть несохранённые правки заказа.");
+  }catch(e){showOrderProblem("Не удалось прочитать черновик заказа: "+e.message)}
+}
+function markOrderDirty(){
+  oDirty=true;
+  const version=++orderVer;
+  try{persistOrderDraft()}catch(e){showOrderProblem(orderSaveError+" Черновик недоступен: "+e.message)}
+  return version;
+}
 function saveOrder(){
   markOrderDirty();
   clearTimeout(oTimer);
   oTimer=setTimeout(()=>{oTimer=null;flushOrder()},150);
 }
 async function flushOrder(through=Infinity){
+  let retried=false,saved;
   while(oDirty){
+    if(orderConflict){
+      if(through!==Infinity)throw new Error(orderConflictMessage);
+      return;
+    }
     if(!oSaving){
       clearTimeout(oTimer);
       oTimer=null;
-      const version=orderVer;
-      const at=new Date(Math.max(Date.now(),(Date.parse(lastOrderAt)||0)+1)).toISOString();
-      const payload=JSON.parse(JSON.stringify({q:orderQ,m:orderM,at}));
-      lastOrderAt=at;
+      const snapshot=orderSnapshot();
+      const version=orderRequest?.version??orderVer;
       const done=(async()=>{
-        await db.doc("order/current").set(payload);
-        oDirty=orderVer!==version;
-        if(!oDirty&&$("#status")?.textContent?.startsWith(orderSaveError))setStatus("Заказ сохранён");
-        return payload.q;
+        if(!orderRequest){
+          const changes=includeOrderChecks(orderChanges(orderBase,snapshot),orderBase,snapshot);
+          if(!changes.length){
+            oDirty=false;orderChecks=[];
+            orderBase=orderRemote.revision>=orderBase.revision?orderRemote:orderBase;
+            displayOrder(orderBase);persistOrderDraft();showOrderProblem();render();
+            return orderBase.q;
+          }
+          orderRequest={id:crypto.randomUUID(),changes,snapshot,version,scope:orderScope};
+        }
+        // Save the exact request before dispatch so reload/retry cannot invent a new UUID.
+        persistOrderDraft();
+        const request=orderRequest;
+        let reply;
+        try{reply=await db.applyOrder(request.id,request.changes,request.scope)}
+        catch(e){
+          // Validation failed before any write. Allow edits to replace this
+          // request; transport failures still keep its exact UUID and body.
+          if(e?.message==="order_invalid_request"){orderRequest=null;persistOrderDraft()}
+          throw e;
+        }
+        if(!reply?.order||!["applied","conflict"].includes(reply.status))throw new Error("Некорректный ответ сервера");
+        if(reply.order.revision>=orderRemote.revision)orderRemote=reply.order;
+        orderRequest=null;
+        if(reply.status==="conflict"){
+          orderConflict=reply;
+          persistOrderDraft();
+          throw new Error(orderConflictMessage);
+        }
+        const local=orderSnapshot();
+        orderChecks=orderChecks.filter(c=>c.version>request.version&&orderValue(local,"q",c.id)===c.value);
+        const later=includeOrderChecks(orderChanges(request.snapshot,local),request.snapshot,local);
+        // Preserve the value seen when a later local edit was made, even if
+        // this acknowledgement also brings changes from another client.
+        orderBase=orderOverlay(orderRemote,later,"before");
+        displayOrder(orderOverlay(orderRemote,later,"after"));
+        oDirty=later.length>0;
+        persistOrderDraft();
+        showOrderProblem();
+        const status=$("#status")?.textContent;
+        if(!oDirty&&(status?.startsWith(orderSaveError)||status===orderConflictMessage))setStatus("Заказ сохранён");
+        render();
+        return reply.order.q;
       })().catch(e=>{
-        setStatus(orderSaveError+" Изменения оставлены на экране; повтори изменение для сохранения: "+(e&&e.message||"нет доступа"),true);
+        const message=orderConflict?orderConflictMessage:orderSaveError+" Правки оставлены на экране. "+(e?.message||"нет доступа");
+        showOrderProblem(message);setStatus(message,true);
         throw e;
       }).finally(()=>{oSaving=null});
       oSaving={version,done};
@@ -1349,15 +1486,44 @@ async function flushOrder(through=Infinity){
     // Wait for a snapshot that includes this caller's edits.
     const {version,done}=oSaving;
     try{
-      const saved=await done;
+      saved=await done;
       if(version>=through)return saved;
     }
     catch(e){
       if(through===Infinity)return;
-      if(version>=through)throw e;
-      // The failed request was older than the confirmed proposal.
+      if(version>=through||orderConflict||retried||e?.message?.startsWith("order_"))throw e;
+      // One attempt to resolve an older request before sending newer edits.
+      retried=true;
     }
   }
+  return saved??orderBase.q;
+}
+function reviewOrderConflict(){
+  if(oSaving)return;
+  if(!orderConflict){flushOrder();return}
+  const latest=orderRemote.revision>=orderConflict.order.revision?orderRemote:orderConflict.order;
+  const reviewedVersion=orderVer;
+  const snapshot=orderSnapshot(),changes=includeOrderChecks(orderChanges(orderBase,snapshot),orderBase,snapshot);
+  const describe=value=>value===null?"нет позиции":typeof value==="object"?`${value.n||""} · ${value.q} шт.`:`${value} шт.`;
+  const rows=changes.filter(c=>orderJSON(c.before)!==orderJSON(orderValue(latest,c.map,c.id))).map(c=>{
+    const name=c.map==="q"?(byId[c.id]?nm(byId[c.id]):c.id):(c.after?.n||c.before?.n||c.id);
+    return "<li>"+esc(name)+": на сервере "+esc(describe(orderValue(latest,c.map,c.id)))+" · ваша правка "+esc(describe(c.after))+"</li>";
+  }).join("");
+  showDlg('<h2>Сверить изменения заказа</h2><p>Ниже показаны спорные позиции. Если продолжить, будут отправлены все ваши правки из черновика.</p><ul>'+rows+'</ul><div class="dlg-btns"><button class="btn go" id="order-apply-draft">Применить мои правки</button><button class="btn" id="order-discard-draft">Отбросить мои правки</button><button class="btn" id="dlg-back">Назад</button></div>');
+  function resolve(keep){
+    if(orderVer!==reviewedVersion){reviewOrderConflict();return}
+    orderBase=keep||latest.revision>=orderRemote.revision?latest:orderRemote;orderConflict=null;
+    if(!keep)orderChecks=[];
+    displayOrder(keep?orderOverlay(latest,changes,"after"):orderBase);
+    oDirty=keep&&changes.length>0;
+    try{persistOrderDraft()}catch(e){showOrderProblem(orderSaveError+" "+e.message);return}
+    showOrderProblem();closeDlg();render();
+    if(!keep&&$("#status")?.textContent===orderConflictMessage)setStatus("Загружен актуальный заказ");
+    if(oDirty)flushOrder();
+  }
+  $("#order-apply-draft").onclick=()=>resolve(true);
+  $("#order-discard-draft").onclick=()=>resolve(false);
+  $("#dlg-back").onclick=closeDlg;
 }
 function addAllStop(){let n=0;DATA.filter(x=>inStop(x)&&!flag(x,"slow")).forEach(x=>{if(!oq(x)){orderQ[x.id]=1;n++}});if(n){saveOrder();toast(n+" "+(n===1?"позиция добавлена":"позиций добавлено")+" в заказ")}render()}
 // Позиции заказа: из каталога и добавленные вручную, разложенные по поставщикам (поставщик бренда — в suppliers)
@@ -1371,7 +1537,7 @@ function orderGroups(){const g={};
   return Object.values(g).sort((p,q)=>(p.sup?0:1)-(q.sup?0:1)||abc(p.sup?p.sup.name:"",q.sup?q.sup.name:""))}
 const sortRows=rows=>rows.slice().sort((p,q)=>abc(p.b,q.b)||abc(p.l+p.n,q.l+q.n));
 function orderText(rows,sup){
-  const by={};sortRows(rows).forEach(r=>{(by[r.b||"Без бренда"]=by[r.b||"Без бренда"]||[]).push(r)});
+  const by=Object.create(null);sortRows(rows).forEach(r=>{(by[r.b||"Без бренда"]=by[r.b||"Без бренда"]||[]).push(r)});
   return "Заказ табака "+new Date().toLocaleDateString("ru-RU")+(sup?" — "+sup.name:"")+"\n\n"+Object.keys(by).map(b=>b+"\n"+by[b].map(r=>"— "+r.n+(r.l?" ("+r.l+")":"")+" — "+r.q+" шт.").join("\n")).join("\n\n");
 }
 function contactHtml(c){if(!c)return"";return esc(c).replace(/(@[A-Za-z0-9_]{4,})|(https?:\/\/\S+)|([\w.+-]+@[\w-]+\.[\w.]+)|(\+?\d[\d\s()-]{8,}\d)/g,(m,tg,url,em,ph)=>
@@ -1408,9 +1574,10 @@ async function saveXlsx(grp,btn){
     await dl.save({filename:name,data:new Uint8Array(await wb.xlsx.writeBuffer())});btn.textContent="Сохранено";
   }catch(e){btn.textContent=e&&e.code==="declined"?old:"Не вышло";if(e&&e.code!=="declined")setStatus("Excel: "+(e.message||e.code||"ошибка"),true)}
   btn.disabled=false;setTimeout(()=>{btn.textContent=old},2500)}
-function openOrder(){
-  const G=orderGroups(),all=orderRows();
+function openOrder(message=""){
+  const G=orderGroups(),all=orderRows(),opened=orderSnapshot();
   showDlg('<div class="dhead"><h2>Заказ по поставщикам</h2><button class="xbtn" type="button" id="dlg-back" aria-label="Закрыть">×</button></div>'
+    +(message?'<p role="status">'+esc(message)+'</p>':"")
     +G.map((g,i)=>'<div class="ogrp"><h3>'+esc(g.sup?g.sup.name:"Без поставщика")+'</h3>'+(g.sup&&g.sup.contact?'<div class="ct">'+contactHtml(g.sup.contact)+'</div>':'<div class="ct muted">контакт не указан</div>')
       +'<textarea readonly rows="6" id="ot'+i+'">'+esc(orderText(g.rows,g.sup))+'</textarea><div class="obtns">'+(sendLink(g.sup,orderText(g.rows,g.sup))?'<a class="btn go snd" data-snd="'+i+'" target="_blank" rel="noopener" href="'+esc(sendLink(g.sup,orderText(g.rows,g.sup)))+'">Отправить поставщику</a>':'')+'<button class="btn go" type="button" data-xl="'+i+'">Excel</button><button class="btn" type="button" data-cp="'+i+'">Скопировать</button><button class="btn danger trash" type="button" data-del="'+i+'" aria-label="Удалить заказ поставщика"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button></div></div>').join("")
     +'<div class="dlg-btns" style="margin-top:16px">'+(G.length>1?'<button class="btn danger" type="button" id="o-clear">Удалить весь заказ</button>':'')+'</div>'
@@ -1421,16 +1588,27 @@ function openOrder(){
   $("#dlg-body").querySelectorAll("[data-cp]").forEach(b=>b.onclick=async()=>{const ta=$("#ot"+b.dataset.cp);let ok=false;
     try{await navigator.clipboard.writeText(ta.value);ok=true}catch(e){try{ta.select();ok=document.execCommand("copy")}catch(e2){}}
     b.textContent=ok?"Скопировано":"Выдели и скопируй"});
-  const dropRows=rows=>{rows.forEach(r=>{if(r.x){revertWish(wishIdsFor(r.x.id));delete orderQ[r.x.id]}else{revertWish((orderM[r.mk]&&orderM[r.mk].wids)||[]);delete orderM[r.mk]}});saveOrder();render()};
+  const dropRows=rows=>{
+    const current=orderSnapshot();
+    if(rows.some(r=>{const map=r.x?"q":"m",id=r.x?r.x.id:r.mk;return orderJSON(orderValue(opened,map,id))!==orderJSON(orderValue(current,map,id))})){
+      openOrder("Заказ изменился. Сверьте актуальные позиции перед удалением.");
+      return false;
+    }
+    rows.forEach(r=>{if(r.x){revertWish(wishIdsFor(r.x.id));delete orderQ[r.x.id]}else{revertWish((orderM[r.mk]&&orderM[r.mk].wids)||[]);delete orderM[r.mk]}});
+    saveOrder();render();return true;
+  };
   const twice=(b,fn)=>{if(b.dataset.sure){fn();return}const o=b.innerHTML;b.dataset.sure="1";b.textContent="Точно удалить?";b.style.width="auto";b.style.padding="0 12px";setTimeout(()=>{if(b.isConnected){delete b.dataset.sure;b.innerHTML=o;b.style.width="";b.style.padding=""}},3000)};
-  $("#dlg-body").querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>twice(b,()=>{dropRows(G[+b.dataset.del].rows);orderRows().length?openOrder():closeDlg()}));
-  if($("#o-clear"))$("#o-clear").onclick=function(){twice(this,()=>{dropRows(all);closeDlg()})};
+  $("#dlg-body").querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>twice(b,()=>{if(dropRows(G[+b.dataset.del].rows))orderRows().length?openOrder():closeDlg()}));
+  if($("#o-clear"))$("#o-clear").onclick=function(){twice(this,()=>{if(dropRows(all))closeDlg()})};
 }
 // Ручные позиции заказа (вкуса нет в каталоге)
 function renderManual(){const el=$("#omanual"),M=Object.entries(orderM);
-  el.innerHTML='<h3>Добавлено вручную</h3>'+(M.length?M.map(([k,m])=>'<div class="row"><div><b>'+esc(m.b||"")+'</b> '+esc(m.n||"")+'</div><div class="qty"><input class="oin" type="number" inputmode="numeric" min="0" max="99" value="'+(m.q||0)+'" data-m="'+k+'" aria-label="Сколько штук"><button class="btn" type="button" data-mdel="'+k+'" aria-label="Убрать">✕</button></div></div>').join(""):'<p class="muted small" style="margin:0 0 6px">Если нужного вкуса нет в списке, впиши его сюда.</p>')
+  el.innerHTML='<h3>Добавлено вручную</h3>'+(M.length?M.map(([k,m])=>'<div class="row"><div><b>'+esc(m.b||"")+'</b> '+esc(m.n||"")+'</div><div class="qty"><input class="oin" type="number" inputmode="numeric" min="0" max="99" value="'+esc(m.q||0)+'" data-m="'+esc(k)+'" data-order-seen="'+esc(JSON.stringify(m))+'" aria-label="Сколько штук"><button class="btn" type="button" data-mdel="'+esc(k)+'" aria-label="Убрать">✕</button></div></div>').join(""):'<p class="muted small" style="margin:0 0 6px">Если нужного вкуса нет в списке, впиши его сюда.</p>')
     +'<button class="btn sm" type="button" id="m-add"'+(db?"":" disabled")+'>+ Позиция вручную</button>'}
-$("#omanual").addEventListener("change",e=>{const i=e.target.closest("input[data-m]");if(!i)return;const m=orderM[i.dataset.m];if(!m)return;const k=Math.max(0,Math.min(99,Math.round(Number(i.value)||0)));if(k)m.q=k;else{revertWish(m.wids||[]);delete orderM[i.dataset.m]}saveOrder();render()});
+$("#omanual").addEventListener("change",e=>{const i=e.target.closest("input[data-m]");if(!i)return;const id=i.dataset.m,m=JSON.parse(i.dataset.orderSeen);
+  keepOrderInputExpectation("m",id,m);
+  const k=Math.max(0,Math.min(99,Math.round(Number(i.value)||0)));
+  if(k)orderM[id]={...m,q:k};else{revertWish(m.wids||[]);delete orderM[id]}saveOrder();render()});
 $("#omanual").addEventListener("click",e=>{const d=e.target.closest("[data-mdel]");if(d){revertWish((orderM[d.dataset.mdel]&&orderM[d.dataset.mdel].wids)||[]);delete orderM[d.dataset.mdel];saveOrder();render();return}
   if(e.target.closest("#m-add"))addManual()});
 function addManual(){const bs=[...new Set(DATA.map(x=>x.b))].sort(abc);
@@ -1440,7 +1618,7 @@ function addManual(){const bs=[...new Set(DATA.map(x=>x.b))].sort(abc);
   $("#dlg-back").onclick=closeDlg;$("#m-b").focus();
   $("#m-ok").onclick=()=>{const b=$("#m-b").value.trim(),n=$("#m-n").value.trim(),q=Math.max(1,Math.min(99,Math.round(Number($("#m-q").value)||1)));if(!n){$("#m-n").focus();return}
     const hit=DATA.find(x=>norm(x.b)===norm(b)&&norm(x.n)===norm(n));
-    if(hit){orderQ[hit.id]=(orderQ[hit.id]||0)+q}else orderM["m"+Date.now().toString(36)]={b,n,q};saveOrder();closeDlg();render()}}
+    if(hit){orderQ[hit.id]=(orderQ[hit.id]||0)+q}else orderM["m"+crypto.randomUUID()]={b,n,q};saveOrder();closeDlg();render()}}
 // Контрагенты (кабинет управляющего): кальян-поставщики (бренды и заказ), бар и хозы (свободный список)
 const CTYPES=[["kalyan","Кальян"],["bar","Бар"],["other","Хозы"]];
 const CTICO={kalyan:'<path d="M12 3c1 4-4 5-4 10a4 4 0 0 0 8 0c0-3-2-4-2-6 3 2 5 5 5 8a7 7 0 0 1-14 0c0-6 5-8 7-12z"/>',bar:'<path d="M6 4h12l-2 8v8h-8v-8z"/><path d="M9 20h6"/>',other:'<path d="M14.7 6.3a4 4 0 0 1-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 1 5.4-5.4L21 6l-3-3z"/>'};
@@ -1519,11 +1697,12 @@ document.addEventListener("focusin",e=>{if(e.target.matches&&e.target.matches("i
 document.addEventListener("focusout",e=>{if(e.target.matches&&e.target.matches("input.oin"))setTimeout(()=>{if(renderLater)render()},0)});
 $("#list").addEventListener("change",e=>{const iv=e.target.closest("input.iin");if(iv){const x=byId[iv.dataset.id];if(!x)return;if(iv.value===""){delete invD[x.id]}else invD[x.id]=Math.max(0,Math.round(Number(iv.value)||0));render();return}
   const i=e.target.closest("input.oin");if(!i)return;const x=byId[i.dataset.id];if(!x||!db)return;
+  keepOrderInputExpectation("q",x.id,Number(i.defaultValue)||null);
   const k=Math.max(0,Math.min(99,Math.round(Number(i.value)||0)));if(k)orderQ[x.id]=k;else{revertWish(wishIdsFor(x.id));delete orderQ[x.id]}saveOrder();render()});
 $("#list").addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.matches("input.oin"))e.target.blur()});
 $("#list").addEventListener("click",e=>{const h=e.target.closest("button.bh");if(h){toggleBrand(h.dataset.brand);return}const b=e.target.closest("button[data-a]");if(!b)return;if(b.dataset.a==="undo")askUndo(b.dataset.id);else edit(b.dataset.a,b.dataset.id)});
 $("#tray-go").onclick=()=>{if(st.tab==="inv")openInv();else openReview()};
-$("#otray-go").onclick=openOrder;
+$("#otray-go").onclick=()=>openOrder();
 // Боковое меню: выезжает слева
 const drawer=$("#drawer"),scrim=$("#scrim"),mb=$("#menu-btn");
 function menu(open){drawer.classList.toggle("open",open);document.body.classList.toggle("menu-open",open);mb.setAttribute("aria-expanded",open);drawer.setAttribute("aria-hidden",!open);
@@ -2020,7 +2199,7 @@ function aiProposalTools(p){return AI_TOOLS.map(t=>{
         if(!staffReady)throw new Error("сначала войдите в приложение");
         if(!Number.isInteger(i.qty)||i.qty<0||i.qty>99)throw new Error("количество: целое от 0 до 99");
         const e=i.qty&&ordGate(x,p.photo??aiOrdPhoto,p.ask??aiOrdAsk);if(e)throw new Error(e);
-        const a={t:"order",id,qty:i.qty,txt:nm(x)+(x.l?" · "+x.l:"")+": "+oq(x)+" → "+i.qty+" шт. в заказе"};
+        const a={t:"order",id,qty:i.qty,before:oq(x),txt:nm(x)+(x.l?" · "+x.l:"")+": "+oq(x)+" → "+i.qty+" шт. в заказе"};
         p.list=p.list.filter(a=>!(a.t==="order"&&a.id===id));p.list.push(a);
       }else{
         if(!["stop","slow"].includes(i.flag)||typeof i.on!=="boolean")throw new Error("неверная метка");
@@ -2049,8 +2228,18 @@ async function aiCommitProposal(list){
   const kinds=new Set(list.map(a=>a.t));if(kinds.size!==1)throw new Error("заказ и метки нужно подтвердить отдельными предложениями");
   if(kinds.has("order")){
     if(!staffReady)throw new Error("нет права менять заказ");
-    const q={...orderQ};for(const a of list){const x=byId[a.id];if(!x)throw new Error("позиция удалена");if(a.qty&&flag(x,"slow"))throw new Error("позиция стала неликвидом");if(a.qty)q[a.id]=a.qty;else delete q[a.id]}
+    const q={...orderQ};
+    for(const a of list){
+      const x=byId[a.id];
+      if(!x)throw new Error("позиция удалена");
+      if(a.qty&&flag(x,"slow"))throw new Error("позиция стала неликвидом");
+      if(a.before!==undefined&&a.before!==oq(x))throw new Error("Количество в заказе изменилось после подготовки предложения. Сверьте заказ.");
+      if(a.qty)q[a.id]=a.qty;else delete q[a.id];
+    }
     orderQ=q;
+    const ids=new Set(list.map(a=>a.id));
+    orderChecks=orderChecks.filter(c=>!ids.has(c.id));
+    for(const id of ids)orderChecks.push({id,value:orderValue({q},"q",id),version:orderVer+1});
     const version=markOrderDirty();
     render();
     let saved;
@@ -2463,7 +2652,9 @@ function hlpUi(){$("#hlp-btn").hidden=!sampleFn||st.tab==="ai"||st.tab==="home"}
   {const tgw=window.Telegram&&window.Telegram.WebApp,sp=tgw&&tgw.initDataUnsafe&&tgw.initDataUnsafe.start_param;
    if(sp&&/^guest_/i.test(sp)){const gid=parseGuestCode(sp);if(gid)setTimeout(()=>openGuestMix(gid),400)}}
   db.collection("stock").onSnapshot(s=>{for(const k in stock)delete stock[k];s.docs.forEach(d=>{stock[d.id]=d.data()});stockLoaded=true;render()},e=>setStatus("Склад не загрузился: "+e.message,true));
-  db.collection("order").onSnapshot(s=>{const d=s.docs.find(x=>x.id==="current");const od=d&&d.data();if(!oTimer&&!oSaving&&!oDirty&&(!lastOrderAt||(od&&Date.parse(od.at)>=Date.parse(lastOrderAt)))){orderQ=Object.assign({},od&&od.q);orderM=JSON.parse(JSON.stringify(od&&od.m||{}))}render()},()=>{});
+  restoreOrderDraft();
+  $("#order-save-retry").onclick=reviewOrderConflict;
+  db.collection("order").onSnapshot(s=>receiveOrder(s.docs.find(x=>x.id==="current")?.data()),()=>{});
   db.collection("items").onSnapshot(s=>{let ch=false;s.docs.forEach(d=>{if(byId[d.id])return;const o=Object.assign({l:"",d:"",s:"name",t:[],bar:false},d.data(),{id:d.id});DATA.push(o);byId[d.id]=o;ch=true});if(ch)render()},()=>{});
   db.collection("strength").onSnapshot(s=>{strMap={};s.docs.forEach(d=>{strMap[d.id]=d.data().s});if(st.tab==="str"&&!document.activeElement.matches("select,input"))render()},()=>{});
   db.collection("pack").onSnapshot(s=>{packMap={};s.docs.forEach(d=>{packMap[d.id]=d.data().g});render()},()=>{});
