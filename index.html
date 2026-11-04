@@ -1306,18 +1306,46 @@ function askUndo(id){const m=lastMove(id);if(!m)return;
   showDlg('<h2>Отменить последнее движение?</h2><p>Будет добавлено обратное движение. Если позиция уже менялась, сервер отклонит отмену.</p><div class="dlg-btns"><button class="btn go" id="dlg-ok">Отменить движение</button><button class="btn" id="dlg-back">Назад</button></div>');
   $("#dlg-back").onclick=closeDlg;$("#dlg-ok").onclick=async()=>{await undoMove(m.id);closeDlg()};
 }
-let oTimer=null,oSaving=false,oDirty=false;
-function saveOrder(){oDirty=true;orderVer++;clearTimeout(oTimer);oTimer=setTimeout(()=>{oTimer=null;flushOrder()},150)}
-async function flushOrder(){
-  if(oSaving||!oDirty)return;
-  oSaving=true;const version=orderVer;
-  const at=new Date(Math.max(Date.now(),(Date.parse(lastOrderAt)||0)+1)).toISOString();
-  const payload=JSON.parse(JSON.stringify({q:orderQ,m:orderM,at}));
-  lastOrderAt=at;
-  try{await db.doc("order/current").set(payload);if(orderVer===version)oDirty=false}
-  catch(e){setStatus("Заказ не сохранился. Изменения оставлены на экране; повтори изменение для сохранения: "+(e&&e.message||"нет доступа"),true);return}
-  finally{oSaving=false}
-  if(oDirty){clearTimeout(oTimer);oTimer=null;flushOrder()}
+let oTimer=null,oSaving=null,oDirty=false;
+const orderSaveError="Сохранение заказа не подтверждено.";
+function markOrderDirty(){oDirty=true;return ++orderVer}
+function saveOrder(){
+  markOrderDirty();
+  clearTimeout(oTimer);
+  oTimer=setTimeout(()=>{oTimer=null;flushOrder()},150);
+}
+async function flushOrder(through=Infinity){
+  while(oDirty){
+    if(!oSaving){
+      clearTimeout(oTimer);
+      oTimer=null;
+      const version=orderVer;
+      const at=new Date(Math.max(Date.now(),(Date.parse(lastOrderAt)||0)+1)).toISOString();
+      const payload=JSON.parse(JSON.stringify({q:orderQ,m:orderM,at}));
+      lastOrderAt=at;
+      const done=(async()=>{
+        await db.doc("order/current").set(payload);
+        oDirty=orderVer!==version;
+        if(!oDirty&&$("#status")?.textContent?.startsWith(orderSaveError))setStatus("Заказ сохранён");
+        return payload.q;
+      })().catch(e=>{
+        setStatus(orderSaveError+" Изменения оставлены на экране; повтори изменение для сохранения: "+(e&&e.message||"нет доступа"),true);
+        throw e;
+      }).finally(()=>{oSaving=null});
+      oSaving={version,done};
+    }
+    // Wait for a snapshot that includes this caller's edits.
+    const {version,done}=oSaving;
+    try{
+      const saved=await done;
+      if(version>=through)return saved;
+    }
+    catch(e){
+      if(through===Infinity)return;
+      if(version>=through)throw e;
+      // The failed request was older than the confirmed proposal.
+    }
+  }
 }
 function addAllStop(){let n=0;DATA.filter(x=>inStop(x)&&!flag(x,"slow")).forEach(x=>{if(!oq(x)){orderQ[x.id]=1;n++}});if(n){saveOrder();toast(n+" "+(n===1?"позиция добавлена":"позиций добавлено")+" в заказ")}render()}
 // Позиции заказа: из каталога и добавленные вручную, разложенные по поставщикам (поставщик бренда — в suppliers)
@@ -2010,8 +2038,13 @@ async function aiCommitProposal(list){
   if(kinds.has("order")){
     if(!staffReady)throw new Error("нет права менять заказ");
     const q={...orderQ};for(const a of list){const x=byId[a.id];if(!x)throw new Error("позиция удалена");if(a.qty&&flag(x,"slow"))throw new Error("позиция стала неликвидом");if(a.qty)q[a.id]=a.qty;else delete q[a.id]}
-    clearTimeout(oTimer);oTimer=null;const at=new Date().toISOString();
-    await db.doc("order/current").set({q,m:orderM,at});orderQ=q;lastOrderAt=at;
+    orderQ=q;
+    const version=markOrderDirty();
+    render();
+    let saved;
+    try{saved=await flushOrder(version)}
+    catch(e){throw new Error("сохранение заказа не подтверждено. Изменения оставлены на экране. "+e.message)}
+    if(list.some(a=>(saved[a.id]||0)!==a.qty))throw new Error("предложение заменено более свежим изменением заказа.");
   }else{
     const docs={};for(const a of list){if(a.k==="slow"&&!can("slow")||a.k==="stop"&&!a.on&&!can("unstop"))throw new Error("нет права менять метку");
       const doc=docs[a.id]||(docs[a.id]={wh:wh(byId[a.id]),bar:onBar(byId[a.id]),...stock[a.id]});if(a.on)doc[a.k]=true;else delete doc[a.k]}
