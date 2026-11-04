@@ -834,11 +834,11 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
     const texts=await Promise.all(blocks.map(async b=>{
       let err="";
       for(let a=0;a<2;a++){
-        try{const r=await callAI({system:"",messages:[{role:"user",content:[b]}],tools:[],ocr_only:true,...(inspection?{photo_mode:"inspection"}:{})},signal,()=>{});
+        try{const r=await callAI({system:"",messages:[{role:"user",content:[b]}],tools:[],ocr_only:true,...(inspection?{photo_mode:"inspection",observation_schema_version:1}:{})},signal,()=>{});
           if(inspection&&!r.inspection){err="inspection_unavailable";break}
           if(!r.ocr){err="not_read";continue}
           ocr=r.ocr;return (r.ocr_texts||[])[0]||""}
-        catch(e){if(e&&e.name==="AbortError")return {failed:"cancelled"};err=e&&e.code||"network";console.warn("photo read failed:",err)}}
+        catch(e){if(e?.code==="client_update_required")throw e;if(e&&e.name==="AbortError")return {failed:"cancelled"};err=e&&e.code||"network";console.warn("photo read failed:",err)}}
       return {failed:err}}));
     return {texts,ocr}};
   // Текст команды (/перенос, /пополнить, …): читает фото, без обращения к диалоговой модели.
@@ -2267,7 +2267,7 @@ function aiScroll(force){const l=$("#ai-log");if(force||l.scrollHeight-l.scrollT
 function fitChat(){requestAnimationFrame(()=>{const r=document.documentElement.style;r.setProperty("--chat-top",Math.max(0,$(".bar").getBoundingClientRect().bottom)+"px");const t=$("#tray");r.setProperty("--trayh",(t&&!t.hidden?t.offsetHeight:0)+"px");aiScroll(false)})}
 window.addEventListener("resize",()=>{if(st.tab==="ai")fitChat()});
 if(window.visualViewport)visualViewport.addEventListener("resize",()=>{if(st.tab==="ai")fitChat()});
-function aiErr(c){return({not_granted:"Ассистент не разрешён для этой страницы.",sampling_disabled:"Claude недоступен для этого аккаунта.",not_configured:"Ассистент ещё не подключён. Обратись к сотруднику с доступом к настройкам.",busy:"ИИ сейчас перегружен. Повтори вопрос через минуту.",rate_limited:"ИИ сейчас перегружен. Подожди минуту и повтори.",session_expired:"Нужно заново войти в claude.ai.",image_rejected:"Фото не подошло, попробуй другое.",refused:"Claude не стал отвечать на это. Сформулируй иначе.",prompt_too_large:"Слишком длинный разговор. Нажми «Новый разговор»."})[c]||"Не получилось. Попробуй ещё раз."}
+function aiErr(c){return({client_update_required:"Несовместимая версия клиента. Обновите Mixora и повторите запрос.",not_granted:"Ассистент не разрешён для этой страницы.",sampling_disabled:"Claude недоступен для этого аккаунта.",not_configured:"Ассистент ещё не подключён. Обратись к сотруднику с доступом к настройкам.",busy:"ИИ сейчас перегружен. Повтори вопрос через минуту.",rate_limited:"ИИ сейчас перегружен. Подожди минуту и повтори.",session_expired:"Нужно заново войти в claude.ai.",image_rejected:"Фото не подошло, попробуй другое.",refused:"Claude не стал отвечать на это. Сформулируй иначе.",prompt_too_large:"Слишком длинный разговор. Нажми «Новый разговор»."})[c]||"Не получилось. Попробуй ещё раз."}
 // Команды склада (/перенос /пополнить /списать /заказать /списать и заказать /найти): решение детерминированное,
 // без модели — быстрее, бесплатно и без риска, что модель напишет вызов функции текстом вместо настоящего вызова.
 // Разбор фото всё равно идёт через OCR на сервере (sampleFn.readLabels), а сверка с каталогом — тем же matchText,
@@ -2432,7 +2432,7 @@ async function aiSend(){
     attachMessagePhotos(aiBubble("user",(t||"Фото")+(imgs.length?"  [фото: "+imgs.length+"]":"")),imgs);box.value="";
     const out=aiBubble("assistant","Ищу…","wait");aiCtl=new AbortController();aiUi();
     try{if(cmd)await runCmd(cmd.cmd,out,cmd.args,imgs);else await inspectPhoto(out,t,imgs,aiCtl.signal)}
-    catch(e){out.textContent=(e&&e.message)||"Не получилось.";out.classList.add("err")}
+    catch(e){out.textContent=e?.message||(e?.code?aiErr(e.code):"Не получилось.");out.classList.add("err")}
     out.classList.remove("wait");aiCtl=null;aiUi();render();return}
   aiOrdPhoto=imgs.length>0;aiOrdAsk=ordAsked(t);aiOrdSeen=new Set();photoAcc=imgs.length?photoAccNew():null;const acc=photoAcc;
   attachMessagePhotos(aiBubble("user",(t||"Фото")+(imgs.length?"  [фото: "+imgs.length+"]":"")),imgs);box.value="";

@@ -230,11 +230,11 @@
     const texts=await Promise.all(blocks.map(async b=>{
       let err="";
       for(let a=0;a<2;a++){
-        try{const r=await callAI({system:"",messages:[{role:"user",content:[b]}],tools:[],ocr_only:true,...(inspection?{photo_mode:"inspection"}:{})},signal,()=>{});
+        try{const r=await callAI({system:"",messages:[{role:"user",content:[b]}],tools:[],ocr_only:true,...(inspection?{photo_mode:"inspection",observation_schema_version:1}:{})},signal,()=>{});
           if(inspection&&!r.inspection){err="inspection_unavailable";break}
           if(!r.ocr){err="not_read";continue}
           ocr=r.ocr;return (r.ocr_texts||[])[0]||""}
-        catch(e){if(e&&e.name==="AbortError")return {failed:"cancelled"};err=e&&e.code||"network";console.warn("photo read failed:",err)}}
+        catch(e){if(e?.code==="client_update_required")throw e;if(e&&e.name==="AbortError")return {failed:"cancelled"};err=e&&e.code||"network";console.warn("photo read failed:",err)}}
       return {failed:err}}));
     return {texts,ocr}};
   // Текст команды (/перенос, /пополнить, …): читает фото, без обращения к диалоговой модели.
