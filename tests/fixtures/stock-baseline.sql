@@ -1,7 +1,7 @@
 -- Metadata-only reconstruction of the inspected public schema (2026-10-27).
 -- No production rows, credentials, or auth secrets. Unrelated columns/tables
 -- and storage policies are intentionally outside this focused fixture.
-create role anon; create role authenticated;
+create role anon; create role authenticated; create role service_role;
 create table venues(id uuid primary key);
 create table users(tg_id bigint primary key,venue_id uuid references venues(id) on delete cascade,
   name text not null,role text not null check(role in ('master','manager')),perms text[] not null default '{}',created_at timestamptz default now());

@@ -14,8 +14,14 @@
   // Вне Telegram (обычный браузер) нет initData — входим через Telegram Login Widget,
   // его подпись проверяется на сервере отдельной функцией (см. tg-auth)
   let widgetAuth=null;
+  const sessionKey="mixora-auth:"+CFG.url;
+  let resumeToken=null,resumeProof=null;
+  const authProof=()=>tg&&tg.initData?"mini:"+new URLSearchParams(tg.initData).get("hash"):widgetAuth?"widget:"+String(widgetAuth.hash).toLowerCase():null;
+  try{const saved=JSON.parse(sessionStorage.getItem(sessionKey)||"null");resumeToken=saved?.token||null;resumeProof=saved?.proof||null}catch(e){}
+  const rememberToken=token=>{resumeToken=token;resumeProof=token?authProof():null;try{if(token)sessionStorage.setItem(sessionKey,JSON.stringify({token,proof:resumeProof}));else sessionStorage.removeItem(sessionKey)}catch(e){}};
   async function call(invite){
     const body={invite:invite||""};
+    if(authProof()===resumeProof&&(session?.token||resumeToken))body.session_token=session?.token||resumeToken;
     if(tg&&tg.initData)body.initData=tg.initData;else if(widgetAuth)body.widgetAuth=widgetAuth;
     const r=await fetch(CFG.url+"/functions/v1/tg-auth",{method:"POST",headers:{"Content-Type":"application/json",apikey:CFG.anon,Authorization:"Bearer "+CFG.anon},body:JSON.stringify(body)});
     return {ok:r.ok,status:r.status,body:await r.json().catch(()=>({}))};
@@ -24,7 +30,7 @@
   let refreshT=0,refreshP=null;
   const planRefresh=()=>{clearTimeout(refreshT);refreshT=setTimeout(()=>refreshSession().catch(()=>{}),11*3600e3)};
   function refreshSession(){
-    if(!refreshP)refreshP=call("").then(r=>{if(!r.ok)return false;session.token=r.body.token;session.user=r.body.user;planRefresh();return true}).finally(()=>{refreshP=null});
+    if(!refreshP)refreshP=call("").then(r=>{if(!r.ok){if(r.status===401){rememberToken(null);session.token=null;msg("Сессия завершена. Войдите через Telegram снова.");if(!tg||!tg.initData){widgetAuth=null;showWidget()}if(!wall.isConnected)document.body.appendChild(wall)}return false;}session.token=r.body.token;rememberToken(session.token);session.user=r.body.user;planRefresh();return true}).finally(()=>{refreshP=null});
     return refreshP;
   }
   function showWidget(){
@@ -41,11 +47,11 @@
     if(!tg||!tg.initData){if(!widgetAuth){showWidget();return}}
     let code=invite||"";if(!code)try{code=localStorage.getItem("polka-invite")||""}catch(e){}
     let r;try{r=await call(code)}catch(e){msg("Нет связи. Проверьте интернет и откройте снова.");return}
-    if(r.ok){try{localStorage.removeItem("polka-invite")}catch(e){}session={token:r.body.token,user:r.body.user};planRefresh();wall.remove();resolveReady(session);return}
+    if(r.ok){try{localStorage.removeItem("polka-invite")}catch(e){}session={token:r.body.token,user:r.body.user};rememberToken(session.token);planRefresh();wall.remove();resolveReady(session);return}
     const e=r.body.error;
     if(e==="need_invite"||e==="bad_invite"){msg(e==="bad_invite"?"Код не подошёл. Проверьте и введите снова.":"Введите код приглашения, который дал управляющий.");$("#lg-form").hidden=false;return}
-    if(e==="bad_signature")widgetAuth=null;
-    msg(e==="bad_signature"?(tg&&tg.initData?"Не удалось подтвердить вход. Закройте и откройте приложение заново.":"Не удалось подтвердить вход. Попробуйте войти через Telegram ещё раз."):"Что-то пошло не так, попробуйте позже.");
+    if(e==="bad_signature"||e==="session_expired"){rememberToken(null);if(session)session.token=null;widgetAuth=null;}
+    msg(e==="session_expired"?"Сессия завершена. Закройте приложение и войдите через Telegram снова.":e==="bad_signature"?(tg&&tg.initData?"Не удалось подтвердить вход. Закройте и откройте приложение заново.":"Не удалось подтвердить вход. Попробуйте войти через Telegram ещё раз."):"Что-то пошло не так, попробуйте позже.");
     if(!tg||!tg.initData)showWidget();
   }
   window.addEventListener("DOMContentLoaded",()=>{
@@ -121,7 +127,7 @@
   };
   const subs={};
   const snapDocs=async c=>{
-    if(c==="order"){const rows=await rest("orders?select=items&venue_id=eq."+V());return rows.length?[{id:"current",data:()=>rows[0].items}]:[]}
+    if(c==="order"){const rows=await rest("orders?select=items,revision&venue_id=eq."+V());return rows.length?[{id:"current",data:()=>({...rows[0].items,revision:rows[0].revision})}]:[]}
     if(c==="strength"||c==="pack"){
       const m=MAP[c],field=c==="strength"?"strength":"pack_g";
       // Shared values remain defaults. A venue override never edits the catalog.
@@ -138,6 +144,13 @@
   const bump=c=>setTimeout(()=>refresh(c),150);
   const listen=c=>({onSnapshot:(f,err)=>{const s=subs[c]||(subs[c]={fns:[],errs:[],hash:""});s.fns.push(f);if(err)s.errs.push(err);refresh(c)}});
   const db={
+    orderScope:()=>({venue:V(),actor:session.user.tg_id}),
+    applyOrder:async(id,changes,scope)=>{
+      if(scope?.venue!==V()||scope?.actor!==session.user.tg_id)throw Error("Сменилось заведение или учётная запись");
+      const result=await rest("rpc/apply_order",{method:"POST",body:JSON.stringify({p_venue_id:scope.venue,p_request_id:id,p_changes:changes})});
+      bump("order");
+      return result;
+    },
     // Venue-scoped, read-only at application level except user-approved correction writes.
     listPhotoCorrections:async()=>rest("photo_corrections?select=raw_label,flavor_id,confirmed_at&venue_id=eq."+V()+"&order=confirmed_at.desc&limit=500"),
     savePhotoCorrection:async(raw,flavorId)=>{
@@ -179,7 +192,7 @@
     doc:p=>{const [c,id]=p.split("/");return{
       set:async o=>{
         if(c==="stock"||c==="moves")throw new Error("Используйте складскую операцию");
-        if(c==="order"){await rest("orders?on_conflict=venue_id",{method:"POST",headers:Object.assign(H(),{Prefer:"resolution=merge-duplicates"}),body:JSON.stringify({venue_id:V(),items:o,updated_at:new Date().toISOString()})});bump(c);return}
+        if(c==="order")throw Error("Используйте сохранение позиций заказа");
         const m=MAP[c];if(m.patch){await rest(m.table+"?"+m.key+"=eq."+encodeURIComponent(id)+(m.table==="flavors"?"":"&venue_id=eq."+V()),{method:"PATCH",body:JSON.stringify(m.fromDoc(id,o))});bump(c);return}
         await rest(m.table+"?on_conflict="+(m.conflict||m.key),{method:"POST",headers:Object.assign(H(),{Prefer:"resolution=merge-duplicates"}),body:JSON.stringify(m.fromDoc(id,o))});bump(c)},
       delete:async()=>{if(c==="stock"||c==="moves")throw new Error("Журнал нельзя удалять");const m=MAP[c];await rest(m.table+"?"+m.key+"=eq."+encodeURIComponent(id)+"&venue_id=eq."+V(),{method:"DELETE"});bump(c)}}},
@@ -220,22 +233,24 @@
     // Отдельные запросы быстрее по одному и не считаются в дневной лимит (там модель не вызывается).
     // Не прочиталось — пробуем ещё раз; не вышло и со второго раза — фото помечаем как непрочитанное,
     // а не пустым текстом: иначе дальше уверенно решают, что на фото ни одного вкуса
-    const texts=await Promise.all(blocks.map(async b=>{
+    const observations=[];
+    const texts=await Promise.all(blocks.map(async (b,index)=>{
       let err="";
       for(let a=0;a<2;a++){
-        try{const r=await callAI({system:"",messages:[{role:"user",content:[b]}],tools:[],ocr_only:true,...(inspection?{photo_mode:"inspection"}:{})},signal,()=>{});
+        try{const r=await callAI({system:"",messages:[{role:"user",content:[b]}],tools:[],ocr_only:true,...(inspection?{photo_mode:"inspection",observation_schema_version:1}:{})},signal,()=>{});
           if(inspection&&!r.inspection){err="inspection_unavailable";break}
           if(!r.ocr){err="not_read";continue}
+          if(inspection&&Array.isArray(r.observations?.[0]))observations[index]=r.observations[0];
           ocr=r.ocr;return (r.ocr_texts||[])[0]||""}
-        catch(e){if(e&&e.name==="AbortError")return {failed:"cancelled"};err=e&&e.code||"network";console.warn("photo read failed:",err)}}
+        catch(e){if(e?.code==="client_update_required")throw e;if(e&&e.name==="AbortError")return {failed:"cancelled"};err=e&&e.code||"network";console.warn("photo read failed:",err)}}
       return {failed:err}}));
-    return {texts,ocr}};
+    return {texts,ocr,observations}};
   // Текст команды (/перенос, /пополнить, …): читает фото, без обращения к диалоговой модели.
   // Возвращает {text, failed} — text уже в формате «Этикетка N: …», готов для matchText на клиенте.
   const readLabels=async(images,signal,options={})=>{
-    const{texts}=await readPhotos(images,signal,!!options.inspection);
+    const{texts,observations}=await readPhotos(images,signal,!!options.inspection);
     const failed=texts.filter(t=>t&&t.failed).length;
-    return {texts,text:texts.map((t,i)=>typeof t==="string"?"Фото "+(i+1)+":\n"+t:"").filter(Boolean).join("\n"),failed,total:texts.length}};
+    return {texts,text:texts.map((t,i)=>typeof t==="string"?"Фото "+(i+1)+":\n"+t:"").filter(Boolean).join("\n"),failed,total:texts.length,...(options.inspection?{observations}:{})}};
   const sample=async(turns,opts)=>{
     opts=opts||{};
     const first=turns[0]&&turns[0].role==="user"?turns[0].content:"";

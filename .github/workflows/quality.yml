@@ -1,0 +1,65 @@
+name: Mixora quality
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Mixora quality checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install locked Node dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Install PostgreSQL 16 and Playwright Chromium
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends postgresql-16 iproute2
+          npx --no-install playwright install --with-deps chromium
+      - name: Rebuild index.html and check for stale output
+        run: >-
+          bash tests/ci-isolated.sh bash -e -c
+          'git ls-files --error-unmatch -- index.html .nojekyll >/dev/null
+          && python -X utf8 build_app.py
+          && git diff --exit-code -- index.html .nojekyll'
+      - name: Check JavaScript syntax
+        run: bash tests/ci-isolated.sh node tests/syntax.cjs
+      - name: Run application regressions (npm test)
+        run: bash tests/ci-isolated.sh npm test
+      - name: Check navigation and built page
+        run: bash tests/ci-isolated.sh node --test tests/home-navigation.test.cjs
+      - name: Check order persistence and AI confirmation
+        run: bash tests/ci-isolated.sh node tests/order-sync.cjs
+      - name: Check compensation and replay on PostgreSQL
+        run: bash tests/ci-isolated.sh node tests/stock-undo.mjs --postgres
+      - name: Check stock concurrency, recovery and mobile navigation
+        run: bash tests/ci-isolated.sh npm run test:integration
+      - name: Check mobile photo preview and read-only lookup
+        run: bash tests/ci-isolated.sh npm run test:photo-preview
+      - name: Upload browser screenshots
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: mixora-browser-evidence
+          path: |
+            .local-tests/b5-browser.png
+            .local-tests/stock-recovery-mobile-*.png
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 7

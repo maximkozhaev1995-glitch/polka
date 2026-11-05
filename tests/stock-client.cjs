@@ -22,7 +22,7 @@ await test('storage failure prevents a request from being sent',async()=>{const 
 // Execute the real review handler with a transactional API stub.
 const ui=vm.createContext({localStorage,window:{},console});
 vm.runInContext(`let stock={a:{wh:3,revision:4},b:{wh:2,revision:1}},draft={a:{d:-1},b:{d:1}},busy=false,fail=false,writes=0,closed=false;
-let nodes={'#dlg-ok':{disabled:false},'#stock-recover':{}},cmdDraftIds=new Set(),byId={a:{id:'a'},b:{id:'b'}};
+let nodes={'#dlg-ok':{disabled:false},'#stock-recover':{},'#stock-recovery':{},'#stock-recovery-message':{}},cmdDraftIds=new Set(),byId={a:{id:'a'},b:{id:'b'}};
 const $=s=>nodes[s],wh=x=>stock[x.id].wh,saveDraft=()=>{},closeDlg=()=>closed=true,setStatus=()=>{},render=()=>{};
 const db={stockScope:()=> 'venue:1',hasPendingStock:()=>false,applyStock:async entries=>{writes++;if(fail)throw Error('stock_stale_revision');return entries.map(e=>({id:e.id,doc:{...e.doc,revision:e.revision+1}}))}};
 `+source.slice(source.indexOf('function stockEntry('),source.indexOf('async function toBar('))+

@@ -74,43 +74,66 @@ async function signJwt(payload: Record<string, unknown>, secret: string) {
   return `${h}.${b}.${b64u(sig)}`;
 }
 
+async function refreshClaims(token: unknown, secret: string) {
+  try {
+    if (typeof token !== "string" || token.length > 4096) return null;
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const decode = (value: string) => Uint8Array.from(atob(value.replace(/-/g, "+").replace(/_/g, "/")), c => c.charCodeAt(0));
+    const header = JSON.parse(new TextDecoder().decode(decode(parts[0])));
+    if (header.alg !== "HS256") return null;
+    const key = await crypto.subtle.importKey("raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
+    if (!await crypto.subtle.verify("HMAC", key, decode(parts[2]), enc.encode(parts[0] + "." + parts[1]))) return null;
+    const claims = JSON.parse(new TextDecoder().decode(decode(parts[1])));
+    const now = Math.floor(Date.now()/1000);
+    if (claims.role !== "authenticated" || claims.aud !== "authenticated" ||
+        !Number.isFinite(claims.iat) || claims.iat > now+300 || !Number.isFinite(claims.exp) ||
+        !/^[0-9]{1,15}$/.test(String(claims.sub)) || String(claims.tg_id) !== claims.sub ||
+        !/^[0-9a-f-]{36}$/.test(claims.sid) || !/^[0-9a-f-]{36}$/.test(claims.membership_epoch)) return null;
+    // Expired access tokens can prove possession only within the server-side absolute session deadline.
+    return claims;
+  } catch { return null; }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
-    const { initData, widgetAuth, invite } = await req.json();
+    const { initData, widgetAuth, invite, session_token } = await req.json();
     const botToken = Deno.env.get("TELEGRAM_BOT_TOKEN");
     const jwtSecret = Deno.env.get("APP_JWT_SECRET");
     if (!botToken || !jwtSecret) return json({ error: "server_not_configured" }, 500);
     const tg = initData ? await checkInitData(String(initData), botToken)
       : widgetAuth ? await checkWidgetAuth(widgetAuth, botToken) : null;
     if (!tg || !tg.id) return json({ error: "bad_signature" }, 401);
+    const proof = initData ? new URLSearchParams(String(initData)) : null;
+    const authDate = Number(proof ? proof.get("auth_date") : widgetAuth.auth_date);
+    const signature = String(proof ? proof.get("hash") : widgetAuth.hash).toLowerCase();
+    const digest = hex(new Uint8Array(await crypto.subtle.digest("SHA-256",
+      enc.encode((proof ? "mini:" : "widget:") + tg.id + ":" + signature))));
+    const previous = session_token ? await refreshClaims(session_token, jwtSecret) : null;
+    if (session_token && (!previous || previous.sub !== String(tg.id))) return json({ error: "session_expired" }, 401);
 
     const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    let { data: user } = await db.from("users").select("*").eq("tg_id", tg.id).maybeSingle();
-
-    if (!user) {
-      if (!invite) return json({ error: "need_invite" }, 403);
-      // Код занимаем одним UPDATE: два человека с одним кодом не пройдут оба
-      const { data: inv } = await db.from("invites").update({ used_by: tg.id })
-        .eq("code", String(invite).trim()).is("used_by", null).select().maybeSingle();
-      if (!inv) return json({ error: "bad_invite" }, 403);
-      const name = [tg.first_name, tg.last_name].filter(Boolean).join(" ") || tg.username || String(tg.id);
-      const ins = await db.from("users").insert({ tg_id: tg.id, venue_id: inv.venue_id, name, role: "manager" }).select().single();
-      if (ins.error) {
-        await db.from("invites").update({ used_by: null }).eq("code", inv.code).eq("used_by", tg.id);
-        return json({ error: "cannot_create_user" }, 500);
-      }
-      user = ins.data;
-    }
-
+    const { data: bound, error } = await db.rpc("bind_telegram_session", {
+      p_tg_id: tg.id, p_proof_hash: digest, p_auth_date: authDate,
+      p_session_id: previous?.sid || null,
+      p_invite: invite ? String(invite).trim() : null,
+      p_name: [tg.first_name, tg.last_name].filter(Boolean).join(" ") || tg.username || String(tg.id),
+      p_allow_invites: Deno.env.get("ALLOW_INVITE_SIGNUP") === "true",
+    });
+    if (error) return json({ error: "server_error" }, 500);
+    if (!bound) return json({ error: "session_expired" }, 401);
+    if (bound.error) return json({ error: bound.error }, 403);
+    if (previous && previous.membership_epoch !== bound.membership_epoch) return json({ error: "session_expired" }, 401);
     const now = Math.floor(Date.now() / 1000);
+    if (bound.expires_at <= now) return json({ error: "session_expired" }, 401);
     const token = await signJwt({
       aud: "authenticated", role: "authenticated", sub: String(tg.id), tg_id: tg.id,
-      iat: now, exp: now + 12 * 3600,
+      sid: bound.session_id, membership_epoch: bound.membership_epoch,
+      iat: now, exp: Math.min(now + 12 * 3600, bound.expires_at),
     }, jwtSecret);
-    return json({ token, user: { tg_id: user.tg_id, venue_id: user.venue_id, name: user.name } });
-  } catch (e) {
-    console.error("tg-auth", e);
+    return json({ token, user: bound.user });
+  } catch {
     return json({ error: "server_error" }, 500);
   }
 });
