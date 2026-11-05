@@ -86,21 +86,21 @@ Deno.serve(async (req) => {
     if (!tg || !tg.id) return json({ error: "bad_signature" }, 401);
 
     const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    let { data: user } = await db.from("users").select("*").eq("tg_id", tg.id).maybeSingle();
+    const { data: existingUser, error: lookupError } = await db.from("users").select("*").eq("tg_id", tg.id).maybeSingle();
+    if (lookupError) return json({ error: "server_error" }, 500);
+    let user = existingUser;
 
     if (!user) {
       if (!invite) return json({ error: "need_invite" }, 403);
-      // Код занимаем одним UPDATE: два человека с одним кодом не пройдут оба
-      const { data: inv } = await db.from("invites").update({ used_by: tg.id })
-        .eq("code", String(invite).trim()).is("used_by", null).select().maybeSingle();
-      if (!inv) return json({ error: "bad_invite" }, 403);
       const name = [tg.first_name, tg.last_name].filter(Boolean).join(" ") || tg.username || String(tg.id);
-      const ins = await db.from("users").insert({ tg_id: tg.id, venue_id: inv.venue_id, name, role: "manager" }).select().single();
-      if (ins.error) {
-        await db.from("invites").update({ used_by: null }).eq("code", inv.code).eq("used_by", tg.id);
-        return json({ error: "cannot_create_user" }, 500);
-      }
-      user = ins.data;
+      const { data: member, error } = await db.rpc("redeem_staff_invite", {
+        p_code: String(invite).trim(),
+        p_tg_id: tg.id,
+        p_name: name,
+      });
+      if (error) return json({ error: "cannot_create_user" }, 500);
+      if (!member) return json({ error: "bad_invite" }, 403);
+      user = member;
     }
 
     const now = Math.floor(Date.now() / 1000);

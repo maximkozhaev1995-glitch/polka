@@ -3,13 +3,13 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs'),vm=require('node:vm');
 const {stripTypeScriptTypes}=require('node:module');
 const source=fs.readFileSync('supabase/functions/ai/index.ts','utf8');
-function runtime(response,env={}){
+function runtime(response,env={},membership={venue_id:"fixture"}){
  let handler,calls=0,fallbackCalls=0;
  const ctx=vm.createContext({
   Response,Request,AbortController,console:{log(){},error(){}},
   Deno:{env:{get:n=>Object.hasOwn(env,n)?env[n]:n==='ANTHROPIC_API_KEY'?'synthetic':null},serve:f=>handler=f},
   Anthropic:class{messages={create:async()=>{calls++;if(response instanceof Error)throw response;return response}}},
-  createClient:()=>({from:()=>({select:()=>({eq:()=>({maybeSingle:async()=>({data:{venue_id:'fixture'}})})})})}),
+  createClient:()=>({from:()=>({select:()=>({eq:()=>({maybeSingle:async()=>({data:membership})})})})}),
   tgId:async()=>1,venuePhotoHints:async()=>'',out:(b,s=200)=>Response.json(b,{status:s}),
   yandexOcr:async()=>{fallbackCalls++;return false},
   PHOTO_PROMPT:'ordinary',PHOTO_INSPECTION_PROMPT:'inspection',
@@ -78,3 +78,11 @@ test('invalid request never reaches vision provider',async()=>{
  }
 });
 
+test('a previously verified identity without live membership cannot invoke OCR',async()=>{
+ const r=runtime({}, {}, null);
+ const res=await r.send(body());
+ assert.equal(res.status,401);
+ assert.equal((await res.json()).error,'session_expired');
+ assert.equal(r.calls(),0);
+ assert.equal(r.fallbackCalls(),0);
+});
