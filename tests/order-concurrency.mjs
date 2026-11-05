@@ -1,3 +1,4 @@
+import {testIdentity} from './test-identity.mjs';
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
 import { localPostgres } from './local-postgres.mjs';
@@ -25,7 +26,7 @@ try {
   async function actor(c, id) {
     await c.query('set role authenticated');
     await c.query("select set_config('request.jwt.claims',$1,false)",
-      [JSON.stringify({sub:String(id),tg_id:id,role:'authenticated'})]);
+      [JSON.stringify(await testIdentity(c,id))]);
   }
   await actor(a, 1); await actor(b, 2);
   const read = c => c.query('select items from orders').then(r => r.rows[0]?.items);
@@ -85,6 +86,9 @@ try {
   assert.equal((await save(b,[change('a',null,11)],undefined,other)).order.q.a,11);
   assert.equal((await read(a)).q.a,9);
   await admin.query('update users set venue_id=$1 where tg_id=1',[other]);
+  await assert.rejects(save(a,old,key),/order_forbidden/);
+  assert.equal(await read(a),undefined);
+  await actor(a,1); // A new signed membership epoch belongs to the new venue.
   await assert.rejects(save(a,old,key),/order_scope_changed/);
   await assert.rejects(save(a,[change('cross',null,2)]),/order_scope_changed/);
   assert.deepEqual((await read(a)).q,{a:11});

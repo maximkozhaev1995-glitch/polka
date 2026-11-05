@@ -78,8 +78,8 @@ test('local ai handler supports versioned inspection and regular OCR',async()=>{
  const ocrModes=[];
  const local=vm.createContext({
   Deno:{serve:fn=>{handler=fn},env:{get:name=>name==='ANTHROPIC_API_KEY'?'test-fixture':null}},
-  tgId:async()=>1,Anthropic:class {},
-  createClient:()=>({from:()=>({select:()=>({eq:()=>({maybeSingle:async()=>({data:{venue_id:'fixture'}})})})})}),
+  tgId:async()=>1,tgEpoch:()=> 'test-epoch',Anthropic:class {},
+  createClient:()=>({from:()=>({select:()=>({eq:()=>({maybeSingle:async()=>({data:{venue_id:'fixture',membership_epoch:'test-epoch'}})})})})}),
   venuePhotoHints:async()=>'',out:(body,status=200)=>Response.json(body,{status}),
   readPhotos:async (provider,messages,hints,inspection)=>{
    ocrModes.push(inspection===true);

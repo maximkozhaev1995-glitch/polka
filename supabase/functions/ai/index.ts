@@ -26,7 +26,16 @@ async function tgId(req: Request, secret = Deno.env.get("APP_JWT_SECRET")): Prom
     const claims = JSON.parse(new TextDecoder().decode(decode(parts[1]))), now = Math.floor(Date.now()/1000);
     if (claims.role !== "authenticated" || claims.aud !== "authenticated" || !Number.isFinite(claims.exp) || claims.exp <= now || !Number.isFinite(claims.iat) || claims.iat > now+300) return null;
     if (!/^[0-9]{1,15}$/.test(String(claims.sub)) || claims.tg_id !== undefined && String(claims.tg_id) !== String(claims.sub)) return null;
+    if (!/^[0-9a-f-]{36}$/.test(claims.membership_epoch)) return null;
     return Number(claims.sub);
+  } catch { return null; }
+}
+
+function tgEpoch(req: Request) {
+  try {
+    const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
+    const part = token.split(".")[1];
+    return JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(part.replace(/-/g,"+").replace(/_/g,"/")),c=>c.charCodeAt(0)))).membership_epoch;
   } catch { return null; }
 }
 
@@ -474,9 +483,9 @@ Deno.serve(async (req) => {
     if (!tg) return out({ error: "session_expired" }, 401);
 
     const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    const member = await db.from("users").select("tg_id,venue_id").eq("tg_id",tg).maybeSingle();
+    const member = await db.from("users").select("tg_id,venue_id,membership_epoch").eq("tg_id",tg).maybeSingle();
     if (member.error) return out({error:"server_error"},500);
-    if (!member.data?.venue_id) return out({error:"session_expired"},401);
+    if (!member.data?.venue_id || member.data.membership_epoch !== tgEpoch(req)) return out({error:"session_expired"},401);
     const { system, messages, tools, ocr_only, photo_mode, observation_schema_version } = await req.json();
     if (!Array.isArray(messages) || messages.some((m: any) => !m || typeof m !== "object" || !["user", "assistant"].includes(m.role) || !(typeof m.content === "string" || Array.isArray(m.content) && m.content.every((b: any) => b && typeof b === "object" && typeof b.type === "string")))) throw Object.assign(new Error("invalid_messages"), {status: 400});
     if (photo_mode !== undefined && photo_mode !== "inspection") throw Object.assign(new Error("invalid_photo_mode"), {status: 400});

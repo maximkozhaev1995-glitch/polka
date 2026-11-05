@@ -1,3 +1,4 @@
+import {testIdentity} from './test-identity.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { localPostgres } from './local-postgres.mjs';
@@ -58,7 +59,7 @@ try {
 
   assert.equal((await redeem(b,'foreign',5,'Other')).venue_id,other);
   await a.query('set role authenticated');
-  await a.query("select set_config('request.jwt.claims',$1,false)", [JSON.stringify({sub:'2',tg_id:2,role:'authenticated'})]);
+  await a.query("select set_config('request.jwt.claims',$1,false)", [JSON.stringify(await testIdentity(a,2))]);
   await assert.rejects(redeem(a,'foreign',8,'Forbidden'), {code:'42501'});
   assert.deepEqual((await a.query('select distinct venue_id from users')).rows,[{venue_id:venue}]);
   assert.equal((await a.query('select me_venue() venue')).rows[0].venue,venue);

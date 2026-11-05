@@ -618,8 +618,14 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
   // Вне Telegram (обычный браузер) нет initData — входим через Telegram Login Widget,
   // его подпись проверяется на сервере отдельной функцией (см. tg-auth)
   let widgetAuth=null;
+  const sessionKey="mixora-auth:"+CFG.url;
+  let resumeToken=null,resumeProof=null;
+  const authProof=()=>tg&&tg.initData?"mini:"+new URLSearchParams(tg.initData).get("hash"):widgetAuth?"widget:"+String(widgetAuth.hash).toLowerCase():null;
+  try{const saved=JSON.parse(sessionStorage.getItem(sessionKey)||"null");resumeToken=saved?.token||null;resumeProof=saved?.proof||null}catch(e){}
+  const rememberToken=token=>{resumeToken=token;resumeProof=token?authProof():null;try{if(token)sessionStorage.setItem(sessionKey,JSON.stringify({token,proof:resumeProof}));else sessionStorage.removeItem(sessionKey)}catch(e){}};
   async function call(invite){
     const body={invite:invite||""};
+    if(authProof()===resumeProof&&(session?.token||resumeToken))body.session_token=session?.token||resumeToken;
     if(tg&&tg.initData)body.initData=tg.initData;else if(widgetAuth)body.widgetAuth=widgetAuth;
     const r=await fetch(CFG.url+"/functions/v1/tg-auth",{method:"POST",headers:{"Content-Type":"application/json",apikey:CFG.anon,Authorization:"Bearer "+CFG.anon},body:JSON.stringify(body)});
     return {ok:r.ok,status:r.status,body:await r.json().catch(()=>({}))};
@@ -628,7 +634,7 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
   let refreshT=0,refreshP=null;
   const planRefresh=()=>{clearTimeout(refreshT);refreshT=setTimeout(()=>refreshSession().catch(()=>{}),11*3600e3)};
   function refreshSession(){
-    if(!refreshP)refreshP=call("").then(r=>{if(!r.ok)return false;session.token=r.body.token;session.user=r.body.user;planRefresh();return true}).finally(()=>{refreshP=null});
+    if(!refreshP)refreshP=call("").then(r=>{if(!r.ok){if(r.status===401){rememberToken(null);session.token=null;msg("Сессия завершена. Войдите через Telegram снова.");if(!tg||!tg.initData){widgetAuth=null;showWidget()}if(!wall.isConnected)document.body.appendChild(wall)}return false;}session.token=r.body.token;rememberToken(session.token);session.user=r.body.user;planRefresh();return true}).finally(()=>{refreshP=null});
     return refreshP;
   }
   function showWidget(){
@@ -645,11 +651,11 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
     if(!tg||!tg.initData){if(!widgetAuth){showWidget();return}}
     let code=invite||"";if(!code)try{code=localStorage.getItem("polka-invite")||""}catch(e){}
     let r;try{r=await call(code)}catch(e){msg("Нет связи. Проверьте интернет и откройте снова.");return}
-    if(r.ok){try{localStorage.removeItem("polka-invite")}catch(e){}session={token:r.body.token,user:r.body.user};planRefresh();wall.remove();resolveReady(session);return}
+    if(r.ok){try{localStorage.removeItem("polka-invite")}catch(e){}session={token:r.body.token,user:r.body.user};rememberToken(session.token);planRefresh();wall.remove();resolveReady(session);return}
     const e=r.body.error;
     if(e==="need_invite"||e==="bad_invite"){msg(e==="bad_invite"?"Код не подошёл. Проверьте и введите снова.":"Введите код приглашения, который дал управляющий.");$("#lg-form").hidden=false;return}
-    if(e==="bad_signature")widgetAuth=null;
-    msg(e==="bad_signature"?(tg&&tg.initData?"Не удалось подтвердить вход. Закройте и откройте приложение заново.":"Не удалось подтвердить вход. Попробуйте войти через Telegram ещё раз."):"Что-то пошло не так, попробуйте позже.");
+    if(e==="bad_signature"||e==="session_expired"){rememberToken(null);if(session)session.token=null;widgetAuth=null;}
+    msg(e==="session_expired"?"Сессия завершена. Закройте приложение и войдите через Telegram снова.":e==="bad_signature"?(tg&&tg.initData?"Не удалось подтвердить вход. Закройте и откройте приложение заново.":"Не удалось подтвердить вход. Попробуйте войти через Telegram ещё раз."):"Что-то пошло не так, попробуйте позже.");
     if(!tg||!tg.initData)showWidget();
   }
   window.addEventListener("DOMContentLoaded",()=>{

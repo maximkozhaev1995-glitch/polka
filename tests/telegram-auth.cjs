@@ -17,45 +17,38 @@ await test('expired correctly signed Mini App payload is rejected',async()=>{con
 context.widget={id:42,first_name:'Test',auth_date:now};
 await test('valid Login Widget signature is accepted',async()=>{await run(`(async()=>{const dcs=Object.keys(widget).sort().map(k=>k+'='+widget[k]).join('\\n');widget.hash=hex(await hmac(new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(botToken))),dcs))})()`);assert.equal((await run('checkWidgetAuth(widget,botToken)')).id,42)});
 await test('tampered Widget identity is rejected',async()=>{assert.equal(await run('checkWidgetAuth({...widget,id:99},botToken)'),null)});
-const claims={sub:'42',tg_id:42,role:'authenticated',aud:'authenticated',iat:now,exp:now+3600};context.claims=claims;
+const claims={membership_epoch:'10000000-0000-0000-0000-000000000001',sub:'42',tg_id:42,role:'authenticated',aud:'authenticated',iat:now,exp:now+3600};context.claims=claims;
 const sign=async value=>{context.payload=value;return run('signJwt(payload,testSecret)')};
 const verify=async jwt=>{context.request=new Request('https://local.test',{headers:{authorization:'Bearer '+jwt}});return run('tgId(request)')};
 await test('AI validates the HMAC-signed authenticated Telegram subject',async()=>{assert.equal(await verify(await sign(claims)),42)});
 await test('AI rejects tampered signatures and alg:none',async()=>{const t=await sign(claims);assert.equal(await verify(t.slice(0,-2)+'xx'),null);assert.equal(await verify(Buffer.from('{"alg":"none"}').toString('base64url')+'.'+Buffer.from(JSON.stringify(claims)).toString('base64url')+'.x'),null)});
 await test('AI rejects expired tokens, anon role and mismatched identity',async()=>{for(const extra of [{exp:now-1},{role:'anon'},{tg_id:99},{aud:'other'},{iat:now+500}])assert.equal(await verify(await sign({...claims,...extra})),null)});
-await test('auth handler uses the atomic RPC only for verified unbound identities',async()=>{
-  let handler,member=null,lookupError=null,rpcResult=null;
+await test('auth handler binds verified signatures through the server session RPC',async()=>{
+  let handler,rpcResult={data:null};
   const calls=[];
   context.Response=Response;
   context.console=console;
   context.Deno.serve=fn=>{handler=fn};
   context.Deno.env.get=name=>({TELEGRAM_BOT_TOKEN:token,APP_JWT_SECRET:key})[name];
   context.createClient=()=>({
-    from:table=>{assert.equal(table,'users');return {select:()=>({eq:(column,id)=>{
-      assert.equal(column,'tg_id');assert.equal(id,42);
-      return {maybeSingle:async()=>({data:member,error:lookupError})};
-    }})}},
     rpc:async(name,args)=>{calls.push({name,args:JSON.parse(JSON.stringify(args))});return rpcResult}
   });
   vm.runInContext('{'+stripTypeScriptTypes(source.slice(source.indexOf('const cors =')),{mode:'strip'})+'}',context);
   const request=body=>handler(new Request('https://local.test',{method:'POST',body:JSON.stringify(body)}));
-  assert.equal((await request({widgetAuth:{...context.widget,id:99},invite:'code'})).status,401);
-  assert.equal((await request({widgetAuth:context.widget})).status,403);
+  assert.equal((await request({widgetAuth:{...context.widget,id:99}})).status,401);
   assert.equal(calls.length,0);
-  lookupError={message:'local test'};
-  assert.equal((await request({widgetAuth:context.widget,invite:'code'})).status,500);
-  assert.equal(calls.length,0);
-  lookupError=null;
-  rpcResult={data:null};
-  assert.equal((await request({widgetAuth:context.widget,invite:' code '})).status,403);
-  assert.deepEqual(calls[0],{name:'redeem_staff_invite',args:{p_code:'code',p_tg_id:42,p_name:'Test'}});
-  rpcResult={data:{tg_id:42,venue_id:'local-venue',name:'Test'}};
-  const accepted=await request({widgetAuth:context.widget,invite:'code'});
+  assert.equal((await request({widgetAuth:context.widget})).status,401);
+  assert.equal(calls[0].name,'bind_telegram_session');
+  assert.equal(calls[0].args.p_tg_id,42);
+  assert.equal(calls[0].args.p_allow_invites,false);
+  rpcResult={data:{session_id:'10000000-0000-0000-0000-000000000002',membership_epoch:claims.membership_epoch,expires_at:now+86400,user:{tg_id:42,venue_id:'local-venue',name:'Test'}}};
+  const accepted=await request({widgetAuth:context.widget});
   assert.equal(accepted.status,200);
-  assert.equal(await verify((await accepted.json()).token),42);
-  member=rpcResult.data;
-  assert.equal((await request({widgetAuth:context.widget})).status,200);
-  assert.equal(calls.length,2);
+  const jwt=(await accepted.json()).token;
+  assert.equal(await verify(jwt),42);
+  assert.equal((await request({widgetAuth:context.widget,session_token:jwt})).status,200);
+  assert.equal(calls.at(-1).args.p_session_id,rpcResult.data.session_id);
+  assert.equal((await request({widgetAuth:context.widget,session_token:jwt+'bad'})).status,401);
 });
 console.log(`${count} cryptographic Telegram/JWT tests passed; no real login or external API`);
 

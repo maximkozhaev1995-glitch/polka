@@ -1,3 +1,4 @@
+import {testIdentity} from './test-identity.mjs';
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -14,7 +15,7 @@ try {
   const actor = async id => {
     await exec('set role authenticated');
     await db.query("select set_config('request.jwt.claims',$1,false)", [
-      JSON.stringify({ sub: String(id), tg_id: id, role: 'authenticated' }),
+      JSON.stringify(await testIdentity(db,id)),
     ]);
   };
   const call = (items, key = randomUUID()) => db.query(

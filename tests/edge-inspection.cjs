@@ -3,14 +3,14 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs'),vm=require('node:vm');
 const {stripTypeScriptTypes}=require('node:module');
 const source=fs.readFileSync('supabase/functions/ai/index.ts','utf8');
-function runtime(response,env={},membership={venue_id:"fixture"}){
+function runtime(response,env={},membership={venue_id:"fixture",membership_epoch:"test-epoch"}){
  let handler,calls=0,fallbackCalls=0;
  const ctx=vm.createContext({
   Response,Request,AbortController,console:{log(){},error(){}},
   Deno:{env:{get:n=>Object.hasOwn(env,n)?env[n]:n==='ANTHROPIC_API_KEY'?'synthetic':null},serve:f=>handler=f},
   Anthropic:class{messages={create:async()=>{calls++;if(response instanceof Error)throw response;return response}}},
   createClient:()=>({from:()=>({select:()=>({eq:()=>({maybeSingle:async()=>({data:membership})})})})}),
-  tgId:async()=>1,venuePhotoHints:async()=>'',out:(b,s=200)=>Response.json(b,{status:s}),
+  tgId:async()=>1,tgEpoch:()=> 'test-epoch',venuePhotoHints:async()=>'',out:(b,s=200)=>Response.json(b,{status:s}),
   yandexOcr:async()=>{fallbackCalls++;return false},
   PHOTO_PROMPT:'ordinary',PHOTO_INSPECTION_PROMPT:'inspection',
  });
@@ -85,4 +85,10 @@ test('a previously verified identity without live membership cannot invoke OCR',
  assert.equal((await res.json()).error,'session_expired');
  assert.equal(r.calls(),0);
  assert.equal(r.fallbackCalls(),0);
+});
+
+test('readded membership with a different epoch rejects an old verified JWT before OCR',async()=>{
+ const r=runtime({}, {}, {venue_id:'fixture',membership_epoch:'new-epoch'});
+ const res=await r.send(body());
+ assert.equal(res.status,401);assert.equal(r.calls(),0);assert.equal(r.fallbackCalls(),0);
 });

@@ -1,3 +1,4 @@
+import {testIdentity} from './test-identity.mjs';
 import fs from 'node:fs';import http from 'node:http';import assert from 'node:assert/strict';
 import {chromium} from 'playwright';import {localPostgres,freePort} from './local-postgres.mjs';
 const pg=await localPostgres(),admin=await pg.connect(),venue='10000000-0000-0000-0000-000000000001';
@@ -13,7 +14,7 @@ async function orderQuery(sql,args){
  const c=await pg.connect();
  try{
   await c.query('set role authenticated');
-  await c.query("select set_config('request.jwt.claims',$1,false)",[JSON.stringify({sub:'1',tg_id:1,role:'authenticated'})]);
+  await c.query("select set_config('request.jwt.claims',$1,false)",[JSON.stringify(await testIdentity(c,1))]);
   return (await c.query(sql,args)).rows;
  }finally{await c.end()}
 }
@@ -47,7 +48,7 @@ const server=http.createServer(async(req,res)=>{const url=new URL(req.url,origin
    const c=await pg.connect();
    try{
     await c.query('set role authenticated');
-    await c.query("select set_config('request.jwt.claims',$1,false)",[JSON.stringify({sub:'1',tg_id:1,role:'authenticated'})]);
+    await c.query("select set_config('request.jwt.claims',$1,false)",[JSON.stringify(await testIdentity(c,1))]);
     const r=await c.query('select public.apply_stock($1,$2::jsonb) result',[body.p_request_id,JSON.stringify(body.p_items)]);
     if(dropNext){
      dropNext=false;
@@ -63,7 +64,7 @@ const server=http.createServer(async(req,res)=>{const url=new URL(req.url,origin
    const table=url.pathname.slice(9);if(['stock','moves','users','flavors'].includes(table)){
     if(req.method!=='GET')return send(403,{message:'direct writes forbidden in local stand'});
     const query=table==='flavors'?'select * from flavors':`select * from ${table} where venue_id=$1${table==='moves'?' order by at desc,id desc':''}`;
-    const c=await pg.connect();try{await c.query('set role authenticated');await c.query("select set_config('request.jwt.claims',$1,false)",[JSON.stringify({sub:'1',tg_id:1,role:'authenticated'})]);const r=await c.query(query,table==='flavors'?[]:[venue]);return send(200,r.rows)}finally{await c.end()}
+    const c=await pg.connect();try{await c.query('set role authenticated');await c.query("select set_config('request.jwt.claims',$1,false)",[JSON.stringify(await testIdentity(c,1))]);const r=await c.query(query,table==='flavors'?[]:[venue]);return send(200,r.rows)}finally{await c.end()}
    }
    if(req.method==='GET')return send(200,misc.get(table)||[]);
    if(req.method==='POST'){const rows=Array.isArray(body)?body:[body];misc.set(table,rows.map((r,i)=>({id:i+1,...r})));return send(201,misc.get(table))}

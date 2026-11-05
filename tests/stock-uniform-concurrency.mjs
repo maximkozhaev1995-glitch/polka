@@ -1,10 +1,11 @@
+import {testIdentity} from './test-identity.mjs';
 import fs from 'node:fs';import assert from 'node:assert/strict';
 import {localPostgres} from './local-postgres.mjs';
 const pg=await localPostgres(),admin=await pg.connect(),clients=await Promise.all([pg.connect(),pg.connect(),pg.connect()]);
 const venue='10000000-0000-0000-0000-000000000001';let count=0;
 const test=async(name,fn)=>{await fn();console.log('PASS',name);count++};
 const item=(id,revision,wh,extra={})=>({id,revision,doc:{wh,...extra},kind:'in'});
-async function auth(c,id=1){await c.query('set role authenticated');await c.query(`select set_config('request.jwt.claims',$1,false)`,[JSON.stringify({sub:String(id),tg_id:id,role:'authenticated'})])}
+async function auth(c,id=1){await c.query('set role authenticated');await c.query(`select set_config('request.jwt.claims',$1,false)`,[JSON.stringify(await testIdentity(c,id))])}
 const call=(c,items,key=crypto.randomUUID())=>c.query('select public.apply_stock($1,$2::jsonb) result',[key,JSON.stringify(items)]).then(r=>r.rows[0].result);
 async function seed(id,wh=1){await admin.query('insert into flavors(id,brand,name) values($1,\'Test\',$1) on conflict do nothing',[id]);await admin.query('insert into stock(venue_id,flavor_id,wh) values($1,$2,$3) on conflict(venue_id,flavor_id) do update set wh=$3,revision=0,bar=false',[venue,id,wh])}
 const check=async(id,wh,n)=>{assert.equal((await admin.query('select wh from stock where flavor_id=$1',[id])).rows[0].wh,wh);assert.equal(Number((await admin.query('select count(*) n from moves where flavor_id=$1',[id])).rows[0].n),n)};

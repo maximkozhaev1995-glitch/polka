@@ -1,3 +1,4 @@
+import {testIdentity} from './test-identity.mjs';
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
 import {PGlite} from '@electric-sql/pglite';
@@ -7,7 +8,7 @@ await db.exec(fs.readFileSync('tests/fixtures/access-baseline.sql','utf8'));
 await db.exec(`insert into venues values('${v}'),('${other}');insert into users(tg_id,venue_id,name,role) values(1,'${v}','A','manager'),(2,'${v}','B','master'),(3,'${other}','C','manager');insert into flavors(id,brand,name) values('a','Brand','A'),('b','Brand','B');`);
 for(const f of fs.readdirSync('supabase/migrations').sort())await db.exec(fs.readFileSync('supabase/migrations/'+f,'utf8'));
 const admin=()=>db.exec('reset role');
-const actor=async(id,extra={})=>{await db.exec('set role authenticated');await db.query("select set_config('request.jwt.claims',$1,false)",[JSON.stringify({sub:String(id),tg_id:id,role:'authenticated',...extra})])};
+const actor=async(id,extra={})=>{await db.exec('set role authenticated');await db.query("select set_config('request.jwt.claims',$1,false)",[JSON.stringify(await testIdentity(db,id,extra))])};
 const call=(id,rev,wh,extra={},key=crypto.randomUUID())=>db.query('select public.apply_stock($1,$2::jsonb) r',[key,JSON.stringify([{id,revision:rev,doc:{wh,...extra},kind:'in'}])]).then(r=>r.rows[0].r);
 let count=0;async function test(name,f){await f();console.log('PASS',name);count++}
 await test('both legacy roles have identical capability and venue',async()=>{for(const id of [1,2]){await actor(id);const r=(await db.query('select me_role() r,me_venue() v,is_staff() ok')).rows[0];assert.equal(r.r,'staff');assert.equal(r.v,v);assert.equal(r.ok,true)}});
