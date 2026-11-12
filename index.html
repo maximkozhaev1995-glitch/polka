@@ -7,6 +7,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500&family=Unbounded:wght@600;800&family=Golos+Text:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="./app/menu/style.18c2a28cadd83594.css">
+<script type="text/javascript">window.MIXORA_CONNECTED_UI=true;document.documentElement.classList.add('mixora-connected');</script>
 <style>
 /* Layout: справочник за стойкой — липкая панель поиска и фильтров, ниже список по брендам */
 :root{
@@ -140,6 +142,10 @@ dialog p{margin:8px 0}
 .muted{color:var(--muted)}
 .dlg-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
 .dlg-btns .btn{height:40px}
+.stock-review-list{max-height:min(58vh,520px);overflow:auto;overscroll-behavior:contain;padding-bottom:8px}
+.stock-review-actions{position:sticky;bottom:0;background:var(--bg);padding:12px 0 max(4px,env(safe-area-inset-bottom));z-index:2}
+.stock-review-step{display:inline-flex;align-items:center;gap:6px}
+.stock-review-step button{min-width:36px;height:36px}
 .btn.danger{color:var(--pend)}
 .left{font-size:12px;color:var(--muted);min-width:44px;text-align:right;margin-right:4px}.left.one{color:var(--pend)}
 dialog textarea{resize:none;width:100%;font:inherit;font-size:13px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:10px;resize:vertical}
@@ -171,6 +177,7 @@ dialog textarea{resize:none;width:100%;font:inherit;font-size:13px;background:va
 .dnote{margin-top:24px;color:var(--muted);font-size:13px;border-top:1px solid var(--line);padding-top:14px}
 .dnote .dot{margin-right:6px}
 .btn.sm{font-size:13px;height:40px;padding:0 14px;white-space:nowrap}
+.photo-actions .btn.sm{height:auto;min-height:44px;max-width:100%;padding:8px 14px;white-space:normal}
 .btn.sm.on{color:var(--ok);border-color:var(--ok)}
 .chip.scope[aria-pressed="true"]{background:var(--fg);border-color:var(--fg);color:var(--bg)}
 .cnt.stopb{background:var(--pend);color:#fff}
@@ -180,13 +187,6 @@ body.ai-mode{overflow:hidden;padding-bottom:0}
 body.ai-mode .wrap{overscroll-behavior:none}
 .ai-top .btn{flex:none}
 .ai-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
-.ai-tools{flex:none;position:relative;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
-.ai-tools summary{cursor:pointer;list-style:none;padding:12px 14px;font-size:14px;font-weight:600}
-.ai-tools summary::-webkit-details-marker{display:none}
-.ai-tools summary::after{content:'＋';float:right;color:var(--muted)}
-.ai-tools[open] summary::after{content:'−'}
-.ai-tools-grid{display:flex;flex-wrap:wrap;gap:8px;padding:0 12px 12px}
-.ai-tools-grid .btn{flex:1 1 110px;min-height:44px}
 #chat .ai-in{padding:8px;border:1px solid var(--line);border-radius:16px;background:var(--surface);gap:8px}
 #chat .ai-in textarea{border:0;background:transparent;box-shadow:none;padding:10px 4px}
 #chat .ai-in:focus-within{border-color:var(--accent)}
@@ -215,6 +215,7 @@ body.ai-mode .wrap{overscroll-behavior:none}
 .hsh-h{display:flex;align-items:center;gap:8px}.hsh-h b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 body.hsh-on{overflow:hidden}
 .hacts{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;white-space:normal}.hacts ul{flex-basis:100%;margin:0;padding-left:18px}
+.hacts details{flex-basis:100%;min-width:0}.hacts summary{cursor:pointer;padding:8px 0;font-weight:600}.hacts details ul{margin:6px 0}.hacts details label{display:flex;align-items:center;justify-content:space-between;gap:8px}.hacts details input[type=number]{width:4em;min-height:36px;font-size:16px}
 .msrc{display:block;margin-top:4px;font-size:11px;color:var(--muted);white-space:nowrap}
 .ai-imgs{flex:none;min-width:0;width:100%;max-height:132px;overflow-x:auto;overflow-y:hidden;padding:4px 0}
 .photo-strip{display:flex;gap:8px;max-width:100%;overflow-x:auto;white-space:normal;padding:4px 0}
@@ -250,6 +251,7 @@ input.iin{width:64px}.btn.iok{min-width:112px;font-weight:600;border-color:var(-
 h3.sub{font:800 14px var(--display);text-transform:uppercase;margin:22px 0 4px}.sl-h{margin:12px 0 4px}
 .toast{position:fixed;left:12px;right:12px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:210;max-width:600px;margin:0 auto;display:flex;align-items:center;gap:10px;justify-content:space-between;background:var(--fg);color:var(--bg);border-radius:14px;padding:10px 12px 10px 14px;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.25)}.toast .btn{flex:none;background:transparent;color:var(--bg);border-color:rgba(255,255,255,.4);padding:0 12px}
 body.has-tray .toast{bottom:84px}
+body.ai-mode .toast:has(#t-undo){display:none}
 .btn.fin{height:36px;font-size:12px;padding:0 10px;white-space:nowrap}
 .hintline{color:var(--muted);font-size:13px;margin:8px 0 0;line-height:1.4}
 .lupa{flex:none;color:var(--muted)}.search{min-height:48px}
@@ -471,7 +473,10 @@ body{margin:0}
 .home-tile .home-ico{font-size:26px;line-height:1}.home-tile strong{font-size:17px;line-height:1.25}.home-tile small{font-size:12px;color:var(--muted);line-height:1.35}
 .home-hero{min-height:106px;background:var(--surface);border-color:var(--accent)}
 .home-title{font-size:15px;color:var(--muted);margin:12px 0 10px}
-.home-mode .search,.home-mode #brands,.home-mode #filters,.home-mode .legend,.home-mode #stock-recover,.home-mode #omanual,.home-mode #list,.home-mode #chat,.home-mode #sup,.home-mode #logbox,.home-mode #tray,.home-mode #otray{display:none!important}
+.home-mode .search,.home-mode #brands,.home-mode #filters,.home-mode .legend,.home-mode #omanual,.home-mode #list,.home-mode #chat,.home-mode #sup,.home-mode #logbox,.home-mode #tray,.home-mode #otray{display:none!important}
+#stock-recovery,#order-save-problem{padding:12px;border:1px solid var(--accent);border-radius:12px;background:var(--surface)}
+#stock-recovery-message,#order-save-message{margin:0;font-size:14px;overflow-wrap:anywhere}
+#stock-recover,#order-save-retry{width:100%;min-height:44px;margin-top:8px;white-space:normal}
 #home-screen[hidden]{display:none!important}
 #home-btn{font-size:20px;min-width:40px;min-height:40px;border:1px solid var(--line);background:var(--surface);border-radius:12px;color:var(--fg);cursor:pointer}
 body.home-mode .stats{display:none}
@@ -484,10 +489,18 @@ body.hasnav{padding-bottom:0}
 @media(min-width:680px){.home-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.home-hero{grid-column:1/-1}}
 </style>
 
-<div class="wrap">
+<div id="mixora-legacy-root"><div class="wrap">
 <div class="bar">
   <div class="topbar"><button class="burger" id="menu-btn" type="button" aria-label="Меню" aria-expanded="false" aria-controls="drawer"><i></i><i></i><i></i></button>
     <button id="home-btn" type="button" aria-label="На главную" title="На главную">⌂</button><div class="ttl"><h1 id="sect">Стойка</h1><i class="sync" id="sync" title="Подключаю склад"></i><span class="stats"><b id="total">0</b> <span id="totlabel">вкусов на стойке</span></span></div><button class="hlp" id="hlp-btn" type="button" aria-label="Помощник раздела" title="Помощник раздела" hidden>✨</button></div>
+  <section id="stock-recovery" hidden aria-label="Восстановление складской операции">
+    <p id="stock-recovery-message" role="status"></p>
+    <button class="btn" id="stock-recover" type="button" hidden>Восстановить результат складской операции</button>
+  </section>
+  <section id="order-save-problem" hidden aria-label="Сохранение заказа">
+    <p id="order-save-message" role="status"></p>
+    <button class="btn" id="order-save-retry" type="button">Повторить сохранение заказа</button>
+  </section>
   <section id="home-screen" hidden aria-label="Рабочее меню Mixora">
     <p class="home-title">Все инструменты под рукой</p>
     <div class="home-grid">
@@ -507,7 +520,6 @@ body.hasnav{padding-bottom:0}
   <div class="chips" id="filters" role="group" aria-label="Фильтры"></div>
 </div>
 <div class="legend"><span id="found"></span><span class="status" id="status">Подключаю склад…</span></div>
-<button class="btn" id="stock-recover" type="button" hidden>Восстановить результат складской операции</button>
 <section class="omanual" id="omanual" hidden></section>
 <main id="list"></main>
 <section class="chat" id="chat" hidden>
@@ -515,12 +527,6 @@ body.hasnav{padding-bottom:0}
   <div class="ai-log" id="ai-log" aria-live="polite"></div>
   <p class="small aioff" id="ai-off" hidden>Ассистент недоступен в этом окне. Открой страницу в claude.ai.</p>
   <div class="ai-imgs" id="ai-imgs" aria-label="Прикреплённые фотографии" hidden></div>
-  <details class="ai-tools" id="ai-tools"><summary>Действия со складом</summary><div class="ai-tools-grid" role="group" aria-label="Вставить команду">
-    <button class="btn" type="button" data-ai-command="/перенос">Перенести</button>
-    <button class="btn" type="button" data-ai-command="/пополнить">Пополнить</button>
-    <button class="btn" type="button" data-ai-command="/списать и заказать">Списать и заказать</button>
-    <button class="btn" type="button" data-ai-command="/найти">Найти</button>
-  </div></details>
   <div class="ai-in"><label class="btn ai-ph" id="ai-photo-l" hidden title="Фото банок" aria-label="Приложить фото">📷<input type="file" id="ai-photo" accept="image/*" multiple hidden></label>
     <textarea id="ai-in" rows="1" placeholder="Сообщение…" aria-label="Сообщение ассистенту" enterkeyhint="send"></textarea>
     <button class="btn go" type="button" id="ai-send">Отправить</button><button class="btn" type="button" id="ai-stop" hidden>Стоп</button></div>
@@ -589,8 +595,10 @@ body.hasnav{padding-bottom:0}
 <div class="toast" id="toast" hidden role="status"></div>
 <div class="dlg-scrim" id="dlg-scrim" hidden></div>
 <dialog id="dlg" aria-label="Подтверждение"><div id="dlg-body"></div></dialog>
+</div>
+<script src="./app/menu/reference-reader.js"></script>
 <script>// © 2026 Максим Кожаев. Все права защищены. Копирование, распространение и использование без письменного согласия автора запрещены.
-window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3Y2d2d2ZtbGtlZ2Fxa2tzdWpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTU3MzAsImV4cCI6MjEwODA5MTczMH0.Zrf-0ohug-BE0PPbMgUkSF9TLSOu2gxMnoxEmBtZZcY",tgBot:"PolkaHookahbot"};</script>
+window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3Y2d2d2ZtbGtlZ2Fxa2tzdWpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTU3MzAsImV4cCI6MjEwODA5MTczMH0.Zrf-0ohug-BE0PPbMgUkSF9TLSOu2gxMnoxEmBtZZcY",referenceCatalogEnabled:true,tgBot:"PolkaHookahbot"};</script>
 <script>// © 2026 Максим Кожаев. Все права защищены. Копирование, распространение и использование без письменного согласия автора запрещены.
 // Полка: слой между приложением и базой. Приложение написано под window.claude.use("db"), здесь тот же интерфейс поверх Supabase.
 (function(){
@@ -607,8 +615,14 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
   // Вне Telegram (обычный браузер) нет initData — входим через Telegram Login Widget,
   // его подпись проверяется на сервере отдельной функцией (см. tg-auth)
   let widgetAuth=null;
+  const sessionKey="mixora-auth:"+CFG.url;
+  let resumeToken=null,resumeProof=null;
+  const authProof=()=>tg&&tg.initData?"mini:"+new URLSearchParams(tg.initData).get("hash"):widgetAuth?"widget:"+String(widgetAuth.hash).toLowerCase():null;
+  try{const saved=JSON.parse(sessionStorage.getItem(sessionKey)||"null");resumeToken=saved?.token||null;resumeProof=saved?.proof||null}catch(e){}
+  const rememberToken=token=>{resumeToken=token;resumeProof=token?authProof():null;try{if(token)sessionStorage.setItem(sessionKey,JSON.stringify({token,proof:resumeProof}));else sessionStorage.removeItem(sessionKey)}catch(e){}};
   async function call(invite){
     const body={invite:invite||""};
+    if(authProof()===resumeProof&&(session?.token||resumeToken))body.session_token=session?.token||resumeToken;
     if(tg&&tg.initData)body.initData=tg.initData;else if(widgetAuth)body.widgetAuth=widgetAuth;
     const r=await fetch(CFG.url+"/functions/v1/tg-auth",{method:"POST",headers:{"Content-Type":"application/json",apikey:CFG.anon,Authorization:"Bearer "+CFG.anon},body:JSON.stringify(body)});
     return {ok:r.ok,status:r.status,body:await r.json().catch(()=>({}))};
@@ -617,7 +631,7 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
   let refreshT=0,refreshP=null;
   const planRefresh=()=>{clearTimeout(refreshT);refreshT=setTimeout(()=>refreshSession().catch(()=>{}),11*3600e3)};
   function refreshSession(){
-    if(!refreshP)refreshP=call("").then(r=>{if(!r.ok)return false;session.token=r.body.token;session.user=r.body.user;planRefresh();return true}).finally(()=>{refreshP=null});
+    if(!refreshP)refreshP=call("").then(r=>{if(!r.ok){if(r.status===401){rememberToken(null);session.token=null;msg("Сессия завершена. Войдите через Telegram снова.");if(!tg||!tg.initData){widgetAuth=null;showWidget()}if(!wall.isConnected)document.body.appendChild(wall)}return false;}session.token=r.body.token;rememberToken(session.token);session.user=r.body.user;planRefresh();return true}).finally(()=>{refreshP=null});
     return refreshP;
   }
   function showWidget(){
@@ -634,11 +648,11 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
     if(!tg||!tg.initData){if(!widgetAuth){showWidget();return}}
     let code=invite||"";if(!code)try{code=localStorage.getItem("polka-invite")||""}catch(e){}
     let r;try{r=await call(code)}catch(e){msg("Нет связи. Проверьте интернет и откройте снова.");return}
-    if(r.ok){try{localStorage.removeItem("polka-invite")}catch(e){}session={token:r.body.token,user:r.body.user};planRefresh();wall.remove();resolveReady(session);return}
+    if(r.ok){try{localStorage.removeItem("polka-invite")}catch(e){}session={token:r.body.token,user:r.body.user};rememberToken(session.token);planRefresh();wall.remove();resolveReady(session);return}
     const e=r.body.error;
     if(e==="need_invite"||e==="bad_invite"){msg(e==="bad_invite"?"Код не подошёл. Проверьте и введите снова.":"Введите код приглашения, который дал управляющий.");$("#lg-form").hidden=false;return}
-    if(e==="bad_signature")widgetAuth=null;
-    msg(e==="bad_signature"?(tg&&tg.initData?"Не удалось подтвердить вход. Закройте и откройте приложение заново.":"Не удалось подтвердить вход. Попробуйте войти через Telegram ещё раз."):"Что-то пошло не так, попробуйте позже.");
+    if(e==="bad_signature"||e==="session_expired"){rememberToken(null);if(session)session.token=null;widgetAuth=null;}
+    msg(e==="session_expired"?"Сессия завершена. Закройте приложение и войдите через Telegram снова.":e==="bad_signature"?(tg&&tg.initData?"Не удалось подтвердить вход. Закройте и откройте приложение заново.":"Не удалось подтвердить вход. Попробуйте войти через Telegram ещё раз."):"Что-то пошло не так, попробуйте позже.");
     if(!tg||!tg.initData)showWidget();
   }
   window.addEventListener("DOMContentLoaded",()=>{
@@ -649,12 +663,22 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
   // ===== база =====
   const H=()=>({apikey:CFG.anon,Authorization:"Bearer "+session.token,"Content-Type":"application/json"});
   const V=()=>session.user.venue_id;
-  async function rest(path,opt,again){const r=await fetch(CFG.url+"/rest/v1/"+path,Object.assign({headers:H()},opt));if(r.status===401&&!again&&await refreshSession().catch(()=>false)){if(opt&&opt.headers&&opt.headers.Authorization)opt=Object.assign({},opt,{headers:Object.assign({},opt.headers,H())});return rest(path,opt,true)}if(!r.ok){let t="";try{t=(await r.json()).message}catch(e){}throw new Error(t||("HTTP "+r.status))}const t=await r.text();return t?JSON.parse(t):null}
+  async function rest(path,opt,again){
+    const actor=session.user.tg_id,venue=V(),scope=db.actionScope();
+    const r=await fetch(CFG.url+"/rest/v1/"+path,Object.assign({headers:H()},opt));
+    if(r.status===401&&!again&&await refreshSession().catch(()=>false)){
+      if(venue!==V()||actor!==session.user.tg_id||scope!==db.actionScope())throw Error("Сменилось заведение или сессия. Откройте действие заново.");
+      if(opt?.headers?.Authorization)opt=Object.assign({},opt,{headers:Object.assign({},opt.headers,H())});
+      return rest(path,opt,true);
+    }
+    if(!r.ok){let message="";try{message=(await r.json()).message}catch(e){}throw Error(message||("HTTP "+r.status))}
+    const text=await r.text();return text?JSON.parse(text):null;
+  }
   const iso=x=>x?new Date(x).toISOString():undefined;
   const MAP={
     stock:{table:"stock",key:"flavor_id",
       list:()=>"stock?select=flavor_id,wh,bar,stop,stop_auto,slow,retired,revision&venue_id=eq."+V(),
-      toDoc:r=>{const d={wh:r.wh,bar:r.bar,revision:r.revision};if(r.stop)d.stop=true;if(r.stop_auto)d.stopAuto=true;if(r.slow)d.slow=true;if(r.retired)d.retired=true;return d},
+      toDoc:r=>stockDocument(r),
       fromDoc:(id,o)=>{const b={venue_id:V(),flavor_id:id,wh:o.wh||0,stop:!!o.stop,stop_auto:!!o.stopAuto,slow:!!o.slow,retired:!!o.retired};if(typeof o.bar==="boolean")b.bar=o.bar;return b},
       conflict:"venue_id,flavor_id"},
     moves:{table:"moves",key:"id",
@@ -714,7 +738,7 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
   };
   const subs={};
   const snapDocs=async c=>{
-    if(c==="order"){const rows=await rest("orders?select=items&venue_id=eq."+V());return rows.length?[{id:"current",data:()=>rows[0].items}]:[]}
+    if(c==="order"){const rows=await rest("orders?select=items,revision&venue_id=eq."+V());return rows.length?[{id:"current",data:()=>({...rows[0].items,revision:rows[0].revision})}]:[]}
     if(c==="strength"||c==="pack"){
       const m=MAP[c],field=c==="strength"?"strength":"pack_g";
       // Shared values remain defaults. A venue override never edits the catalog.
@@ -725,12 +749,61 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
       return [...rows.values()].map(r=>({id:r.flavor_id,data:()=>m.toDoc(r)}));
     }
     const m=MAP[c];if(!m)return[];const rows=await rest(m.list());return rows.map(r=>({id:String(r[m.key]),data:()=>m.toDoc(r)}))};
-  async function refresh(c){const s=subs[c];if(!s)return;try{const docs=await snapDocs(c);const h=JSON.stringify(docs.map(d=>[d.id,d.data()]));if(h!==s.hash){s.hash=h;s.fns.forEach(f=>f({docs}))}}catch(e){s.errs.forEach(f=>f(e))}}
+  async function refresh(c){
+    const s=subs[c];if(!s)return;
+    const sequence=c==="moves"?(s.request=(s.request||0)+1):0;
+    function current(){if(!sequence)return true;if(sequence<s.delivered)return false;s.delivered=sequence;return true}
+    try{
+      const docs=await snapDocs(c);if(!current())return;
+      const h=JSON.stringify(docs.map(d=>[d.id,d.data()]));
+      if(h!==s.hash){s.hash=h;s.fns.forEach(f=>f({docs}))}
+    }catch(e){if(!current())return;s.hash="";s.errs.forEach(f=>f(e))}
+  }
   setInterval(()=>{if(!document.hidden&&session)Object.keys(subs).forEach(refresh)},6000);
   document.addEventListener("visibilitychange",()=>{if(!document.hidden&&session)Object.keys(subs).forEach(refresh)});
   const bump=c=>setTimeout(()=>refresh(c),150);
   const listen=c=>({onSnapshot:(f,err)=>{const s=subs[c]||(subs[c]={fns:[],errs:[],hash:""});s.fns.push(f);if(err)s.errs.push(err);refresh(c)}});
+  function stockDocument(r){
+    const doc={wh:r.wh,bar:r.bar,revision:r.revision};
+    if(r.stop)doc.stop=true;
+    if(r.stopAuto||r.stop_auto)doc.stopAuto=true;
+    if(r.slow)doc.slow=true;
+    if(r.retired)doc.retired=true;
+    return doc;
+  }
+  async function submitPendingStock(key,pending){
+    const saved=JSON.stringify(pending);
+    const clear=()=>{if(localStorage.getItem(key)===saved)localStorage.removeItem(key)};
+    try{
+      const result=await rest("rpc/apply_stock",{method:"POST",body:JSON.stringify(pending.body)});
+      const rows=result.map(row=>({...row,doc:stockDocument(row.doc)}));
+      clear();bump("stock");bump("moves");
+      return rows;
+    }catch(e){if(/^stock_/.test(e.message))clear();throw e}
+  }
   const db={
+    referenceScope:()=>db.actionScope(),
+    referenceChunks:async kind=>{
+      if(!["official","thirdparty","flvr"].includes(kind))throw Error("reference_dataset_invalid");
+      const scope=db.referenceScope();
+      if(!scope)throw Error("reference_session_required");
+      const path="reference_catalog_chunks?select=dataset,part,total_parts,content,sha256&dataset=eq."+kind+"&order=part.asc&limit=512";
+      const rows=await rest(path,{method:"GET",cache:"no-store"});
+      if(scope!==db.referenceScope())throw Error("reference_scope_changed");
+      return rows;
+    },
+    venueName:async()=>{
+      const venue=V(),actor=session.user.tg_id;
+      const rows=await rest("venues?select=name&id=eq."+encodeURIComponent(venue)+"&limit=1");
+      return venue===V()&&actor===session.user.tg_id&&typeof rows?.[0]?.name==="string"?rows[0].name.trim():"";
+    },
+    orderScope:()=>({venue:V(),actor:session.user.tg_id}),
+    applyOrder:async(id,changes,scope)=>{
+      if(scope?.venue!==V()||scope?.actor!==session.user.tg_id)throw Error("Сменилось заведение или учётная запись");
+      const result=await rest("rpc/apply_order",{method:"POST",body:JSON.stringify({p_venue_id:scope.venue,p_request_id:id,p_changes:changes})});
+      bump("order");
+      return result;
+    },
     // Venue-scoped, read-only at application level except user-approved correction writes.
     listPhotoCorrections:async()=>rest("photo_corrections?select=raw_label,flavor_id,confirmed_at&venue_id=eq."+V()+"&order=confirmed_at.desc&limit=500"),
     savePhotoCorrection:async(raw,flavorId)=>{
@@ -741,8 +814,19 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
       await rest("photo_corrections?on_conflict=venue_id,raw_label",{method:"POST",headers:Object.assign(H(),{Prefer:"resolution=merge-duplicates,return=minimal"}),body:JSON.stringify({venue_id:V(),raw_label,flavor_id:String(flavorId),confirmed_at:new Date().toISOString()})});
       return true;
     },
+    refreshMoves:()=>refresh("moves"),
     stockScope:()=>V()+":"+session.user.tg_id,
+    actionScope:()=>{
+      try{
+        const token=session?.token;
+        if(!token||!session.user?.venue_id||!session.user?.tg_id)return null;
+        const claims=JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+        if(!claims.sid||!claims.membership_epoch)return null;
+        return [V(),session.user.tg_id,claims.sid,claims.membership_epoch].join(':');
+      }catch{return null}
+    },
     hasPendingStock:()=>!!localStorage.getItem("mixora-stock-pending:"+V()+":"+session.user.tg_id),
+    pendingStockRequestId:()=>{try{return JSON.parse(localStorage.getItem("mixora-stock-pending:"+V()+":"+session.user.tg_id)||"null")?.body?.p_request_id||null}catch(e){return null}},
     // Persist request identity BEFORE sending. Unknown outcomes can only replay the
     // exact original request; a different intent is blocked until it is resolved.
     applyStock:async items=>{
@@ -750,15 +834,13 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
       const signature=JSON.stringify(items);let saved=localStorage.getItem(key),pending=saved?JSON.parse(saved):null;
       if(pending&&pending.signature!==signature)throw new Error("Есть неподтверждённый результат склада. Повторите прежнее действие или восстановите его через журнал.");
       if(!pending){pending={signature,body:{p_request_id:crypto.randomUUID(),p_items:items}};localStorage.setItem(key,JSON.stringify(pending))}
-      try{const result=await rest("rpc/apply_stock",{method:"POST",body:JSON.stringify(pending.body)});
-        localStorage.removeItem(key);bump("stock");bump("moves");return result;
-      }catch(e){if(/stock_/.test(e.message)){localStorage.removeItem(key)}throw e}
+      return submitPendingStock(key,pending);
     },
     recoverStock:async()=>{
       const key="mixora-stock-pending:"+V()+":"+session.user.tg_id,saved=localStorage.getItem(key);if(!saved)return null;
       const pending=JSON.parse(saved);
-      try{const result=await rest("rpc/apply_stock",{method:"POST",body:JSON.stringify(pending.body)});localStorage.removeItem(key);bump("stock");bump("moves");return {rows:result,items:pending.body.p_items}}
-      catch(e){if(/stock_/.test(e.message))localStorage.removeItem(key);throw e}
+      const rows=await submitPendingStock(key,pending);
+      return {rows,items:pending.body.p_items,requestId:pending.body.p_request_id,scope:key.slice("mixora-stock-pending:".length)};
     },
     bulk:async(c,ids,o)=>{if(c==="stock"||c==="moves")throw new Error("Используйте складскую операцию");const m=MAP[c];
       if(c==="strength"||c==="pack"){
@@ -772,7 +854,7 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
     doc:p=>{const [c,id]=p.split("/");return{
       set:async o=>{
         if(c==="stock"||c==="moves")throw new Error("Используйте складскую операцию");
-        if(c==="order"){await rest("orders?on_conflict=venue_id",{method:"POST",headers:Object.assign(H(),{Prefer:"resolution=merge-duplicates"}),body:JSON.stringify({venue_id:V(),items:o,updated_at:new Date().toISOString()})});bump(c);return}
+        if(c==="order")throw Error("Используйте сохранение позиций заказа");
         const m=MAP[c];if(m.patch){await rest(m.table+"?"+m.key+"=eq."+encodeURIComponent(id)+(m.table==="flavors"?"":"&venue_id=eq."+V()),{method:"PATCH",body:JSON.stringify(m.fromDoc(id,o))});bump(c);return}
         await rest(m.table+"?on_conflict="+(m.conflict||m.key),{method:"POST",headers:Object.assign(H(),{Prefer:"resolution=merge-duplicates"}),body:JSON.stringify(m.fromDoc(id,o))});bump(c)},
       delete:async()=>{if(c==="stock"||c==="moves")throw new Error("Журнал нельзя удалять");const m=MAP[c];await rest(m.table+"?"+m.key+"=eq."+encodeURIComponent(id)+"&venue_id=eq."+V(),{method:"DELETE"});bump(c)}}},
@@ -792,43 +874,60 @@ window.POLKA_CONFIG={url:"https://wwcgvwfmlkegaqkksujo.supabase.co",anon:"eyJhbG
   const downloads={save:async({filename,data})=>{const b=new Blob([data],{type:"application/octet-stream"}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download=filename;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(u);a.remove()},1500)}};
   // ИИ-ассистент: цикл «запрос → инструменты → ответ» выполняется здесь, ключ ИИ остаётся на сервере
   const imgToBlock=file=>new Promise((res,rej)=>{const fr=new FileReader();fr.onerror=()=>rej({code:"image_rejected"});fr.onload=()=>{const im=new Image();im.onerror=()=>rej({code:"image_rejected"});im.onload=()=>{const k=Math.min(1,1280/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);res({type:"image",source:{type:"base64",media_type:"image/jpeg",data:c.toDataURL("image/jpeg",.75).split(",")[1]}})};im.src=fr.result};fr.readAsDataURL(file)});
-  const wait=(ms,signal)=>new Promise((res,rej)=>{const t=setTimeout(res,ms);if(signal)signal.addEventListener("abort",()=>{clearTimeout(t);rej({name:"AbortError"})},{once:true})});
   async function callAI(body,signal,onWait){
-    // Бесплатный Gemini иногда отвечает «занят» или «слишком много запросов»: ждём и пробуем ещё два раза
-    for(let a=0;;a++){
-      const r=await fetch(CFG.url+"/functions/v1/ai",{method:"POST",signal,headers:H(),body:JSON.stringify(body)});
-      const j=await r.json().catch(()=>({}));
-      if(r.ok)return j;
-      const e=j.error||(r.status===401?"session_expired":"server_error");
-      if((e==="busy"||(e==="rate_limited"&&j.scope!=="daily"))&&a<2){if(onWait)onWait(a);await wait(a?9000:5000,signal);continue}
-      throw {code:e==="not_configured"?"not_configured":e,text:""}}}
+    // Запрос может быть платным, поэтому неизвестный исход нельзя автоматически повторять.
+    const r=await fetch(CFG.url+"/functions/v1/ai",{method:"POST",signal,headers:H(),body:JSON.stringify(body)});
+    const j=await r.json().catch(()=>({}));
+    if(r.ok)return j;
+    const e=j.error||(r.status===401?"session_expired":"server_error");
+    throw {code:e==="not_configured"?"not_configured":e,text:""}}
   // Распознаёт фото без обращения к диалоговой модели (ocr_only) — для команд (/перенос и т.п.), где
   // решение детерминированное и модель не нужна. Возвращает сырой текст по каждому фото (может быть {failed})
   // и ocr — кто читал (sonnet/yandex), для подписи под ответом.
   const readPhotos=async(images,signal,inspection=false)=>{
+    const readerSession=typeof session!=="undefined"?session:null;
+    const readerScope=()=>readerSession?.token&&readerSession?.user?JSON.stringify([readerSession.user.venue_id,readerSession.user.tg_id]):null;
+    const scope=readerScope();
     const blocks=await Promise.all(images.map(imgToBlock));
     let ocr="";
     // Распознаём каждое фото отдельным запросом (ocr_only) — иначе на нескольких фото разом функция
     // Supabase упирается в свой лимит времени (150 с) и падает без ответа («Не получилось»).
     // Отдельные запросы быстрее по одному и не считаются в дневной лимит (там модель не вызывается).
-    // Не прочиталось — пробуем ещё раз; не вышло и со второго раза — фото помечаем как непрочитанное,
-    // а не пустым текстом: иначе дальше уверенно решают, что на фото ни одного вкуса
-    const texts=await Promise.all(blocks.map(async b=>{
-      let err="";
-      for(let a=0;a<2;a++){
-        try{const r=await callAI({system:"",messages:[{role:"user",content:[b]}],tools:[],ocr_only:true,...(inspection?{photo_mode:"inspection"}:{})},signal,()=>{});
-          if(inspection&&!r.inspection){err="inspection_unavailable";break}
-          if(!r.ocr){err="not_read";continue}
-          ocr=r.ocr;return (r.ocr_texts||[])[0]||""}
-        catch(e){if(e&&e.name==="AbortError")return {failed:"cancelled"};err=e&&e.code||"network";console.warn("photo read failed:",err)}}
-      return {failed:err}}));
-    return {texts,ocr}};
+    // Каждый снимок отправляется один раз: неизвестный исход платного запроса нельзя повторять.
+    const observations=[];
+    // Retain just the last selection in this signed-in tab. Use the exact JPEG sent to OCR.
+    const reusable=inspection&&scope&&blocks.every(b=>typeof b.source?.data==="string");
+    const previous=reusable&&readPhotos.last?.session===readerSession&&readPhotos.last.scope===scope&&Date.now()-readPhotos.last.at<=300000?readPhotos.last.pages:null;
+    const pages=new Map();
+    const readPage=async (b,index)=>{
+      try{const entry=reusable&&previous?.get(b.source.data);
+        const cached=entry&&Date.now()-entry.at<=300000&&entry.response;
+        const r=cached||await callAI({system:"",messages:[{role:"user",content:[b]}],tools:[],ocr_only:true,...(inspection?{photo_mode:"inspection",observation_schema_version:1}:{})},signal,()=>{});
+        if(inspection&&r.inspection!==true)return {failed:"inspection_unavailable"};
+        if(inspection&&(r.observation_schema_version!==1||!Array.isArray(r.observations)||r.observations.length!==1||!Array.isArray(r.observations[0])||!Array.isArray(r.ocr_texts)||r.ocr_texts.length!==1||typeof r.ocr_texts[0]!=="string"))return {failed:"inspection_contract"};
+        if(!r.ocr)return {failed:"not_read"};
+        if(reusable&&normalizeInspectionPage(r.ocr_texts[0],r.observations[0]))pages.set(b.source.data,cached?entry:{at:Date.now(),response:r});
+        if(inspection&&Array.isArray(r.observations?.[0]))observations[index]=r.observations[0];
+        ocr=r.ocr;return (r.ocr_texts||[])[0]||""}
+      catch(e){if(e?.code==="client_update_required")throw e;if(e&&e.name==="AbortError")return {failed:"cancelled"};const err=e&&e.code||"network";console.warn("photo read failed:",err);return {failed:err}}};
+    const texts=[];
+    if(inspection){
+      for(const [index,block] of blocks.entries()){
+        if(signal?.aborted||reusable&&(session!==readerSession||scope!==readerScope()))throw new Error("Остановлено");
+        texts.push(await readPage(block,index));
+      }
+      if(reusable){
+        if(signal?.aborted||session!==readerSession||scope!==readerScope())throw new Error("Остановлено");
+        readPhotos.last={session:readerSession,scope,at:Date.now(),pages};
+      }
+    }else texts.push(...await Promise.all(blocks.map(readPage)));
+    return {texts,ocr,observations}};
   // Текст команды (/перенос, /пополнить, …): читает фото, без обращения к диалоговой модели.
   // Возвращает {text, failed} — text уже в формате «Этикетка N: …», готов для matchText на клиенте.
   const readLabels=async(images,signal,options={})=>{
-    const{texts}=await readPhotos(images,signal,!!options.inspection);
+    const{texts,observations}=await readPhotos(images,signal,!!options.inspection);
     const failed=texts.filter(t=>t&&t.failed).length;
-    return {texts,text:texts.map((t,i)=>typeof t==="string"?"Фото "+(i+1)+":\n"+t:"").filter(Boolean).join("\n"),failed,total:texts.length}};
+    return {texts,text:texts.map((t,i)=>typeof t==="string"?"Фото "+(i+1)+":\n"+t:"").filter(Boolean).join("\n"),failed,total:texts.length,...(options.inspection?{observations}:{})}};
   const sample=async(turns,opts)=>{
     opts=opts||{};
     const first=turns[0]&&turns[0].role==="user"?turns[0].content:"";
@@ -898,15 +997,19 @@ const isOpen=b=>!!st.q||(st.tab==="order"&&!st.brand?(()=>{const d=DATA.some(x=>
 const cyr=t=>/^[а-яё]/i.test(t)?1:0;
 const abc=(a,b)=>(cyr(a)-cyr(b))||a.localeCompare(b,"ru",{sensitivity:"base",numeric:true});
 function toggleBrand(b){const k=fk(b);if(flip[k])delete flip[k];else flip[k]=true;try{localStorage.setItem("stoika-fold",JSON.stringify(flip))}catch(e){}render()}
-const stock={};let db=null,moves=[],busy=false;
+const stock={};let db=null,moves=[],journalReadState="loading",busy=false;
 // Черновик: изменения копятся здесь и пишутся в базу только после подтверждения в окне
-let draft={};
+let draft={};let legacyDraft={},quarantinedScopedDraft={},draftScopeLoaded=false,draftOwnerScope=null,draftSource='manual';
 // Позиции, которые в черновик положила команда (/перенос, /списать и т.п.) — команда уже сама
 // решила, что должно уйти в заказ; автодозаказ по остатку (autoOrder в commit()) для них не нужен,
 // иначе после «Подтвердить» в заказ попадает то же самое ещё раз (баг, найденный Максимом 2026-10-26)
 let cmdDraftIds=new Set(),inCmd=false;
-try{draft=JSON.parse(localStorage.getItem("stoika-draft")||"{}")||{}}catch(e){draft={}}
-const saveDraft=()=>{for(const k in draft){const d=draft[k];if(!d.d&&d.bar===undefined)delete draft[k]}try{localStorage.setItem("stoika-draft",JSON.stringify(draft))}catch(e){}};
+try{legacyDraft=JSON.parse(localStorage.getItem("stoika-draft")||"{}")||{}}catch(e){legacyDraft={}}
+const actionScope=()=>typeof db?.actionScope==='function'?db.actionScope():db?.stockScope?.()||null;
+const draftScopeKey=()=>actionScope()?"mixora-draft:v2:"+actionScope():null;
+const draftQuarantineKey=()=>actionScope()?"mixora-draft-quarantine:v1:"+actionScope():null;
+function loadScopedDraft(){const key=draftScopeKey(),qk=draftQuarantineKey();draft={};quarantinedScopedDraft={};draftScopeLoaded=!!key;draftOwnerScope=key?actionScope():null;draftSource='manual';if(!key)return;try{const prior=JSON.parse(localStorage.getItem(qk)||"null"),priorEntries=Array.isArray(prior?.entries)?prior.entries:prior?[prior]:[];for(const entry of priorEntries)Object.assign(quarantinedScopedDraft,entry?.draft&&typeof entry.draft==='object'?entry.draft:{});const saved=JSON.parse(localStorage.getItem(key)||"null");if(!saved)return;if(saved.version===2&&saved.scope===draftOwnerScope&&saved.source==='manual'&&saved.draft&&typeof saved.draft==='object'){draft=saved.draft;return}const quarantined={version:1,scope:draftOwnerScope,quarantinedAt:Date.now(),payload:saved,draft:saved?.draft&&typeof saved.draft==='object'?saved.draft:saved},archive={version:1,scope:draftOwnerScope,entries:[...priorEntries,quarantined]};localStorage.setItem(qk,JSON.stringify(archive));localStorage.removeItem(key);Object.assign(quarantinedScopedDraft,quarantined.draft)}catch(e){draft={}}}
+const saveDraft=()=>{for(const k in draft){const d=draft[k];if(!d.d&&d.bar===undefined)delete draft[k]}const scope=actionScope();if(!scope)return;if(!draftOwnerScope){draftOwnerScope=scope;draftScopeLoaded=true}if(scope!==draftOwnerScope||!draftScopeLoaded)return;try{localStorage.setItem("mixora-draft:v2:"+draftOwnerScope,JSON.stringify({version:2,scope:draftOwnerScope,source:draftSource,draft}))}catch(e){}};
 const byId=Object.fromEntries(DATA.map(x=>[x.id,x]));
 const wh=x=>(stock[x.id]&&typeof stock[x.id].wh==="number")?stock[x.id].wh:0;
 const onBar=x=>(stock[x.id]&&typeof stock[x.id].bar==="boolean")?stock[x.id].bar:x.bar;
@@ -933,7 +1036,7 @@ function chip(label,count,on,fn){const b=document.createElement("button");b.type
   b.innerHTML=esc(label)+(count!=null?"<small>"+count+"</small>":"");b.onclick=fn;return b}
 // Заказ: вкусы со стойки, которых на складе 0 или 1 банка. Количество к заказу общее для всех — в базе order/current
 let orderQ={},orderVer=0,orderM={},sups=[];
-let stockLoaded=false;
+let stockLoaded=false,orderLoaded=false;
 // В списке: то, что уже в заказе; подсказки — вкусы, которые считали на складе и там осталось 0–1 банки; при поиске — любой вкус
 const tracked=x=>!!stock[x.id]&&typeof stock[x.id].wh==="number";
 const oq=x=>orderQ[x.id]||0;
@@ -978,8 +1081,14 @@ function toast(html,undo){const t=$("#toast");t.innerHTML='<span>'+html+'</span>
   if(undo)$("#t-undo").onclick=()=>{t.hidden=true;undo()};clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},6000)}
 // One RPC owns stock and its immutable movement. Revision prevents stale writes.
 function stockEntry(id,doc,mv={}){return {id,revision:stock[id]?.revision||0,doc:{wh:0,...doc},kind:mv.kind||"in",reason:mv.reason||null}}
+function showStockRecovery(message=""){
+  const pending=!!db.hasPendingStock?.();
+  $("#stock-recover").hidden=!pending;
+  $("#stock-recovery-message").textContent=message||(pending?"Ответ по складской операции не получен. Восстановите результат перед новым действием.":"");
+  $("#stock-recovery").hidden=!pending&&!message;
+}
 async function stockWrite(entries){if(!db.applyStock)throw Error("Складской RPC недоступен");try{const rows=await db.applyStock(entries);rows.forEach(r=>stock[r.id]=r.doc);return rows}
-  finally{const b=$("#stock-recover");if(b)b.hidden=!db.hasPendingStock?.()}}
+  finally{showStockRecovery()}}
 async function stockOne(id,doc,mv){return stockWrite([stockEntry(id,doc,mv)])}
 async function toBar(x,k){if(!db||busy)return;busy=true;const id=x.id,n=wh(x),at=new Date().toISOString(),take=k||1;
   const prev={wh:n,bar:(stock[id]&&typeof stock[id].bar==="boolean")?stock[id].bar:null};
@@ -1021,7 +1130,7 @@ async function finish(x){if(!db||busy)return;busy=true;const id=x.id,n=wh(x),at=
   try{await stockOne(id,Object.assign({},stock[id]||{},patch),mv)}catch(e){busy=false;setStatus("Не сохранилось: "+(e&&e.message||"нет доступа"),true);return}
   busy=false;const k=autoOrder(x,n>0?n-1:0);
   toast('<b>'+esc(nm(x))+'</b>: '+(n>0?"ещё одна штука со склада, осталось "+(n-1):"убран со стойки и добавлен в стоп-лист")+(k?" · в заказ "+k+" шт.":""),()=>{if(k){delete orderQ[id];saveOrder()}askUndo(id)});render()}
-let renderLater=false,lastOrderAt="";
+let renderLater=false;
 // ===== Стойка / Склад / Стоп-лист / Неликвид: нажал на вкус — появились нужные действия =====
 const V2=new Set(["bar","wh","stop","slow"]);
 let selId="",whLow=false,invNoSz=false,staffReady=false;
@@ -1256,25 +1365,60 @@ function renderTray(){
 }
 function line(x){
   const d=dd(x),n=wh(x);
-  return '<li><span>'+esc(nm(x))+'</span><span class="ch">'+(d?(d>0?"+":"−")+Math.abs(d)+' <small>('+n+' → '+(n+d)+')</small>':"")+'</span><button class="x" type="button" data-rm="'+x.id+'" aria-label="Убрать из списка">✕</button></li>';
+  const quantity=Math.abs(d),down=d<0?-1:1;
+  return '<li><span>'+esc(nm(x))+'</span><span class="ch stock-review-step"><button class="btn" type="button" data-draft-step="'+esc(x.id)+'" data-step="'+(-down)+'" aria-label="Уменьшить количество">−</button><b>'+quantity+'</b><button class="btn" type="button" data-draft-step="'+esc(x.id)+'" data-step="'+down+'" aria-label="Увеличить количество">+</button> <small>('+n+' → '+(n+d)+')</small></span><button class="x" type="button" data-rm="'+esc(x.id)+'" aria-label="Убрать из списка">✕</button></li>';
 }
-function openReview(){
-  const g=groups();let h='<h2>Проверь изменения</h2>';
+function editReviewDraft(id,step,reviewContext){
+  const item=byId[id],entry=draft[id];if(!item||!entry||!Number.isSafeInteger(step))return;
+  const confirmation=aiDraftConfirmation;
+  const current=dd(item),sign=current<0?-1:1,max=sign<0?wh(item):999,next=Math.max(1,Math.min(max,Math.abs(current)+step*sign));
+  entry.d=sign*next;stockReviewGeneration++;aiDraftConfirmation=confirmation?{snapshot:JSON.stringify(draft),check:confirmation.check}:null;saveDraft();render();if(reviewContext)reviewContext.reopen();else openReview();
+}
+function recordReviewedStockOutcome(outcome,snapshot){
+  if(!aiDraftWorkflowPlan||aiDraftConfirmation?.snapshot!==snapshot)return;
+  aiDraftWorkflowPlan.stockState=outcome?.status==='confirmed'?'confirmed':outcome?.status==='unknown'?'unknown':'prepared';
+  const orderState=workflowPlanLeg(aiDraftWorkflowPlan,'order');
+  savePhotoWorkflow({status:workflowPlanStatus(aiDraftWorkflowPlan.stockState,orderState),stock:aiDraftWorkflowPlan.stockState,order:orderState});
+}
+function openReview(reviewContext){
+  const snapshot=JSON.stringify(draft),reviewedAt=Date.now(),actionScope=typeof db?.actionScope==='function'?db.actionScope():db?.stockScope?.();
+  const ids=Object.keys(draft),identity=JSON.stringify(ids.map(id=>[byId[id],stock[id]]));
+  const bound=aiDraftConfirmation?.snapshot===snapshot?aiDraftConfirmation.check:null;
+  const verify=()=>{if(JSON.stringify(draft)!==snapshot)throw Error('Черновик изменился. Откройте актуальную проверку склада.');if(Date.now()-reviewedAt>300000)throw Error('Проверка устарела. Откройте её заново.');if((typeof db?.actionScope==='function'?db.actionScope():db?.stockScope?.())!==actionScope)throw Error('Сессия изменилась. Откройте проверку заново.');if(bound)bound();if(JSON.stringify(ids.map(id=>[byId[id],stock[id]]))!==identity)throw Error('Позиции или остатки изменились. Откройте проверку заново.');};
+  const g=groups();let h='<h2>Проверь изменения</h2><div class="stock-review-list">';
   const sec=(t,arr,fn)=>arr.length?'<h3>'+t+'</h3><ul>'+arr.map(fn).join("")+'</ul>':"";
   const sOut=g.out.reduce((a,x)=>a-dd(x),0),sIn=g.in.reduce((a,x)=>a+dd(x),0);
-  h+=sec("Списание — "+sOut+" шт.",g.out,line);
-  h+=sec("Пополнение — "+sIn+" шт.",g.in,line);
-  const bl=x=>'<li><span>'+esc(nm(x))+'</span><span class="ch"></span><button class="x" type="button" data-rm="'+x.id+'" data-bar="1" aria-label="Убрать из списка">✕</button></li>';
-  h+=sec("Поставить на стойку",g.on,bl);
-  h+=sec("Убрать со стойки",g.off,bl);
+  const bl=x=>'<li><span>'+esc(nm(x))+'</span><span class="ch"></span><button class="x" type="button" data-rm="'+esc(x.id)+'" data-bar="1" aria-label="Убрать из списка">✕</button></li>';
+  const photoTransfer=g.out.length&&Object.keys(draft).every(id=>aiPhotoTransferIds?.has(id)&&draft[id].d<0&&(draft[id].bar===true||draft[id].bar===undefined&&draft[id].kind==='tobar'));
+  if(photoTransfer)h+=sec("Переносим — "+sOut+" шт.",g.out,line);
+  else{h+=sec("Списание — "+sOut+" шт.",g.out,line);h+=sec("Пополнение — "+sIn+" шт.",g.in,line);h+=sec("Поставить на стойку",g.on,bl);h+=sec("Убрать со стойки",g.off,bl)}
   if(!Object.keys(draft).length)h+='<p class="muted">Список пуст.</p>';
-  h+='<div class="dlg-btns"><button class="btn go" type="button" id="dlg-ok"'+(Object.keys(draft).length&&db?"":" disabled")+'>Подтвердить</button><button class="btn" type="button" id="dlg-back">Вернуться</button><button class="btn danger" type="button" id="dlg-reset"'+(Object.keys(draft).length?"":" disabled")+'>Сбросить всё</button></div>';
+  h+='</div><div class="dlg-btns stock-review-actions"><button class="btn go" type="button" id="dlg-ok"'+(Object.keys(draft).length&&db?"":" disabled")+'>Подтвердить</button><button class="btn" type="button" id="dlg-back">Вернуться</button><button class="btn danger" type="button" id="dlg-reset"'+(Object.keys(draft).length?"":" disabled")+'>Сбросить всё</button></div>';
   showDlg(h);
-  $("#dlg-ok").onclick=commit;
+  let submitted=false;
+  $("#dlg-ok").onclick=async()=>{
+    if(submitted)return;
+    try{
+      reviewContext?.verify();verify();submitted=true;reviewContext?.saving(true);
+      const outcome=await commit();
+      recordReviewedStockOutcome(outcome,snapshot);
+      reviewContext?.settle(outcome,ids.length);
+      if(outcome?.status!=='confirmed'&&outcome?.status!=='unknown')submitted=false;
+      return outcome;
+    }catch(e){if(reviewContext)reviewContext.fail(e);else setStatus(e.message,true);return{status:"rejected",reason:"review_invalid"}}
+    finally{reviewContext?.saving(false)}
+  };
   $("#dlg-back").onclick=closeDlg;
-  $("#dlg-reset").onclick=()=>{draft={};saveDraft();closeDlg();render()};
+  $("#dlg-reset").onclick=()=>{if(submitted)return;if(reviewContext?.reset){reviewContext.reset();closeDlg();return}draft={};saveDraft();closeDlg();render()};
   $("#dlg-body").querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{const id=b.dataset.rm;
-    if(b.dataset.bar){delete draft[id].bar}else{draft[id].d=0}saveDraft();render();openReview()});
+    if(!draft[id])return;
+    if(photoTransfer)delete draft[id];
+    else if(b.dataset.bar)delete draft[id].bar;
+    else draft[id].d=0;
+    if(draft[id]&&!draft[id].d&&draft[id].bar===undefined)delete draft[id];
+    if(bound)aiDraftConfirmation={snapshot:JSON.stringify(draft),check:bound};
+    stockReviewGeneration++;saveDraft();render();if(reviewContext)reviewContext.reopen();else openReview()});
+  $("#dlg-body").querySelectorAll("[data-draft-step]").forEach(b=>b.onclick=()=>editReviewDraft(b.dataset.draftStep,Number(b.dataset.step),reviewContext));
 }
 function showDlg(h){$("#dlg-body").innerHTML=h;const d=$("#dlg");if(d.open)try{d.close()}catch(e){d.removeAttribute("open")}
   try{d.showModal()}catch(e){d.setAttribute("open","")}
@@ -1282,42 +1426,225 @@ function showDlg(h){$("#dlg-body").innerHTML=h;const d=$("#dlg");if(d.open)try{d
 function closeDlg(){const d=$("#dlg");try{d.close()}catch(e){d.removeAttribute("open")}$("#dlg-scrim").hidden=true}
 $("#dlg-scrim").onclick=closeDlg;
 async function commit(){
-  if(!db||busy)return;busy=true;$("#dlg-ok").disabled=true;
+  if(!db)return{status:"not_submitted",reason:"database_unavailable"};if(busy)return{status:"not_submitted",reason:"busy"};if(!draftOwnerScope||(typeof db?.actionScope==='function'?db.actionScope():db?.stockScope?.())!==draftOwnerScope){setStatus("Склад не подтверждён: черновик принадлежит другой сессии. Создайте изменения заново.",true);return{status:"rejected",reason:"scope_changed"}}busy=true;$("#dlg-ok").disabled=true;
   const ids=Object.keys(draft).filter(id=>byId[id]);
   // Persist the reviewed request with the draft; retry after reload uses original
   // revisions and desired quantities, even if polling already saw its commit.
-  const key="mixora-reviewed-stock:"+db.stockScope(),signature=JSON.stringify(draft);
+  const key="mixora-reviewed-stock:"+(typeof db?.actionScope==='function'?db.actionScope():db?.stockScope?.()),recoveryKey="mixora-reviewed-stock-recovery:"+db.stockScope(),signature=JSON.stringify(draft);
   try{
     let saved=JSON.parse(localStorage.getItem(key)||"null");
     if(saved&&saved.signature!==signature)throw Error("Сначала восстановите результат предыдущего подтверждения");
     if(!saved){saved={signature,entries:ids.map(id=>{const d=draft[id],n=wh(byId[id]),next=n+(d.d||0);
       const doc={...stock[id],wh:next};if(d.bar!==undefined)doc.bar=d.bar;
       return stockEntry(id,doc,{kind:d.kind||(d.bar===true?"tobar":d.d<0?"wo":"in")})})};localStorage.setItem(key,JSON.stringify(saved))}
-    const rows=await stockWrite(saved.entries);localStorage.removeItem(key);
+    const rows=await stockWrite(saved.entries);localStorage.removeItem(key);localStorage.removeItem(recoveryKey);
     const candidates=rows.filter(r=>draft[r.id]?.d<0&&!cmdDraftIds.has(r.id)&&r.doc.wh<=1);
-    ids.forEach(id=>{delete draft[id];cmdDraftIds.delete(id)});saveDraft();closeDlg();setStatus("Подтверждено позиций: "+ids.length);
+    ids.forEach(id=>{delete draft[id];cmdDraftIds.delete(id)});if(!Object.keys(draft).length)draftSource='manual';saveDraft();closeDlg();setStatus("Подтверждено позиций: "+ids.length);
     try{const auto=candidates.map(r=>[byId[r.id],autoOrder(byId[r.id],r.doc.wh)]).filter(a=>a[1]);
       if(auto.length)toast("В заказ добавились: "+auto.map(([x,n])=>esc(nm(x))+" — "+n).join(", "))}
-    catch(e){setStatus("Склад подтверждён; автозаказ не сохранился: "+e.message,true)}
-  }catch(e){if(/stock_/.test(e.message))localStorage.removeItem(key);setStatus("Склад не подтверждён: "+e.message+". Черновик сохранён",true)}
+    catch(e){setStatus("Склад подтверждён; автозаказ не сохранился: "+e.message,true)}return{status:"confirmed",receipt:rows}
+  }catch(e){if(/stock_/.test(e.message)){localStorage.removeItem(key);localStorage.removeItem(recoveryKey)}else{const requestId=db.pendingStockRequestId?.();if(requestId)try{const reviewed=JSON.parse(localStorage.getItem(key)||"null");if(reviewed&&reviewed.signature===signature){reviewed.requestId=requestId;localStorage.setItem(key,JSON.stringify(reviewed));localStorage.setItem(recoveryKey,JSON.stringify({version:1,scope:db.stockScope(),requestId,signature:reviewed.signature,entries:reviewed.entries}))}}catch(_){}}setStatus("Склад не подтверждён: "+e.message+". Черновик сохранён",true);return{status:/stock_/.test(e.message)?"rejected":"unknown",reason:e.message}}
   finally{busy=false;$("#dlg-ok").disabled=false;render()}
 }
 function askUndo(id){const m=lastMove(id);if(!m)return;
   showDlg('<h2>Отменить последнее движение?</h2><p>Будет добавлено обратное движение. Если позиция уже менялась, сервер отклонит отмену.</p><div class="dlg-btns"><button class="btn go" id="dlg-ok">Отменить движение</button><button class="btn" id="dlg-back">Назад</button></div>');
   $("#dlg-back").onclick=closeDlg;$("#dlg-ok").onclick=async()=>{await undoMove(m.id);closeDlg()};
 }
-let oTimer=null,oSaving=false,oDirty=false;
-function saveOrder(){oDirty=true;orderVer++;clearTimeout(oTimer);oTimer=setTimeout(()=>{oTimer=null;flushOrder()},150)}
-async function flushOrder(){
-  if(oSaving||!oDirty)return;
-  oSaving=true;const version=orderVer;
-  const at=new Date(Math.max(Date.now(),(Date.parse(lastOrderAt)||0)+1)).toISOString();
-  const payload=JSON.parse(JSON.stringify({q:orderQ,m:orderM,at}));
-  lastOrderAt=at;
-  try{await db.doc("order/current").set(payload);if(orderVer===version)oDirty=false}
-  catch(e){setStatus("Заказ не сохранился. Изменения оставлены на экране; повтори изменение для сохранения: "+(e&&e.message||"нет доступа"),true);return}
-  finally{oSaving=false}
-  if(oDirty){clearTimeout(oTimer);oTimer=null;flushOrder()}
+let oTimer=null,oSaving=null,oDirty=false;
+const orderSaveError="Сохранение заказа не подтверждено.";
+const orderConflictMessage="Заказ изменён на другом устройстве. Ваши правки сохранены в черновике. Сверьте позиции перед записью.";
+let orderBase={q:{},m:{},revision:0},orderRemote=orderBase,orderRequest=null,orderConflict=null,orderDraftKey=null;
+let orderScope=null,orderChecks=[];
+const orderCopy=value=>JSON.parse(JSON.stringify(value));
+const orderSnapshot=()=>orderCopy({q:orderQ,m:orderM});
+const orderValue=(doc,map,id)=>Object.hasOwn(doc[map],id)?doc[map][id]:null;
+const orderJSON=value=>JSON.stringify(value,(_,v)=>v&&typeof v==="object"&&!Array.isArray(v)
+  ? Object.fromEntries(Object.keys(v).sort().map(k=>[k,v[k]])):v);
+function orderChanges(base,desired){
+  const changes=[];
+  for(const map of ["q","m"]){
+    for(const id of new Set([...Object.keys(base[map]),...Object.keys(desired[map])])){
+      const before=orderValue(base,map,id),after=orderValue(desired,map,id);
+      if(orderJSON(before)!==orderJSON(after))changes.push({map,id,before,after});
+    }
+  }
+  return changes;
+}
+function includeOrderChecks(changes,base,desired){
+  for(const check of orderChecks){
+    if(orderValue(desired,"q",check.id)===check.value&&!changes.some(c=>c.map==="q"&&c.id===check.id)){
+      changes.push({map:"q",id:check.id,before:orderValue(base,"q",check.id),after:check.value});
+    }
+  }
+  return changes;
+}
+function orderOverlay(doc,changes,field){
+  const next=orderCopy(doc);
+  for(const change of changes){
+    const value=change[field];
+    if(value===null)delete next[change.map][change.id];
+    else Object.defineProperty(next[change.map],change.id,{value,writable:true,enumerable:true,configurable:true});
+  }
+  return next;
+}
+function displayOrder(doc){const copy=orderCopy(doc);orderQ=copy.q;orderM=copy.m}
+function keepOrderInputExpectation(map,id,seen){
+  // A snapshot may have changed the model while render was deferred for
+  // the focused field. Compare with the value the user actually edited.
+  if(orderJSON(orderValue({q:orderQ,m:orderM},map,id))!==orderJSON(seen)){
+    orderBase=orderOverlay(orderBase,[{map,id,before:seen}],"before");
+  }
+}
+function receiveOrder(doc){
+  if(orderScope&&orderJSON(db.orderScope())!==orderJSON(orderScope))return;
+  const next={q:doc?.q||{},m:doc?.m||{},revision:Number(doc?.revision)||0};
+  if(next.revision>=orderRemote.revision)orderRemote=next;
+  if(!oDirty&&!oSaving){orderBase=orderRemote;displayOrder(orderBase)}
+  render();
+}
+function showOrderProblem(message=""){
+  const panel=$("#order-save-problem");
+  if(!panel)return;
+  panel.hidden=!message;
+  $("#order-save-message").textContent=message;
+  $("#order-save-retry").textContent=orderConflict?"Сверить правки заказа":"Повторить сохранение заказа";
+}
+function persistOrderDraft(){
+  if(!orderDraftKey)return;
+  if(!oDirty)sessionStorage.removeItem(orderDraftKey);
+  else sessionStorage.setItem(orderDraftKey,JSON.stringify({
+    base:orderBase,local:orderSnapshot(),request:orderRequest,conflict:orderConflict,version:orderVer,checks:orderChecks,
+  }));
+}
+function restoreOrderDraft(){
+  if(!db.orderScope)return;
+  orderScope=db.orderScope();
+  orderDraftKey="mixora-order-draft:"+orderScope.venue+":"+orderScope.actor;
+  try{
+    const saved=JSON.parse(sessionStorage.getItem(orderDraftKey)||"null");
+    if(!saved)return;
+    orderBase=saved.base;orderRemote={q:{},m:{},revision:0};
+    orderRequest=saved.request;orderConflict=saved.conflict;orderVer=saved.version;
+    orderChecks=saved.checks||[];
+    displayOrder(saved.local);oDirty=true;
+    showOrderProblem(orderConflict?orderConflictMessage:"Есть несохранённые правки заказа.");
+  }catch(e){showOrderProblem("Не удалось прочитать черновик заказа: "+e.message)}
+}
+function markOrderDirty(){
+  oDirty=true;
+  const version=++orderVer;
+  try{persistOrderDraft()}catch(e){showOrderProblem(orderSaveError+" Черновик недоступен: "+e.message)}
+  return version;
+}
+function saveOrder(){
+  markOrderDirty();
+  clearTimeout(oTimer);
+  oTimer=setTimeout(()=>{oTimer=null;flushOrder()},150);
+}
+async function flushOrder(through=Infinity){
+  let retried=false,saved;
+  while(oDirty){
+    if(orderConflict){
+      if(through!==Infinity)throw new Error(orderConflictMessage);
+      return;
+    }
+    if(!oSaving){
+      clearTimeout(oTimer);
+      oTimer=null;
+      const snapshot=orderSnapshot();
+      const version=orderRequest?.version??orderVer;
+      const done=(async()=>{
+        if(!orderRequest){
+          const changes=includeOrderChecks(orderChanges(orderBase,snapshot),orderBase,snapshot);
+          if(!changes.length){
+            oDirty=false;orderChecks=[];
+            orderBase=orderRemote.revision>=orderBase.revision?orderRemote:orderBase;
+            displayOrder(orderBase);persistOrderDraft();showOrderProblem();render();
+            return orderBase.q;
+          }
+          orderRequest={id:crypto.randomUUID(),changes,snapshot,version,scope:orderScope};
+        }
+        // Save the exact request before dispatch so reload/retry cannot invent a new UUID.
+        persistOrderDraft();
+        const request=orderRequest;
+        let reply;
+        try{reply=await db.applyOrder(request.id,request.changes,request.scope)}
+        catch(e){
+          // Validation failed before any write. Allow edits to replace this
+          // request; transport failures still keep its exact UUID and body.
+          if(e?.message==="order_invalid_request"){orderRequest=null;persistOrderDraft()}
+          throw e;
+        }
+        if(!reply?.order||!["applied","conflict"].includes(reply.status))throw new Error("Некорректный ответ сервера");
+        if(reply.order.revision>=orderRemote.revision)orderRemote=reply.order;
+        orderRequest=null;
+        if(reply.status==="conflict"){
+          orderConflict=reply;
+          persistOrderDraft();
+          throw new Error(orderConflictMessage);
+        }
+        const local=orderSnapshot();
+        orderChecks=orderChecks.filter(c=>c.version>request.version&&orderValue(local,"q",c.id)===c.value);
+        const later=includeOrderChecks(orderChanges(request.snapshot,local),request.snapshot,local);
+        // Preserve the value seen when a later local edit was made, even if
+        // this acknowledgement also brings changes from another client.
+        orderBase=orderOverlay(orderRemote,later,"before");
+        displayOrder(orderOverlay(orderRemote,later,"after"));
+        oDirty=later.length>0;
+        persistOrderDraft();
+        showOrderProblem();
+        const status=$("#status")?.textContent;
+        if(!oDirty&&(status?.startsWith(orderSaveError)||status===orderConflictMessage))setStatus("Заказ сохранён");
+        render();
+        return reply.order.q;
+      })().catch(e=>{
+        const message=orderConflict?orderConflictMessage:orderSaveError+" Правки оставлены на экране. "+(e?.message||"нет доступа");
+        showOrderProblem(message);setStatus(message,true);
+        throw e;
+      }).finally(()=>{oSaving=null});
+      oSaving={version,done};
+    }
+    // Wait for a snapshot that includes this caller's edits.
+    const {version,done}=oSaving;
+    try{
+      saved=await done;
+      if(version>=through)return saved;
+    }
+    catch(e){
+      if(through===Infinity)return;
+      if(version>=through||orderConflict||retried||e?.message?.startsWith("order_"))throw e;
+      // One attempt to resolve an older request before sending newer edits.
+      retried=true;
+    }
+  }
+  return saved??orderBase.q;
+}
+function reviewOrderConflict(){
+  if(oSaving)return;
+  if(!orderConflict){flushOrder();return}
+  const latest=orderRemote.revision>=orderConflict.order.revision?orderRemote:orderConflict.order;
+  const reviewedVersion=orderVer;
+  const snapshot=orderSnapshot(),changes=includeOrderChecks(orderChanges(orderBase,snapshot),orderBase,snapshot);
+  const describe=value=>value===null?"нет позиции":typeof value==="object"?`${value.n||""} · ${value.q} шт.`:`${value} шт.`;
+  const rows=changes.filter(c=>orderJSON(c.before)!==orderJSON(orderValue(latest,c.map,c.id))).map(c=>{
+    const name=c.map==="q"?(byId[c.id]?nm(byId[c.id]):c.id):(c.after?.n||c.before?.n||c.id);
+    return "<li>"+esc(name)+": на сервере "+esc(describe(orderValue(latest,c.map,c.id)))+" · ваша правка "+esc(describe(c.after))+"</li>";
+  }).join("");
+  showDlg('<h2>Сверить изменения заказа</h2><p>Ниже показаны спорные позиции. Если продолжить, будут отправлены все ваши правки из черновика.</p><ul>'+rows+'</ul><div class="dlg-btns"><button class="btn go" id="order-apply-draft">Применить мои правки</button><button class="btn" id="order-discard-draft">Отбросить мои правки</button><button class="btn" id="dlg-back">Назад</button></div>');
+  function resolve(keep){
+    if(orderVer!==reviewedVersion){reviewOrderConflict();return}
+    orderBase=keep||latest.revision>=orderRemote.revision?latest:orderRemote;orderConflict=null;
+    if(!keep)orderChecks=[];
+    displayOrder(keep?orderOverlay(latest,changes,"after"):orderBase);
+    oDirty=keep&&changes.length>0;
+    try{persistOrderDraft()}catch(e){showOrderProblem(orderSaveError+" "+e.message);return}
+    showOrderProblem();closeDlg();render();
+    if(!keep&&$("#status")?.textContent===orderConflictMessage)setStatus("Загружен актуальный заказ");
+    if(oDirty)flushOrder();
+  }
+  $("#order-apply-draft").onclick=()=>resolve(true);
+  $("#order-discard-draft").onclick=()=>resolve(false);
+  $("#dlg-back").onclick=closeDlg;
 }
 function addAllStop(){let n=0;DATA.filter(x=>inStop(x)&&!flag(x,"slow")).forEach(x=>{if(!oq(x)){orderQ[x.id]=1;n++}});if(n){saveOrder();toast(n+" "+(n===1?"позиция добавлена":"позиций добавлено")+" в заказ")}render()}
 // Позиции заказа: из каталога и добавленные вручную, разложенные по поставщикам (поставщик бренда — в suppliers)
@@ -1331,7 +1658,7 @@ function orderGroups(){const g={};
   return Object.values(g).sort((p,q)=>(p.sup?0:1)-(q.sup?0:1)||abc(p.sup?p.sup.name:"",q.sup?q.sup.name:""))}
 const sortRows=rows=>rows.slice().sort((p,q)=>abc(p.b,q.b)||abc(p.l+p.n,q.l+q.n));
 function orderText(rows,sup){
-  const by={};sortRows(rows).forEach(r=>{(by[r.b||"Без бренда"]=by[r.b||"Без бренда"]||[]).push(r)});
+  const by=Object.create(null);sortRows(rows).forEach(r=>{(by[r.b||"Без бренда"]=by[r.b||"Без бренда"]||[]).push(r)});
   return "Заказ табака "+new Date().toLocaleDateString("ru-RU")+(sup?" — "+sup.name:"")+"\n\n"+Object.keys(by).map(b=>b+"\n"+by[b].map(r=>"— "+r.n+(r.l?" ("+r.l+")":"")+" — "+r.q+" шт.").join("\n")).join("\n\n");
 }
 function contactHtml(c){if(!c)return"";return esc(c).replace(/(@[A-Za-z0-9_]{4,})|(https?:\/\/\S+)|([\w.+-]+@[\w-]+\.[\w.]+)|(\+?\d[\d\s()-]{8,}\d)/g,(m,tg,url,em,ph)=>
@@ -1368,9 +1695,10 @@ async function saveXlsx(grp,btn){
     await dl.save({filename:name,data:new Uint8Array(await wb.xlsx.writeBuffer())});btn.textContent="Сохранено";
   }catch(e){btn.textContent=e&&e.code==="declined"?old:"Не вышло";if(e&&e.code!=="declined")setStatus("Excel: "+(e.message||e.code||"ошибка"),true)}
   btn.disabled=false;setTimeout(()=>{btn.textContent=old},2500)}
-function openOrder(){
-  const G=orderGroups(),all=orderRows();
+function openOrder(message=""){
+  const G=orderGroups(),all=orderRows(),opened=orderSnapshot();
   showDlg('<div class="dhead"><h2>Заказ по поставщикам</h2><button class="xbtn" type="button" id="dlg-back" aria-label="Закрыть">×</button></div>'
+    +(message?'<p role="status">'+esc(message)+'</p>':"")
     +G.map((g,i)=>'<div class="ogrp"><h3>'+esc(g.sup?g.sup.name:"Без поставщика")+'</h3>'+(g.sup&&g.sup.contact?'<div class="ct">'+contactHtml(g.sup.contact)+'</div>':'<div class="ct muted">контакт не указан</div>')
       +'<textarea readonly rows="6" id="ot'+i+'">'+esc(orderText(g.rows,g.sup))+'</textarea><div class="obtns">'+(sendLink(g.sup,orderText(g.rows,g.sup))?'<a class="btn go snd" data-snd="'+i+'" target="_blank" rel="noopener" href="'+esc(sendLink(g.sup,orderText(g.rows,g.sup)))+'">Отправить поставщику</a>':'')+'<button class="btn go" type="button" data-xl="'+i+'">Excel</button><button class="btn" type="button" data-cp="'+i+'">Скопировать</button><button class="btn danger trash" type="button" data-del="'+i+'" aria-label="Удалить заказ поставщика"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button></div></div>').join("")
     +'<div class="dlg-btns" style="margin-top:16px">'+(G.length>1?'<button class="btn danger" type="button" id="o-clear">Удалить весь заказ</button>':'')+'</div>'
@@ -1381,16 +1709,27 @@ function openOrder(){
   $("#dlg-body").querySelectorAll("[data-cp]").forEach(b=>b.onclick=async()=>{const ta=$("#ot"+b.dataset.cp);let ok=false;
     try{await navigator.clipboard.writeText(ta.value);ok=true}catch(e){try{ta.select();ok=document.execCommand("copy")}catch(e2){}}
     b.textContent=ok?"Скопировано":"Выдели и скопируй"});
-  const dropRows=rows=>{rows.forEach(r=>{if(r.x){revertWish(wishIdsFor(r.x.id));delete orderQ[r.x.id]}else{revertWish((orderM[r.mk]&&orderM[r.mk].wids)||[]);delete orderM[r.mk]}});saveOrder();render()};
+  const dropRows=rows=>{
+    const current=orderSnapshot();
+    if(rows.some(r=>{const map=r.x?"q":"m",id=r.x?r.x.id:r.mk;return orderJSON(orderValue(opened,map,id))!==orderJSON(orderValue(current,map,id))})){
+      openOrder("Заказ изменился. Сверьте актуальные позиции перед удалением.");
+      return false;
+    }
+    rows.forEach(r=>{if(r.x){revertWish(wishIdsFor(r.x.id));delete orderQ[r.x.id]}else{revertWish((orderM[r.mk]&&orderM[r.mk].wids)||[]);delete orderM[r.mk]}});
+    saveOrder();render();return true;
+  };
   const twice=(b,fn)=>{if(b.dataset.sure){fn();return}const o=b.innerHTML;b.dataset.sure="1";b.textContent="Точно удалить?";b.style.width="auto";b.style.padding="0 12px";setTimeout(()=>{if(b.isConnected){delete b.dataset.sure;b.innerHTML=o;b.style.width="";b.style.padding=""}},3000)};
-  $("#dlg-body").querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>twice(b,()=>{dropRows(G[+b.dataset.del].rows);orderRows().length?openOrder():closeDlg()}));
-  if($("#o-clear"))$("#o-clear").onclick=function(){twice(this,()=>{dropRows(all);closeDlg()})};
+  $("#dlg-body").querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>twice(b,()=>{if(dropRows(G[+b.dataset.del].rows))orderRows().length?openOrder():closeDlg()}));
+  if($("#o-clear"))$("#o-clear").onclick=function(){twice(this,()=>{if(dropRows(all))closeDlg()})};
 }
 // Ручные позиции заказа (вкуса нет в каталоге)
 function renderManual(){const el=$("#omanual"),M=Object.entries(orderM);
-  el.innerHTML='<h3>Добавлено вручную</h3>'+(M.length?M.map(([k,m])=>'<div class="row"><div><b>'+esc(m.b||"")+'</b> '+esc(m.n||"")+'</div><div class="qty"><input class="oin" type="number" inputmode="numeric" min="0" max="99" value="'+(m.q||0)+'" data-m="'+k+'" aria-label="Сколько штук"><button class="btn" type="button" data-mdel="'+k+'" aria-label="Убрать">✕</button></div></div>').join(""):'<p class="muted small" style="margin:0 0 6px">Если нужного вкуса нет в списке, впиши его сюда.</p>')
+  el.innerHTML='<h3>Добавлено вручную</h3>'+(M.length?M.map(([k,m])=>'<div class="row"><div><b>'+esc(m.b||"")+'</b> '+esc(m.n||"")+'</div><div class="qty"><input class="oin" type="number" inputmode="numeric" min="0" max="99" value="'+esc(m.q||0)+'" data-m="'+esc(k)+'" data-order-seen="'+esc(JSON.stringify(m))+'" aria-label="Сколько штук"><button class="btn" type="button" data-mdel="'+esc(k)+'" aria-label="Убрать">✕</button></div></div>').join(""):'<p class="muted small" style="margin:0 0 6px">Если нужного вкуса нет в списке, впиши его сюда.</p>')
     +'<button class="btn sm" type="button" id="m-add"'+(db?"":" disabled")+'>+ Позиция вручную</button>'}
-$("#omanual").addEventListener("change",e=>{const i=e.target.closest("input[data-m]");if(!i)return;const m=orderM[i.dataset.m];if(!m)return;const k=Math.max(0,Math.min(99,Math.round(Number(i.value)||0)));if(k)m.q=k;else{revertWish(m.wids||[]);delete orderM[i.dataset.m]}saveOrder();render()});
+$("#omanual").addEventListener("change",e=>{const i=e.target.closest("input[data-m]");if(!i)return;const id=i.dataset.m,m=JSON.parse(i.dataset.orderSeen);
+  keepOrderInputExpectation("m",id,m);
+  const k=Math.max(0,Math.min(99,Math.round(Number(i.value)||0)));
+  if(k)orderM[id]={...m,q:k};else{revertWish(m.wids||[]);delete orderM[id]}saveOrder();render()});
 $("#omanual").addEventListener("click",e=>{const d=e.target.closest("[data-mdel]");if(d){revertWish((orderM[d.dataset.mdel]&&orderM[d.dataset.mdel].wids)||[]);delete orderM[d.dataset.mdel];saveOrder();render();return}
   if(e.target.closest("#m-add"))addManual()});
 function addManual(){const bs=[...new Set(DATA.map(x=>x.b))].sort(abc);
@@ -1400,7 +1739,7 @@ function addManual(){const bs=[...new Set(DATA.map(x=>x.b))].sort(abc);
   $("#dlg-back").onclick=closeDlg;$("#m-b").focus();
   $("#m-ok").onclick=()=>{const b=$("#m-b").value.trim(),n=$("#m-n").value.trim(),q=Math.max(1,Math.min(99,Math.round(Number($("#m-q").value)||1)));if(!n){$("#m-n").focus();return}
     const hit=DATA.find(x=>norm(x.b)===norm(b)&&norm(x.n)===norm(n));
-    if(hit){orderQ[hit.id]=(orderQ[hit.id]||0)+q}else orderM["m"+Date.now().toString(36)]={b,n,q};saveOrder();closeDlg();render()}}
+    if(hit){orderQ[hit.id]=(orderQ[hit.id]||0)+q}else orderM["m"+crypto.randomUUID()]={b,n,q};saveOrder();closeDlg();render()}}
 // Контрагенты (кабинет управляющего): кальян-поставщики (бренды и заказ), бар и хозы (свободный список)
 const CTYPES=[["kalyan","Кальян"],["bar","Бар"],["other","Хозы"]];
 const CTICO={kalyan:'<path d="M12 3c1 4-4 5-4 10a4 4 0 0 0 8 0c0-3-2-4-2-6 3 2 5 5 5 8a7 7 0 0 1-14 0c0-6 5-8 7-12z"/>',bar:'<path d="M6 4h12l-2 8v8h-8v-8z"/><path d="M9 20h6"/>',other:'<path d="M14.7 6.3a4 4 0 0 1-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 1 5.4-5.4L21 6l-3-3z"/>'};
@@ -1479,11 +1818,12 @@ document.addEventListener("focusin",e=>{if(e.target.matches&&e.target.matches("i
 document.addEventListener("focusout",e=>{if(e.target.matches&&e.target.matches("input.oin"))setTimeout(()=>{if(renderLater)render()},0)});
 $("#list").addEventListener("change",e=>{const iv=e.target.closest("input.iin");if(iv){const x=byId[iv.dataset.id];if(!x)return;if(iv.value===""){delete invD[x.id]}else invD[x.id]=Math.max(0,Math.round(Number(iv.value)||0));render();return}
   const i=e.target.closest("input.oin");if(!i)return;const x=byId[i.dataset.id];if(!x||!db)return;
+  keepOrderInputExpectation("q",x.id,Number(i.defaultValue)||null);
   const k=Math.max(0,Math.min(99,Math.round(Number(i.value)||0)));if(k)orderQ[x.id]=k;else{revertWish(wishIdsFor(x.id));delete orderQ[x.id]}saveOrder();render()});
 $("#list").addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.matches("input.oin"))e.target.blur()});
 $("#list").addEventListener("click",e=>{const h=e.target.closest("button.bh");if(h){toggleBrand(h.dataset.brand);return}const b=e.target.closest("button[data-a]");if(!b)return;if(b.dataset.a==="undo")askUndo(b.dataset.id);else edit(b.dataset.a,b.dataset.id)});
 $("#tray-go").onclick=()=>{if(st.tab==="inv")openInv();else openReview()};
-$("#otray-go").onclick=openOrder;
+$("#otray-go").onclick=()=>openOrder();
 // Боковое меню: выезжает слева
 const drawer=$("#drawer"),scrim=$("#scrim"),mb=$("#menu-btn");
 function menu(open){drawer.classList.toggle("open",open);document.body.classList.toggle("menu-open",open);mb.setAttribute("aria-expanded",open);drawer.setAttribute("aria-hidden",!open);
@@ -1497,7 +1837,7 @@ drawer.addEventListener("touchend",e=>{if(tx!==null&&tx-e.changedTouches[0].clie
 // Анимация появления только при переходе (не при каждом обновлении данных)
 function navAnim(){document.body.classList.add("nav-anim");clearTimeout(navAnim.t);navAnim.t=setTimeout(()=>document.body.classList.remove("nav-anim"),800)}
 // List updates stay still: action clicks must not restart entrance animations.
-const go=t=>{if(t==="sup"&&!staffReady)return;if(!$("#hsh").hidden)hClose();if(t==="off"){st.barView="off";t="bar"}else if(t==="bar"){st.barView="on"}st.tab=t;st.f="";st.q="";selId="";{const q=$("#q");if(q)q.value="";const c=$("#clear");if(c)c.hidden=true}if(t!=="stop"&&t!=="slow")st.brand="";save();render();hlpUi();menu(false);window.scrollTo(0,0)};
+const go=t=>{if(window.MixoraInterface?.forwardNative?.(t))return;if(t==="sup"&&!staffReady)return;if(t==="log"&&st.tab!=="log")db?.refreshMoves?.();if(!$("#hsh").hidden)hClose();if(t==="off"){st.barView="off";t="bar"}else if(t==="bar"){st.barView="on"}st.tab=t;st.f="";st.q="";selId="";{const q=$("#q");if(q)q.value="";const c=$("#clear");if(c)c.hidden=true}if(t!=="stop"&&t!=="slow")st.brand="";save();render();hlpUi();menu(false);window.scrollTo(0,0)};
 $("#home-btn").onclick=()=>go("home");
 $("#home-screen").addEventListener("click",e=>{const b=e.target.closest("[data-home]");if(b)go(b.dataset.home)});
 $("#t-or").onclick=()=>go("order");
@@ -1564,8 +1904,11 @@ const AI_RULES=`Ты — второй мастер за стойкой каль�
 — Списки пиши без дефисов в начале строки: обычными строками или с «•».`;
 function aiStrength(x){const n=Number(strMap[x.id]);return Number.isInteger(n)&&n>=1&&n<=10?n:null}
 function aiMixFacts(x){const strength=aiStrength(x);return (inStop(x)?" (СТОП)":"")+(flag(x,"slow")?" (НЕЛИКВИД)":"")+(strength===null?" (крепость не указана)":" (крепость "+strength+"/10)")}
-function aiItem(x){const r={id:x.id,brand:x.b,name:x.n,wh:wh(x),onBar:onBar(x),strength:aiStrength(x)};
-  if(x.l)r.line=x.l;if(x.d)r.desc=x.d;if(x.t.length)r.tags=x.t;if(inStop(x))r.stop=true;if(flag(x,"slow"))r.slow=true;if(oq(x))r.order=oq(x);
+function aiEnsureDataReady(){if(!db||!stockLoaded||!orderLoaded)throw Error("Склад и заказ ещё не загрузились. Дождитесь обновления данных.")}
+function aiStockKnown(x){return stockLoaded&&(!Object.hasOwn(stock,x.id)||Number.isSafeInteger(stock[x.id]?.wh)&&stock[x.id].wh>=0)}
+function aiItem(x){const known=aiStockKnown(x),r={id:x.id,brand:x.b,name:x.n,wh:known?wh(x):null,onBar:known?onBar(x):null,strength:aiStrength(x)};
+  r.stockKnown=known;r.stockTracked=known&&tracked(x);if(!r.stockTracked)r.wh=null;
+  if(x.l)r.line=x.l;if(x.d)r.desc=x.d;if(x.t.length)r.tags=x.t;if(!known){r.stop=null;r.slow=null}else{if(inStop(x))r.stop=true;if(flag(x,"slow"))r.slow=true}if(oq(x))r.order=oq(x);
   if(draft[x.id]){r.pending=draft[x.id].d||0;if(draft[x.id].bar!==undefined)r.pendingBar=draft[x.id].bar}return r}
 const cnTxt=v=>" "+norm(String(v||"")).replace(/[^a-zа-я0-9]+/g," ").trim()+" ";
 // Слова названия встретились в тексте — не обязательно подряд: на этикетке их печатают в разном порядке
@@ -1674,7 +2017,7 @@ function matchText(text,photo=false){if(photo)return matchPhotoText(text);const 
    const names=found.map(x=>cnTxt(x.name));
    const lines=chunks.map(l=>l.trim());
    const miss=lines.filter(l=>{if(gotLabel.has(l)||ambLine.has(l))return false;const c=cnTxt(l);return c.trim().length>2&&!brands.has(c.trim())&&!names.some(n=>nameIn(c,n.trim())||c.includes(n)||n.includes(c))});
-   return{found:found.slice(0,80),not_found_lines:miss.slice(0,40),ambiguous:ambiguous.slice(0,20),jars_by_brand:tally,new_flavors:newf}}
+   return{found,not_found_lines:miss.slice(0,40),ambiguous:ambiguous.slice(0,20),jars_by_brand:tally,new_flavors:newf}}
 // Неоднозначные линейки/фасовки — строкой для человека (команды) и для модели (фото)
 const ambName=o=>o.brand+(o.line?" "+o.line:"")+" "+o.name;
 // Вероятный вариант — только подсказка: та линейка, что одна стоит на стойке, иначе одна есть на складе. Выбирает человек
@@ -1689,6 +2032,8 @@ function photoBrandText(T){
   brands.forEach(b=>{const compact=b.replace(/ /g,"");if(compact!==b)T=T.replaceAll(" "+compact+" "," "+b+" ")});
   // Only explicit, user-confirmed brand aliases. Never infer a brand from a flavor alone.
   const all=brands.filter(b=>b);const exact=(part)=>all.find(b=>cnTxt(b).trim()===part);
+  // DAILY HOOKAH is a confirmed packaging name for Starline. Keep the flavor for separate matching.
+  if(exact("starline")&&!exact("daily hookah"))T=T.replace(/^ daily hookah /," starline ");
   const wto=exact("world tobacco original"),trofim=exact("trofimoff s"),kraken=exact("kraken"),sarma=exact("сарма");
   // САРМА360 is the packaging/strength marking of brand Сарма, not a different brand.
   if(sarma)T=T.replace(/ сарма\s*360 /g," "+sarma+" ");
@@ -1821,12 +2166,12 @@ function mergePhotoMatches(results){
   results.forEach(r=>{r.found.forEach(x=>{if(by.has(x.id))by.get(x.id).jars+=x.jars;else by.set(x.id,{...x})});Object.entries(r.jars_by_brand).forEach(([b,n])=>tally[b]=(tally[b]||0)+n);miss.push(...r.not_found_lines);suggestions.push(...(r.suggestions||[]));approved_labels.push(...(r.approved_labels||[]))});
   return{found:[...by.values()],not_found_lines:miss,suggestions,approved_labels,jars_by_brand:tally,new_flavors:[],ambiguous:[]};
 }
-function matchPhotoText(text,photo=true){const raw=String(text||"");
+function matchPhotoText(text,photo=true,allBrands=false){const raw=String(text||"");
    if(photo&&/^Фото\s+\d+:\s*$/m.test(raw))return mergePhotoMatches(raw.split(/^Фото\s+\d+:\s*$/m).filter(t=>t.trim()).map(t=>matchText(t,true)));
    const focusLine=photo&&(raw.match(/^Фокус:\s*(.*)$/mi)||[])[1];
    const focusText=focusLine&&/\bmagnum\b/i.test(focusLine)?focusLine+" S00":focusLine;
-   const focus=focusText&&!/[?…]|\.{2,}/.test(focusText)?[...new Set(DATA.map(x=>x.b))].filter(b=>photoBrandText(cnTxt(focusText)).includes(cnTxt(b))).sort((a,b)=>b.length-a.length)[0]:null;
-   if(photo&&!focus)return{found:[],not_found_lines:["Не удалось определить бренд в центре фото."],jars_by_brand:{},new_flavors:[],ambiguous:[]};
+   const pageFocus=focusText&&!/[?…]|\.{2,}/.test(focusText)?[...new Set(DATA.map(x=>x.b))].filter(b=>photoBrandText(cnTxt(focusText)).includes(cnTxt(b))).sort((a,b)=>b.length-a.length)[0]:null;
+   if(photo&&!allBrands&&!pageFocus)return{found:[],not_found_lines:["Не удалось определить бренд в центре фото."],jars_by_brand:{},new_flavors:[],ambiguous:[]};
    // С фото банок сервер отдаёт текст по этикеткам («Этикетка N: …» — см. readPhotos на сервере). Разбираем каждую
    // отдельно: иначе бренд с одной банки и название с соседней, встретившиеся просто где-то в общем тексте,
    // склеиваются в несуществующий вкус (так получился ложный «Black Burn Overdose»)
@@ -1839,7 +2184,7 @@ function matchPhotoText(text,photo=true){const raw=String(text||"");
    // Бренд на этикетке так, как он записан в каталоге (для подсчёта банок и новых вкусов)
    const brandOf=T=>{const b=[...new Set(DATA.map(x=>x.b))].filter(b=>cnTxt(b).trim().length>2&&T.includes(cnTxt(b))).sort((a,b)=>b.length-a.length);return b[0]||""};
    const background=new Set();
-   chunks.forEach(chunk=>{if(photo){const c=photoBrandText(cnTxt(chunk));const b=[...new Set(DATA.map(x=>x.b))].filter(b=>c.includes(cnTxt(b))).sort((a,b)=>c.indexOf(cnTxt(a))-c.indexOf(cnTxt(b))||b.length-a.length)[0];if(b&&b!==focus){background.add(chunk.trim());return}}
+   chunks.forEach(chunk=>{let focus=pageFocus;if(photo){const c=photoBrandText(cnTxt(chunk));const b=[...new Set(DATA.map(x=>x.b))].filter(b=>c.includes(cnTxt(b))).sort((a,b)=>c.indexOf(cnTxt(a))-c.indexOf(cnTxt(b))||b.length-a.length)[0];if(allBrands)focus=b;else if(b&&b!==focus){background.add(chunk.trim());return}}
      const detected=photoMatchChunk(chunk,labels.length>0||photo,photo);
      // Only exact human-approved label-to-catalog mapping for this venue and this focus.
      // Never override a different visible brand or infer from warning labels.
@@ -1868,7 +2213,7 @@ function matchPhotoText(text,photo=true){const raw=String(text||"");
    const names=found.map(x=>cnTxt(x.name));
    const lines=(labels.length?labels:raw.split(/\n+/)).map(l=>l.trim());
    const miss=lines.filter(l=>{if(gotLabel.has(l)||background.has(l)||photo&&/^Фокус:/i.test(l))return false;if(photo)return !!l.trim();const c=cnTxt(l);return c.trim().length>2&&!brands.has(c.trim())&&!names.some(n=>nameIn(c,n.trim())||c.includes(n)||n.includes(c))});
-   return{found:found.slice(0,80),suggestions,approved_labels,not_found_lines:miss.slice(0,40),jars_by_brand:tally,new_flavors:newf,ambiguous:[]}}
+   return{found,suggestions,approved_labels,not_found_lines:miss.slice(0,40),jars_by_brand:tally,new_flavors:newf,ambiguous:[]}}
 // Фото, прочитанное на сервере (Sonnet или Яндекс): приложение само сверяет текст с каталогом и отдаёт модели готовый список —
 // маленькая модель на ПК иначе пропускает банки и придумывает вкусы
 // Итог по фото за один вопрос: банки по брендам и новые вкусы. Приложение само ставит его в начало ответа и
@@ -1894,19 +2239,9 @@ function orderFixBox(){ /* Текст модели не является ком�
 // Для склада также используются только инструменты и проверенный фото-черновик.
 const stockAsked=t=>/перен|перекин|спис|на\s+стойк(?!е)|за\s+стойк(?!ой)|пришл|привез|оприход|пополн|на\s+склад(?!е)/i.test(String(t||""));
 function stockFixBox(){ /* Только структурированные инструменты и проверенный фото-черновик. */ }
-// «Перенеси со склада на стойку» с фото: перенос собирает приложение, а не модель — YandexGPT путал знак (ставил
-// пополнение +3 вместо −3) и называл не все вкусы. Черновик этого ответа заменяется переносом всех вкусов с фото:
-// по числу банок на фото, но не больше остатка на складе; вкусы без остатка — отдельной строкой
-function photoMoveBox(el,jars,d0){const st=AI_TOOLS.find(f=>f.name==="stage_stock"),done=[],none=[];
-  try{draft=JSON.parse(d0)||{}}catch(e){draft={}}
-  Object.keys(jars).forEach(id=>{const x=byId[id];if(!x)return;const left=wh(x)+((draft[id]||{}).d||0),n=Math.min(jars[id],left);
-    if(n<1){none.push(x);return}try{st.execute({id,delta:-n,toBar:true});done.push([x,n]);cmdDraftIds.add(id)}catch(e){none.push(x)}});
-  saveDraft();render();
-  const box=document.createElement("div");box.className="hacts";
-  box.innerHTML='<b>Перенос со склада на стойку, в черновике:</b><ul>'+(done.map(d=>'<li>'+esc(d[0].b+" "+d[0].n+(d[0].l?" · "+d[0].l:"")+" ×"+d[1])+'</li>').join("")||"<li>ничего — на складе нет этих вкусов</li>")+'</ul>'
-   +(none.length?'<small class="muted">Нет на складе, не перенесены: '+esc(none.map(x=>x.b+" "+x.n).join(", "))+'.</small><br>':'')
-   +'<small class="muted">Проверь и нажми внизу «Списание / пополнение» → «Подтвердить».</small>';
-  el.append(box)}
+// A model answer or a partial legacy photo accumulator never authorizes a draft.
+// Kept as an inert compatibility hook; photo transfer uses the complete deterministic path.
+function photoMoveBox(){}
 // Под ответом главного ассистента: какие вкусы с фото новые и кнопки «Подтвердить»/«Отмена» (всем сотрудникам)
 function newFlavorBox(el,list){const box=document.createElement("div");box.className="hacts";
   box.innerHTML='<b>Новые вкусы, которых нет в каталоге:</b><ul>'+list.map(y=>'<li>'+esc(y.b+" "+y.n)+'</li>').join("")+'</ul>'
@@ -1936,9 +2271,9 @@ function aiOrderItems(){return orderRows().map(r=>r.x?{...aiItem(r.x),aliases:r.
 const AI_TOOLS=[
  {name:"find_items",description:"Ищет вкусы в каталоге. query — слова из бренда, линейки, названия или описания (можно пусто). where: all (по умолчанию), bar — на стойке, wh — есть на складе, none — нет на складе (0 шт., кроме выведенных из палитры), low — на складе 0–1 шт., stop, slow, order, pending — в черновике. Возвращает до limit (по умолчанию 30, максимум 80) вкусов: id, brand, line, name, desc, tags, wh (банок на складе), onBar, stop, slow, strength (1–10 или null, если не указана), order, pending, и total — сколько всего нашлось. where: order читает полный заказ, включая ручные позиции без id каталога. Только для order: offset — число пропущенных результатов, hasMore — есть следующая страница.",
   inputSchema:{type:"object",properties:{query:{type:"string"},where:{type:"string",enum:["all","bar","wh","none","low","stop","slow","order","pending"]},brand:{type:"string"},limit:{type:"number"},offset:{type:"integer",minimum:0}}},
-  execute(i){const w=String(i.where||"all"),words=norm(String(i.query||"")).split(/\s+/).filter(Boolean),br=norm(String(i.brand||"")),lim=Math.min(80,Math.max(1,Number(i.limit)||30));
+  execute(i){if(typeof aiEnsureDataReady==="function")aiEnsureDataReady();const w=String(i.where||"all"),words=norm(String(i.query||"")).split(/\s+/).filter(Boolean),br=norm(String(i.brand||"")),lim=Math.min(80,Math.max(1,Number(i.limit)||30));
    if(w==="order"){const rows=aiOrderItems().filter(r=>(!br||norm(r.brand).includes(br))&&words.every(t=>norm([r.brand,r.line,r.name,r.desc,(r.tags||[]).join(" "),(r.aliases||[]).join(" ")].join(" ")).includes(t)));const raw=Number(i.offset),offset=Number.isFinite(raw)?Math.max(0,Math.floor(raw)):0,limit=Math.floor(lim);return{total:rows.length,offset,hasMore:offset+limit<rows.length,items:rows.slice(offset,offset+limit),note:"Ручные позиции без id не связаны с каталогом. Похожее название не подтверждает связь; не меняй их через set_order."}}
-   const ok=x=>w==="bar"?onBar(x):w==="wh"?wh(x)>0:w==="none"?!wh(x)&&!flag(x,"retired"):w==="low"?tracked(x)&&wh(x)<=1:w==="stop"?inStop(x):w==="slow"?flag(x,"slow"):w==="order"?oq(x)>0:w==="pending"?!!draft[x.id]:true;
+   const ok=x=>{if(["bar","wh","none","low","stop","slow"].includes(w)&&typeof aiStockKnown==="function"&&!aiStockKnown(x))return false;return w==="bar"?onBar(x):w==="wh"?wh(x)>0:w==="none"?!wh(x)&&!flag(x,"retired"):w==="low"?tracked(x)&&wh(x)<=1:w==="stop"?inStop(x):w==="slow"?flag(x,"slow"):w==="order"?oq(x)>0:w==="pending"?!!draft[x.id]:true};
    const hay=x=>norm([x.b,x.l,x.n,x.d,x.t.join(" "),(x.a||[]).join(" ")].join(" "));
    const r=DATA.filter(x=>ok(x)&&(!br||norm(x.b).includes(br))&&words.every(t=>hay(x).includes(t)));
    // Ничего не нашлось по всем словам (опечатка, другое написание с фото) — ближайшие по числу совпавших слов
@@ -1960,27 +2295,272 @@ const AI_TOOLS=[
   execute(){throw new Error("изменения ИИ доступны только как предложение")}},
  {name:"set_flag",description:"Ставит (on=true) или снимает (on=false) метку flag: stop — вкус в стоп-листе, slow — неликвид. Запишется только после подтверждения.",
   inputSchema:{type:"object",properties:{id:{type:"string"},flag:{type:"string",enum:["stop","slow"]},on:{type:"boolean"}},required:["id","flag","on"]},
-  execute(){throw new Error("изменения ИИ доступны только как предложение")}}
+  execute(){throw new Error("изменения ИИ доступны только как предложение")}},
+ ...(globalThis.MixoraReadOnlyReferences?globalThis.MixoraReadOnlyReferences.tools(()=>db):[])
 ];
+let aiSelection=null;
+let aiOrderIntent=null,aiPhotoRemainder=null;
+let aiPhotoBatch=null,aiPhotoAction=null,aiPhotoIntent=null;
+let photoWorkflowEnvelope=null;
+const photoWorkflowScope=()=>typeof db?.actionScope==='function'?db.actionScope():db?.stockScope?.()||null;
+const photoWorkflowKey=()=>photoWorkflowScope()?"mixora-photo-workflow:v1:"+photoWorkflowScope():null;
+const expiredPhotoLeg=s=>s==='confirmed'||s==='unknown'||s==='cancelled'?s:'expired';
+const expiredPhotoStatus=(stockState,orderState)=>stockState==='unknown'||orderState==='unknown'?'unknown':stockState==='cancelled'&&orderState==='cancelled'?'cancelled':'expired';
+function savePhotoWorkflow(patch={}){const key=photoWorkflowKey();if(!key)return;photoWorkflowEnvelope={version:1,scope:photoWorkflowScope(),source:"photo-combined",createdAt:photoWorkflowEnvelope?.createdAt||Date.now(),status:"pending",stock:"pending",order:"pending",...photoWorkflowEnvelope,...patch};try{localStorage.setItem(key,JSON.stringify(photoWorkflowEnvelope))}catch(e){}}
+function expirePhotoWorkflow(){if(!photoWorkflowEnvelope)return;const stockState=expiredPhotoLeg(photoWorkflowEnvelope.stock),orderState=expiredPhotoLeg(photoWorkflowEnvelope.order);savePhotoWorkflow({status:expiredPhotoStatus(stockState,orderState),stock:stockState,order:orderState})}
+function renderPhotoWorkflowRecovery(){if(!photoWorkflowEnvelope)return;const age=Date.now()-Number(photoWorkflowEnvelope.createdAt||0),expired=age>300000;if(expired)expirePhotoWorkflow();const d=aiBubble("assistant",expired?"Срок подтверждения фото-операции истёк. Для продолжения пришлите все фото заново. Состояние: склад — "+photoWorkflowEnvelope.stock+", заказ — "+photoWorkflowEnvelope.order+".":"После перезагрузки подтверждение фото-операции недоступно. Состояние: склад — "+photoWorkflowEnvelope.stock+", заказ — "+photoWorkflowEnvelope.order+". Пришлите все фото заново. Старый текст не разрешает запись.","warn");d.dataset.photoRecovery="true"}
+function restorePhotoWorkflow(){photoWorkflowEnvelope=null;const key=photoWorkflowKey();if(!key)return;try{const v=JSON.parse(localStorage.getItem(key)||"null");if(v&&v.version===1&&v.scope===photoWorkflowScope()){photoWorkflowEnvelope=v;renderPhotoWorkflowRecovery()}}catch(e){photoWorkflowEnvelope=null}}
+const aiOrderYes=t=>/^(?:да|давай|подтверждаю)[.!\s]*$/i.test(String(t||'').trim());
+const aiOrderRest=t=>/^(?:остальное|остальные) (?:добавь|поставь) в заказ[.!\s]*$/i.test(String(t||'').trim());
+const aiOrderSignature=ids=>JSON.stringify(ids.map(id=>[byId[id],aiItem(byId[id]),typeof stock==='undefined'?null:stock[id],typeof db?.actionScope==='function'?db.actionScope():db?.stockScope?.()]));
+function aiOrderTicket(ids,qty,source){
+  if(!ids.length||ids.some(id=>!byId[id])||new Set(ids).size!==ids.length||!Number.isInteger(qty)||qty<1||qty>99)return null;
+  if(ids.some(id=>aiItem(byId[id]).stockKnown===false||typeof aiStockKnown==='function'&&!aiStockKnown(byId[id])||typeof photoAcc!=='undefined'&&photoAcc?.blocked?.has(id)))return null;
+  if(ids.some(id=>DATA.filter(x=>aiSelectionText(x.b+' '+x.n)===aiSelectionText(byId[id].b+' '+byId[id].n)).length!==1))return null;
+  return{ids:[...ids],qty,source,at:Date.now(),signature:aiOrderSignature(ids)};
+}
+function aiOrderTicketPolicy(ticket){
+  if(!ticket||Date.now()-ticket.at>300000||ticket.ids.some(id=>!byId[id])||ticket.signature!==aiOrderSignature(ticket.ids))return{error:'Уточните точные вкусы и количество: прежнее предложение отсутствует или данные обновились.'};
+  return{...ticket,tool:'set_order',orderIntent:true};
+}
+function aiBeginOrderTurn(text){if(!aiOrderYes(text))aiOrderIntent=null;if(!aiOrderRest(text)&&!aiOrderYes(text))aiPhotoRemainder=null}
+function aiRememberPhotoRemainder(missing){
+  const ids=missing.map(x=>x.id),items=aiPhotoBatch.items.filter(x=>ids.includes(x.id));
+  aiPhotoRemainder={ids,items,at:aiPhotoBatch.at,signature:aiPhotoSignature(ids)};
+}
+const aiSelectionText=s=>" "+String(s||"").toLowerCase().replace(/ё/g,"е").replace(/[^a-zа-я0-9]+/g," ").trim()+" ";
+function aiClearSelection(){aiSelection=null;aiOrderIntent=null;aiPhotoRemainder=null;aiPhotoBatch=null;aiPhotoAction=null;aiPhotoIntent=null}
+function aiRecordSelection(p,input,result){
+  // Only an exact complete read can become a referent. Similar matches, previews,
+  // manual order rows and truncated pages never authorize an exclusion.
+  p.readSelection=null;
+  if(!result||!Array.isArray(result.items)||!Number.isSafeInteger(result.total)||result.total<1||result.total>80||result.hasMore||result.total!==result.items.length)return;
+  const ids=result.items.map(x=>x.id);
+  if(new Set(ids).size!==ids.length||ids.some(id=>!byId[id])||result.items.some(x=>x.stockKnown===false||x.textTruncated))return;
+  if(new Set(ids.map(id=>aiSelectionText(byId[id].b+" "+byId[id].n))).size!==ids.length)return;
+  p.readSelection={ids,query:String(input.query||""),where:String(input.where||"all"),at:Date.now(),signature:JSON.stringify(ids.map(id=>aiItem(byId[id])))};
+}
+function aiRememberSelection(p,answer){
+  const read=p.readSelection,T=aiSelectionText(answer);
+  aiSelection=read&&read.ids.every(id=>{const x=byId[id];return x&&T.includes(aiSelectionText(x.b))&&T.includes(aiSelectionText(x.n))})?read:null;
+}
+function aiSelectionPolicy(text){
+  if(aiOrderYes(text))return aiOrderTicketPolicy(aiOrderIntent);
+  // A catalogue lookup proves identity, not the user's referent. Only the
+  // structured no-stock remainder can bind this relative order request.
+  if(aiOrderRest(text)){const policy=aiOrderTicketPolicy(aiPhotoRemainder);aiOrderIntent=policy.error?null:aiPhotoRemainder;return policy}
+  const T=String(text||"").toLowerCase().replace(/ё/g,"е");
+  if(!/остальн|кроме|за\s+исключением|оставь/.test(T))return null;
+  const fail=error=>({error:error||"Уточните, какие вкусы оставить и какие изменить. Предложение не подготовлено."});
+  const s=aiSelection;
+  if(!s||Date.now()-s.at>300000||s.ids.some(id=>!byId[id])||s.signature!==JSON.stringify(s.ids.map(id=>aiItem(byId[id]))))return fail("Уточните выборку: прежний список отсутствует, неполон или данные обновились. Назовите вкусы заново.");
+  // Deliberately narrow grammar. Recognition errors are never corrected by
+  // fuzzy matching for an exclusion that could change many records.
+  const positive=aiSelectionText(T).trim();
+  const m=positive.match(/^(?:слушай )?(?:пожалуйста )?оставь (?:себе )?(.+?) (?:а )?остальн(?:ое|ые|ых) (?:добавь|поставь|отправь|переведи) в неликвид$/)||positive.match(/^(?:все|остальное|остальные) кроме (.+?) (?:добавь|поставь|отправь|переведи) в неликвид$/);
+  if(!m)return fail();
+  const exception=aiSelectionText(m[1]),matches=s.ids.filter(id=>{const x=byId[id];return exception===aiSelectionText([x.b,x.l,x.n].filter(Boolean).join(" "))||exception===aiSelectionText(x.n)});
+  if(matches.length!==1)return fail();
+  const ids=s.ids.filter(id=>id!==matches[0]);if(!ids.length)return fail();
+  return{ids,kept:matches,tool:"set_flag",flag:"slow",on:true};
+}
+function aiValidateSelection(p,tool,input,ids){
+  const policy=p.selectionPolicy;if(!policy)return;
+  if(policy.error)throw Error(policy.error);
+  if(policy.orderIntent){if(tool!=='set_order'||input.qty!==policy.qty||ids.length!==policy.ids.length||ids.some(id=>!policy.ids.includes(id))||Date.now()-policy.at>300000||policy.signature!==aiOrderSignature(policy.ids))throw Error('Уточните заказ: вкусы, количество или данные изменились.');return}
+  if(ids.some(id=>!policy.ids.includes(id)))throw Error("Позиция не входит в подтверждённую выборку. Уточните список.");
+  if(tool!==policy.tool||input.flag!==policy.flag||input.on!==policy.on)throw Error("Уточните операцию для выбранных вкусов.");
+}
+function aiFinishSelection(p,answer){
+  const policy=p.selectionPolicy;
+  if(policy&&p.list.length){
+    if(policy.orderIntent){if(p.stock||p.list.length!==policy.ids.length||p.list.some(x=>x.t!=='order'||x.qty!==policy.qty||!policy.ids.includes(x.id))||Date.now()-policy.at>300000||policy.signature!==aiOrderSignature(policy.ids))throw Error('Неполное предложение заказа. Ничего не записано.');aiOrderIntent=null;aiPhotoRemainder=null;aiRememberSelection(p,answer);return}
+    if(policy.error||p.stock||p.list.length!==policy.ids.length||p.list.some(x=>x.t!=="flag"||x.k!==policy.flag||x.on!==policy.on||!policy.ids.includes(x.id)))throw Error("Неполное предложение для прежнего списка. Уточните вкусы; ничего не записано.");
+  }
+  aiRememberSelection(p,answer);
+}
+function aiSelectionContext(p){const policy=p.selectionPolicy;if(!policy)return null;if(policy.orderIntent)return{complete:true,change:policy.ids.map(id=>aiItem(byId[id])),quantity:policy.qty,operation:"Предложить заказ; запись только после подтверждения"};return policy.error?{needsClarification:true,message:policy.error}:{complete:true,kept:policy.kept.map(id=>aiItem(byId[id])),change:policy.ids.map(id=>aiItem(byId[id])),operation:"Предложить slow=true; запись только после подтверждения"}}
+// Photo actions are bound to one complete OCR batch, never assistant prose or
+// catalogue lookups. A later photo message replaces, rather than extends it.
+const aiPhotoRead=t=>/^(?:найди|найти|проверь)(?:\s+на)?\s+склад(?:е)?[.!\s]*$/i.test(String(t||'').trim());
+const aiPhotoNegative=t=>/(?:^|\s)не\s+(?:делай\s+)?перенос|(?:^|\s)не\s+переноси|(?:^|\s)не\s+(?:надо\s+)?заказ|(?:^|\s)только\s+(?:посмотри|проверь|распознай)/i.test(String(t||''));
+const aiPhotoCombined=t=>{
+  // Normalize only complete stock conditions. Other qualifiers and quantities
+  // stay in the phrase and must match the exact command grammar below.
+  const words=aiSelectionText(t).trim()
+    .replace(/ (?:кроме|без) неликвида$/,'')
+    .replace(/ с фото(?= и (?:закажи|заказать)$)/,'')
+    .replace(/ а чего нет(?: на складе)? (?=закажи$)/,' а остальное ')
+    .replace(/ то что есть на складе(?= (?:а|и) )/,' со склада')
+    .replace(/ (?:только )?(?:(?:то|все) (?:чего нет|что отсутствует)(?: на складе)?|(?:те |позиции |вкусы )?которых нет на складе|отсутствующие(?: позиции| вкусы)?(?: на складе)?|(?:позиции|вкусы) с нулевым остатком)(?= |$)/,' остальное');
+  if(/^(?:пожалуйста )?(?:спиши|списать|перенеси|перенести)(?: со склада)?(?: на стойку)?(?: и)? (?:закажи|заказать|добавь в заказ|добавить в заказ)(?: остальное)?(?: по фото)?$/.test(words))return true;
+  const rest=words.match(/^(.*?) (?:а |и )?остальн(?:ое|ые) (?:(?:добавь|поставь) в заказ|в заказ|закажи|заказать)$/);
+  return !!rest&&(aiPhotoTransferOnly(rest[1])||/^(?:пожалуйста )?(?:спиши|списать)(?: со склада)?$/.test(rest[1]));
+};
+const aiPhotoCombinedExact=t=>aiPhotoCombined(t);
+const aiPhotoCombinedAttempt=t=>{
+  const words=aiSelectionText(t);
+  return / (?:спиш|списать|списыва|списани|перенеси|сделай перенос)/.test(words)&&/ (?:закаж|заказ)/.test(words);
+};
+const aiPhotoClarification=t=>/^(?:пожалуйста )?перенос со склада(?: на стойку| за стойку| за бар)$/.test(aiSelectionText(t).trim());
+const aiPhotoTransferOnly=t=>/^(?:пожалуйста )?(?:сделай перенос(?: со склада)?|(?:перенеси|перенести)(?: все)?(?: банки(?: с фото)?)?(?: со склада)?|перенос со склада)(?: на стойку| за стойку| за бар)?$/.test(aiSelectionText(t).trim());
+const aiPhotoTransferAttempt=t=>/перен|перекин|на\s+стойк(?!е)|за\s+стойк(?!ой)/i.test(String(t||''));
+const aiPhotoOnly=t=>/^(?:фото)?$/.test(aiSelectionText(t).trim());
+const aiPhotoIntentValid=()=>!!aiPhotoIntent&&aiPhotoIntent.kind==='combined'&&Date.now()-aiPhotoIntent.at<=300000&&aiPhotoIntent.scope===photoWorkflowScope()&&!['confirmed','unknown','cancelled','expired'].includes(photoWorkflowEnvelope?.status)&&!['confirmed','unknown','cancelled','expired'].includes(photoWorkflowEnvelope?.stock)&&!['confirmed','unknown','cancelled','expired'].includes(photoWorkflowEnvelope?.order)&&aiPhotoAction?.status!=='cancelled'&&(typeof orderRequest==='undefined'||!orderRequest);
+const aiPhotoCancel=t=>/^(?:нет|отмена|отмени)[.!\s]*$/i.test(String(t||'').trim());
+const aiPhotoOrderQuantity=x=>globalThis.MixoraInterface?.orderDraftQuantity?.(x.id)??oq(x);
+const aiPhotoSignature=ids=>JSON.stringify(ids.map(id=>[byId[id],stock[id],oq(byId[id]),aiPhotoOrderQuantity(byId[id]),aiStockKnown(byId[id]),typeof db?.actionScope==='function'?db.actionScope():db?.stockScope?.()]));
+let aiPhotoBatchNotice="";
+let aiPhotoBatchIssue="";
+function aiConsumePhotoBatchNotice(el){
+  if(!aiPhotoBatchNotice)return;
+  if(el.children?.length){
+    const note=document.createElement('small');note.className='muted';note.textContent=aiPhotoBatchNotice;
+    if(el.prepend)el.prepend(note);else el.append(note);
+  }else el.textContent+=(el.textContent?'\n\n':'')+aiPhotoBatchNotice;
+  aiPhotoBatchNotice="";
+}
+function aiBeginPhotoTurn(text,hasPhotos){
+  const intentValid=typeof aiPhotoIntent!=='undefined'&&!!aiPhotoIntent&&aiPhotoIntent.kind==='combined'&&Date.now()-aiPhotoIntent.at<=300000&&aiPhotoIntent.scope===photoWorkflowScope()&&!['confirmed','unknown','cancelled','expired'].includes(photoWorkflowEnvelope?.status)&&!['confirmed','unknown','cancelled','expired'].includes(photoWorkflowEnvelope?.stock)&&!['confirmed','unknown','cancelled','expired'].includes(photoWorkflowEnvelope?.order)&&aiPhotoAction?.status!=='cancelled'&&(typeof orderRequest==='undefined'||!orderRequest);
+  const clarification=/^(?:пожалуйста )?перенос со склада(?: на стойку| за стойку| за бар)$/.test(String(text||'').toLowerCase().replace(/ё/g,'е').replace(/[^a-zа-я0-9]+/g,' ').trim());
+  const negative=/(?:^|\s)не\s+(?:делай\s+)?перенос|(?:^|\s)не\s+переноси|(?:^|\s)не\s+(?:надо\s+)?заказ|(?:^|\s)только\s+(?:посмотри|проверь|распознай)/i.test(String(text||''));
+  if(negative){aiPhotoBatch=null;aiPhotoAction=null;if(typeof aiPhotoIntent!=='undefined')aiPhotoIntent=null;expirePhotoWorkflow();return}
+  if(hasPhotos){aiPhotoBatch=null;aiPhotoAction=null;if(!(intentValid&&(aiPhotoClarification(text)||aiPhotoOnly(text)))&&!aiPhotoCombined(text)&&typeof aiPhotoIntent!=='undefined')aiPhotoIntent=null;return}
+  if(intentValid&&clarification)return;
+  if(!aiPhotoCombined(text)&&!aiOrderYes(text)&&!aiPhotoCancel(text)){if(aiPhotoBatch||aiPhotoAction){aiPhotoBatchNotice='Новая команда очистила пятиминутную выборку фото. Для операций пришлите все фото заново.';expirePhotoWorkflow()}aiPhotoBatch=null;aiPhotoAction=null;if(typeof aiPhotoIntent!=='undefined')aiPhotoIntent=null}
+}
+function aiRememberPhotoBatch(m,count,text,observations=[],sourceTexts=null,inspectionPages=null){
+  aiPhotoBatch=null;aiPhotoAction=null;
+  aiPhotoBatchIssue="";aiPhotoBatchNotice="";
+  const pages=[...String(text||'').matchAll(/^Фото\s+(\d+):\s*$/gm)];
+  const pageTexts=Array.isArray(sourceTexts)&&sourceTexts.length===count?sourceTexts:count>1?String(text).split(/^Фото\s+\d+:\s*$/gm).slice(1):[text];
+  if(count>1&&pageTexts.length!==count){aiPhotoBatchIssue='Не удалось получить результат для всех '+count+' фото. Пришли все фото заново одним сообщением; ничего не подготовлено.';return false}
+  if(count>1&&!sourceTexts&&(pages.length!==count||pages.some((x,i)=>Number(x[1])!==i+1))){aiPhotoBatchIssue='Не удалось связать результаты со всеми '+count+' фото. Пришли все фото заново одним сообщением; ничего не подготовлено.';return false}
+  const incomplete=[],nonTargets=[];
+  pageTexts.forEach((page,index)=>{const normalized=inspectionPages?.[index];if(normalized&&normalized.targetCount===0){nonTargets.push(index+1);return}const r=normalized?normalized.match:matchText(page,true);if(!r.found.length||r.ambiguous.length||r.not_found_lines.length||r.found.some(x=>x.ambiguous))incomplete.push(index+1)});
+  if(incomplete.length){
+    const details=incomplete.flatMap(number=>(inspectionPages?.[number-1]?.match.not_found_lines||[])
+      .map(label=>'Фото '+number+' — '+label));
+    aiPhotoBatchIssue='Не удалось однозначно сопоставить с каталогом банки на фото '+incomplete.join(', ')+'. Ничего не подготовлено.';
+    if(details.length)aiPhotoBatchIssue+='\nПроверьте названия на этикетках:\n'+details.join('\n');
+    return false;
+  }
+  if(nonTargets.length===count){aiPhotoBatchIssue='Фото без целевых банок: '+nonTargets.join(', ')+'. Перенос и заказ не подготовлены.';return false}
+  if(!count||!m.found.length||m.ambiguous.length||m.not_found_lines.length||m.found.some(x=>x.ambiguous)){aiPhotoBatchIssue='Результат распознавания неполный или неоднозначный. Пришли все '+count+' фото заново одним сообщением; намерение сохранено на 5 минут, ничего не подготовлено.';return false}
+  const items=m.found.map(x=>({id:String(x.id),qty:x.jars||1})),ids=items.map(x=>x.id);
+  if(!aiOrderTicket(ids,1,'photo-message')||items.some(x=>!Number.isSafeInteger(x.qty)||x.qty<1||x.qty>99)){aiPhotoBatchIssue="Не удалось подтвердить позиции и остатки для всех банок. Проверьте данные и отправьте фото заново.";return false}
+  aiPhotoBatch={items,ids,photoCount:count,at:m.clarificationAt??Date.now(),signature:aiPhotoSignature(ids)};
+  if(nonTargets.length)aiPhotoBatchNotice='Фото без целевых банок: '+nonTargets.join(', ')+'. Они не включены в перенос или заказ.';
+  return true;
+}
+function aiCheckPhotoBatch(batch){
+  if(!batch||Date.now()-batch.at>300000||!aiOrderTicket(batch.ids,1,'photo-message')||batch.signature!==aiPhotoSignature(batch.ids))throw Error('Нет актуальной полной выборки фото (срок действия — 5 минут). Пришлите все нужные фото одним сообщением и напишите «Найди на складе». Ничего не подготовлено.');
+}
+function aiPhotoSummary(items){
+  const brands=[...new Set(items.map(({id})=>byId[id]?.b).filter(Boolean))];
+  const count=items.reduce((total,item)=>total+item.qty,0);
+  const unit=count%10===1&&count%100!==11?'банка':count%10>=2&&count%10<=4&&(count%100<12||count%100>14)?'банки':'банок';
+  return 'Найдено: '+count+' '+unit+' · Позиций: '+items.length
+    +'\nБренды: '+(brands.join(', ')||'—');
+}
+function aiPhotoPlan(text){
+  if(!aiPhotoCombinedExact(text))throw Error('Уточните операцию и количество. Для всех банок из последнего сообщения: «Перенеси со склада. Остальное в заказ». Ничего не подготовлено.');
+  if(typeof orderRequest!=='undefined'&&orderRequest){aiPhotoIntent=null;throw Error('Результат предыдущего сохранения заказа не установлен. Сначала восстановите его; новый план не подготовлен.');}
+  if(photoWorkflowEnvelope?.stock==='unknown'||photoWorkflowEnvelope?.order==='unknown')throw Error('Результат предыдущей операции не установлен. Сначала восстановите его через журнал; новый план не подготовлен.');
+  aiCheckPhotoBatch(aiPhotoBatch);
+  const batch=aiPhotoBatch,transfer=[],order=[],excluded=[],partial=[],alreadyOrdered=[];
+  for(const item of batch.items){
+    const x=byId[item.id],initial=wh(x);
+    if(initial>0){
+      transfer.push({id:item.id,qty:Math.min(initial,item.qty)});
+      if(initial<item.qty)partial.push({id:item.id,qty:item.qty-initial});
+    }else if(initial===0){
+      if(flag(x,'slow'))excluded.push({...item});
+      else if(aiPhotoOrderQuantity(x)>=item.qty)alreadyOrdered.push({...item,qty:aiPhotoOrderQuantity(x)});
+      else{
+        const error=ordGate(x,true,true);
+        if(error)throw Error(nm(x)+': '+error+'. Ничего не подготовлено.');
+        order.push({...item});
+      }
+    }else throw Error('Проверьте остаток для '+nm(x)+'. Ничего не подготовлено.');
+  }
+  const untracked=order.filter(item=>!Object.hasOwn(stock,item.id));
+  const plan={batch,transfer,order,excluded,partial,alreadyOrdered,untracked,draftBefore:JSON.stringify(draft),replace:transfer.length>0&&Object.keys(draft).length>0,status:'pending',stockState:transfer.length?'pending':'confirmed',orderState:order.length?'pending':'confirmed'};
+  if(!transfer.length&&!order.length){plan.status='empty';return plan}
+  savePhotoWorkflow({createdAt:batch.at,status:'pending',stock:transfer.length?'pending':'confirmed',order:order.length?'pending':'confirmed',draftSignature:JSON.stringify({transfer,order})});return plan;
+}
+function aiPhotoPlanText(plan){
+  const counts=items=>items.length+' поз. · '+items.reduce((total,item)=>total+item.qty,0)+' шт.';
+  const lines=[aiPhotoSummary(plan.batch.items),'В заказ: '+counts(plan.order)];
+  if(plan.untracked?.length)lines.push('Без складской записи в заказе: '+plan.untracked.map(item=>nm(byId[item.id])).join(', '));
+  if(plan.alreadyOrdered.length)lines.push('Уже есть в заказе: '+counts(plan.alreadyOrdered),...plan.alreadyOrdered.map(item=>'— '+nm(byId[item.id])+' · '+item.qty+' шт.'));
+  if(plan.excluded.length)lines.push('Неликвид, пропущен в заказе: '+plan.excluded.map(x=>nm(byId[x.id])+' ×'+x.qty).join(', '));
+  if(plan.partial.length)lines.push('Не хватило для переноса: '+plan.partial.map(x=>nm(byId[x.id])+' ×'+x.qty).join(', '));
+  lines.push('Перенос со склада на стойку: '+counts(plan.transfer));
+  return lines.join('\n');
+}
+function aiPhotoLegGuard(items,at){
+  const ids=items.map(x=>x.id),signature=aiPhotoSignature(ids);
+  return()=>{if(Date.now()-at>300000||!aiOrderTicket(ids,1,'photo-confirmation')||signature!==aiPhotoSignature(ids))throw Error('Аккаунт, позиции или остатки изменились либо истекли 5 минут. Подготовьте новое предложение.');};
+}
+function aiOfferPhotoPlan(el,plan){
+  aiConsumePhotoBatchNotice(el);
+  const box=document.createElement('div');box.className='hacts';
+  box.innerHTML='<button type="button" class="btn sm go">'+(plan.replace?'Заменить текущий черновик и подготовить':'Подготовить для подтверждения')+'</button><button type="button" class="btn sm">Отмена</button>';
+  if(plan.replace){el.textContent+='\nЕсть текущий несохранённый черновик: '+Object.keys(draft).length+' позиций. Посмотрите его ниже. Кнопка «Заменить» явно заменит его новым планом; обычное «Да» старый черновик не удаляет.'}
+  else el.textContent+='\nНажмите «Подготовить для подтверждения» или ответьте «Да».';
+  el.append(box);let active=true;const [prepare,cancel]=box.querySelectorAll('button');
+  const disable=()=>{active=false;prepare.disabled=cancel.disabled=true;pendingAiProposals.delete(disable)};pendingAiProposals.add(disable);
+  prepare.onclick=()=>{if(!active||aiPhotoAction!==plan)return;disable();try{aiPreparePhotoPlan(el,plan.replace)}catch(e){el.textContent=e.message;aiStockReviewBox(el)}};
+  cancel.onclick=()=>{if(!active)return;if(el._photoChoice){el._photoChoice.cancel();return}disable();aiPhotoAction={status:'cancelled'};aiPhotoBatch=null;aiPhotoIntent=null;savePhotoWorkflow({status:'cancelled',stock:'cancelled',order:'cancelled'});el.textContent='План отменён. Склад и заказ не изменены.';aiStockReviewBox(el)};
+}
+function aiPreparePhotoPlan(el,replace=false){
+  const plan=aiPhotoAction;if(!plan||plan.status==='cancelled')throw Error('План отменён. Ничего не подготовлено.');if(plan.error)throw Error(plan.error);
+  if(plan.status==='empty'){el.textContent=aiPhotoPlanText(plan);if(plan.alreadyOrdered.length)appendOrderDraftButton(el);return}
+  if(plan.stockState==='cancelled'&&plan.orderState==='cancelled')throw Error('Обе части плана отменены. Пришлите все фото заново.');
+  aiCheckPhotoBatch(plan.batch);
+  if(plan.status==='prepared'){
+    if(JSON.stringify(draft)!==plan.preparedDraft)throw Error('Черновик изменился. Проверьте актуальные изменения ниже. Новое предложение не подготовлено.');
+    el.textContent=aiPhotoPlanText(plan);
+    if(plan.orderState==='prepared')aiProposalBox(el,{...plan.proposal,stock:false});
+    if(plan.stockState==='prepared')aiStockReviewBox(el);
+    return;
+  }
+  if(JSON.stringify(draft)!==plan.draftBefore)throw Error('Черновик изменился после подготовки плана. Повторите запрос; старые правки не удалены.');
+  if(plan.replace&&!replace){el.textContent=aiPhotoPlanText(plan);aiOfferPhotoPlan(el,plan);aiStockReviewBox(el);return}
+  // Only this deterministic code constructs the tools and arguments. No model
+  // can extend this plan or provide replacement IDs/quantities.
+  const p={list:[],stock:false,draft:{},photo:true,ask:true,selectionPolicy:null,workflowPlan:plan,beforeCommit:aiPhotoLegGuard(plan.order,plan.batch.at),beforeStockCommit:aiPhotoLegGuard(plan.transfer,plan.batch.at),successText:'Заказ сохранён ✓. Перенос подтверждается отдельно.'};const tools=aiProposalTools(p);
+  for(const x of plan.order)tools.find(t=>t.name==='set_order').execute({id:x.id,qty:x.qty});
+  for(const x of plan.transfer)tools.find(t=>t.name==='stage_stock').execute({id:x.id,delta:-x.qty,toBar:true});
+  el.textContent=aiPhotoPlanText(plan);aiConsumePhotoBatchNotice(el);
+  plan.stockState=plan.transfer.length?'prepared':'confirmed';plan.orderState=plan.order.length?'prepared':'confirmed';aiProposalBox(el,p);plan.status='prepared';plan.proposal=p;plan.preparedDraft=JSON.stringify(draft);savePhotoWorkflow({status:'prepared',stock:plan.stockState,order:plan.orderState});
+}
 // Один ответ — изолированное предложение. Ошибка модели уничтожает его целиком.
 function aiProposalTools(p){return AI_TOOLS.map(t=>{
+  if(p.selectionPolicy===undefined)p.selectionPolicy=aiSelectionPolicy(p.requestText);
+  if(t.name==="find_items")return{...t,execute(i){const r=t.execute(i);aiRecordSelection(p,i,r);if(globalThis.MixoraReadOnlyReferences)globalThis.MixoraReadOnlyReferences.confirmCatalogueRows(r.items,db);return r}};
   if(!["set_order","set_flag","stage_stock"].includes(t.name))return t;
   return {...t,description:t.description.replace("Запишется только после подтверждения.","Только предложение, после подтверждения."),execute(i){
     const ids=[...new Set((i.ids||[i.id]).map(String))];
     if(ids.some(id=>photoAcc?.blocked?.has(id)))throw new Error("сначала уточни линейку или фасовку с фото");
     if(!ids.length||ids.some(id=>!byId[id]))throw new Error("нет такого id");
+ function needsCatalogueLookup(id,db){return scopedIds(db).has(String(id))}
+    aiValidateSelection(p,t.name,i,ids);
+    if(ids.some(id=>!aiStockKnown(byId[id])))throw Error("Нет актуальных остатков для выбранной позиции. Дождитесь загрузки данных.");
     if(t.name==="stage_stock"){
       const d=Math.round(Number(i.delta)||0);
       if(d<0&&!can("take")||d>0&&!can("add")||i.toBar===true&&!can("take")||i.toBar===false&&!can("offbar"))throw new Error("нет права менять склад");
       const before=draft;try{draft=JSON.parse(JSON.stringify(p.draft));const r=t.execute(i);p.draft=JSON.parse(JSON.stringify(draft));p.stock=true;return r}
       finally{draft=before;saveDraft();render()}}
-    if(t.name==="set_order")for(const id of ids){const x=byId[id];const e=i.qty&&ordGate(x,p.photo??aiOrdPhoto,p.ask??aiOrdAsk);if(e)throw new Error(e)}
+    if(t.name==="set_order")for(const id of ids){const x=byId[id];const e=i.qty&&ordGate(x,p.photo??aiOrdPhoto,p.selectionPolicy?.orderIntent||(p.ask??aiOrdAsk));if(e)throw new Error(e)}
     const items=ids.map(id=>{const x=byId[id];if(!x)throw new Error("нет такого id");
       if(t.name==="set_order"){
         if(!staffReady)throw new Error("сначала войдите в приложение");
         if(!Number.isInteger(i.qty)||i.qty<0||i.qty>99)throw new Error("количество: целое от 0 до 99");
-        const e=i.qty&&ordGate(x,p.photo??aiOrdPhoto,p.ask??aiOrdAsk);if(e)throw new Error(e);
-        const a={t:"order",id,qty:i.qty,txt:nm(x)+(x.l?" · "+x.l:"")+": "+oq(x)+" → "+i.qty+" шт. в заказе"};
+        const e=i.qty&&ordGate(x,p.photo??aiOrdPhoto,p.selectionPolicy?.orderIntent||(p.ask??aiOrdAsk));if(e)throw new Error(e);
+        const a={t:"order",id,qty:i.qty,before:oq(x),txt:nm(x)+(x.l?" · "+x.l:"")+": "+oq(x)+" → "+i.qty+" шт. в заказе"};
+        if(p.photo)a.beforeDraft=globalThis.MixoraInterface?.orderDraftQuantity?.(id);
         p.list=p.list.filter(a=>!(a.t==="order"&&a.id===id));p.list.push(a);
       }else{
         if(!["stop","slow"].includes(i.flag)||typeof i.on!=="boolean")throw new Error("неверная метка");
@@ -1992,26 +2572,142 @@ function aiProposalTools(p){return AI_TOOLS.map(t=>{
   }}
 })}
 const pendingAiProposals=new Set();
+let aiDraftConfirmation=null;
+let aiDraftWorkflowPlan=null;
+let aiPhotoTransferIds=null;
+let stockReviewGeneration=0;
+const workflowPlanLeg=(plan,leg)=>photoWorkflowEnvelope?.[leg]==='unknown'?'unknown':plan?.[leg+'State'];
+const workflowPlanStatus=(stockState,orderState,fallback='prepared')=>stockState==='unknown'||orderState==='unknown'?'unknown':stockState==='confirmed'&&orderState==='confirmed'?'confirmed':stockState==='cancelled'&&orderState==='cancelled'?'cancelled':fallback;
 function cancelAiProposals(){for(const cancel of pendingAiProposals)cancel();pendingAiProposals.clear()}
 function aiProposalBox(el,p){
-  if(p.stock){draft=p.draft;Object.keys(draft).forEach(id=>cmdDraftIds.add(id));saveDraft();render()}
-  if(!p.list.length)return;
+  const showStock=p.stock&&p.workflowPlan?.stockState!=='cancelled';
+  if(showStock){if(el._photoChoice)el._photoChoice.stockGuard=p.beforeStockCommit;draft=p.draft;aiDraftWorkflowPlan=p.workflowPlan||null;if(p.workflowPlan){draftSource='photo-combined';aiPhotoTransferIds=new Set((p.workflowPlan.transfer||[]).map(x=>x.id))}aiDraftConfirmation=p.beforeStockCommit?{snapshot:JSON.stringify(draft),check:p.beforeStockCommit}:null;Object.keys(draft).forEach(id=>cmdDraftIds.add(id));saveDraft();render()}
+  if(!p.list.length||['cancelled','confirmed','unknown'].includes(p.workflowPlan?.orderState)){if(showStock)aiStockReviewBox(el);return}
   const box=document.createElement("div");box.className="hacts";
-  box.innerHTML='<b>Предложение — ещё не сохранено:</b><ul>'+p.list.map(a=>'<li>'+esc(a.txt)+'</li>').join("")+'</ul><button type="button" class="btn sm go">Подтвердить</button><button type="button" class="btn sm">Отмена</button>';
+  const editable=p.photo&&p.list.every(a=>a.t==="order"&&a.qty>0);
+  const rows=p.list.map((a,index)=>{
+    if(!editable)return '<li>'+esc(a.txt)+'</li>';
+    const sku=byId[a.id],name=esc(nm(sku)+(sku.l?' · '+sku.l:''));
+    const quantity='<label>'+name+' <input type="number" inputmode="numeric" min="0" max="99" step="1" data-order-row="'+index+'" value="'+a.qty+'" aria-label="Количество в заказе для '+name+'"></label>';
+    if(!p.reviewWarehouse)return '<li>'+quantity+'</li>';
+    const available=stock[a.id]?.wh;
+    const stockText=Number.isSafeInteger(available)?'На складе: '+available+' шт.':'Нет складской записи';
+    const choice=available>0?'<label>Оставить в заказе <input type="checkbox" data-order-keep="'+index+'" checked aria-label="Оставить в заказе '+name+'"></label>':'';
+    return '<li>'+quantity+'<small>'+stockText+'</small>'+choice+'</li>';
+  }).join('');
+  box.innerHTML=(editable?'<b>Предложение — в заказ: '+p.list.length+'</b><details'+(p.reviewWarehouse?' open':'')+'><summary>Список и изменение количества</summary><small>0 — пропустить позицию</small><ul>'+rows+'</ul></details>':'<b>Предложение — ещё не сохранено:</b><ul>'+rows+'</ul>')+'<button type="button" class="btn sm go">'+(editable?'Подтвердить заказ':'Подтвердить')+'</button><button type="button" class="btn sm">Отмена</button>';
+  if(p.reviewWarehouse)box.onchange=({target})=>{
+    if(target.dataset.orderKeep!==undefined)box.querySelector('[data-order-row="'+target.dataset.orderKeep+'"]').disabled=!target.checked;
+  };
   el.append(box);let state="pending";const [ok,no]=box.querySelectorAll("button");
-  const cancel=()=>{if(state!=="pending")return;state="cancelled";box.textContent="Отменено. Ничего не записано.";pendingAiProposals.delete(cancel)};no.onclick=cancel;pendingAiProposals.add(cancel);
-  ok.onclick=async()=>{if(state!=="pending")return;state="saving";pendingAiProposals.delete(cancel);ok.disabled=no.disabled=true;
-    try{await aiCommitProposal(p.list);state="done";box.textContent="Сохранено ✓";render()}
-    catch(e){state="failed";box.textContent="Не подтверждено: "+e.message+". Проверь актуальные данные перед новым предложением."}};
+  if(showStock)aiStockReviewBox(el);
+  const retire=()=>{if(state!=="pending")return;state="retired";ok.disabled=no.disabled=true;pendingAiProposals.delete(retire)};
+  const cancel=()=>{if(state!=="pending")return;if(el._photoChoice){el._photoChoice.cancel();return}state="cancelled";if(p.workflowPlan){p.workflowPlan.orderState='cancelled';const stockState=workflowPlanLeg(p.workflowPlan,'stock');savePhotoWorkflow({status:workflowPlanStatus(stockState,'cancelled'),order:'cancelled',stock:stockState})}box.textContent="Отменено. Ничего не записано.";pendingAiProposals.delete(retire)};no.onclick=cancel;pendingAiProposals.add(retire);
+  ok.onclick=async()=>{if(state!=="pending")return;
+    let reviewed=p.list;
+    if(editable){
+      reviewed=p.list.map(a=>({...a}));
+      const skipped=new Set();
+      if(p.reviewWarehouse)for(const choice of box.querySelectorAll('[data-order-keep]')){
+        if(!choice.checked)skipped.add(Number(choice.dataset.orderKeep));
+      }
+      for(const field of box.querySelectorAll('[data-order-row]')){
+        const index=Number(field.dataset.orderRow);
+        if(skipped.has(index))continue;
+        if(!/^\d{1,2}$/.test(field.value)){field.setCustomValidity('Введите целое число от 0 до 99');field.reportValidity();field.setCustomValidity('');return}
+        reviewed[index].qty=Number(field.value);
+      }
+      reviewed=reviewed.filter((a,index)=>!skipped.has(index)&&a.qty>0);
+      if(!reviewed.length){cancel();return}
+    }
+    state="saving";if(el._photoChoice)el._photoChoice.saving=true;pendingAiProposals.delete(retire);ok.disabled=no.disabled=true;
+    try{if(p.beforeCommit)p.beforeCommit();await aiCommitProposal(reviewed);state="done";if(p.workflowPlan){p.workflowPlan.orderState='confirmed';const stockState=workflowPlanLeg(p.workflowPlan,'stock');savePhotoWorkflow({status:workflowPlanStatus(stockState,'confirmed'),order:'confirmed',stock:stockState})}if(p.photo&&reviewed.every(a=>a.t==="order"))showPhotoOrderReceipt(box,reviewed);else box.textContent=p.successText||"Сохранено ✓";render()}
+    catch(e){state="failed";box.textContent="Не подтверждено: "+e.message+". Проверь актуальные данные перед новым предложением."}finally{if(el._photoChoice)el._photoChoice.saving=false}};
+}
+function appendOrderDraftButton(el){
+  const button=document.createElement('button');
+  button.type='button';button.className='btn sm';button.textContent='Открыть черновик заказа';
+  button.onclick=()=>globalThis.MixoraInterface?.openOrderDraft?globalThis.MixoraInterface.openOrderDraft():go('order');
+  el.append(button);
+}
+function showPhotoOrderReceipt(box,rows){
+  globalThis.MixoraInterface?.acceptPhotoOrder?.(rows);
+  const total=rows.reduce((sum,row)=>sum+row.qty,0);
+  box.textContent='Сохранено в черновик заказа: '+rows.length+' поз. · '+total+' шт.';
+  appendOrderDraftButton(box);
+  const details=document.createElement('details'),summary=document.createElement('summary'),list=document.createElement('ul');
+  summary.textContent='Подтверждённые позиции';details.open=rows.length<=5;
+  for(const row of rows){
+    const item=document.createElement('li'),x=byId[row.id];
+    item.textContent=[x.b,x.l,x.n].filter(Boolean).join(' ')+' · '+row.qty+' шт.';list.append(item);
+  }
+  details.append(summary);details.append(list);box.append(details);
+}
+function aiStockReviewBox(el){
+  if(!Object.keys(draft).length||el._photoMenu||el._photoChoice&&!el._photoChoice.stockGuard)return;
+  if(aiDraftWorkflowPlan?.stockState==='cancelled')return;
+  const snapshot=JSON.stringify(draft);if(el._stockReview?.active&&el._stockReview.snapshot===snapshot&&el._stockReview.box.parentNode===el)return;
+  if(el._stockReview?.active){el._stockReview.cancel?.();el._stockReview.box.textContent='Проверка устарела. Откройте актуальную карточку ниже.'}
+  const box=document.createElement("div");box.className="hacts";
+  box.innerHTML=(el._draftBeforeTurn===snapshot?'<small class="muted">Это прежний черновик. В этом ответе новых изменений склада не подготовлено.</small>':'')+'<details><summary>Изменения склада — ещё не сохранены: '+Object.keys(draft).length+'</summary><ul>'+Object.entries(draft).map(([id,d])=>'<li>'+esc(byId[id]?nm(byId[id]):id)+': '+esc(String(d.d||0))+' шт.'+(d.bar===true?' → на стойку':'')+'</li>').join('')+'</ul></details><button type="button" class="btn sm go">Проверить и подтвердить</button><button type="button" class="btn sm">Отмена</button><button type="button" class="btn sm">Изменить черновик</button>';
+  el.append(box);let active=true;const [review,reject]=box.querySelectorAll('button');
+  const ticket={snapshot,box,active:true,generation:++stockReviewGeneration};el._stockReview=ticket;
+  const cancel=()=>{active=false;ticket.active=false;for(const button of box.querySelectorAll('button'))button.disabled=true;pendingAiProposals.delete(cancel)};ticket.cancel=cancel;pendingAiProposals.add(cancel);if(reject)reject.onclick=()=>{if(!active)return;if(el._photoChoice){el._photoChoice.cancel();return}cancel();if(aiDraftWorkflowPlan){aiDraftWorkflowPlan.stockState='cancelled';const orderState=workflowPlanLeg(aiDraftWorkflowPlan,'order');savePhotoWorkflow({status:workflowPlanStatus('cancelled',orderState),stock:'cancelled',order:orderState})}box.textContent='Перенос отменён. Черновик сохранён отдельно, запись не выполнена.'};
+  const ids=Object.keys(draft),identity=()=>JSON.stringify(ids.map(id=>[byId[id],typeof stock==='undefined'?null:stock[id],typeof db?.actionScope==='function'?db.actionScope():db?.stockScope?.()])),initial=identity(),bound=aiDraftConfirmation?.snapshot===snapshot?aiDraftConfirmation.check:null;
+  const verify=()=>{if(!ticket.active||el._stockReview!==ticket||ticket.generation!==stockReviewGeneration)throw Error('Прежняя проверка отменена. Откройте актуальную проверку склада.');if(JSON.stringify(draft)!==snapshot)throw Error('Черновик изменился. Откройте актуальную проверку склада.');if(bound)bound();if(initial!==identity())throw Error('Аккаунт, позиции или остатки изменились. Откройте новую проверку склада.');};
+  const fail=e=>{cancel();box.textContent='Не подтверждено: '+e.message;if(typeof setStatus==='function')setStatus(box.textContent,true)};
+  box.querySelectorAll('button')[2].onclick=()=>{if(active)review.onclick()};
+  const context={
+    verify,fail,
+    saving(value){if(el._photoChoice)el._photoChoice.saving=value},
+    reset:el._photoChoice?.cancel,
+    reopen(){
+      cancel();box.remove();
+      if(!Object.keys(draft).length){closeDlg();if(el._photoChoice)el._photoChoice.cancel();return}
+      aiStockReviewBox(el);
+      el._stockReview?.open?.();
+    },
+    settle(outcome,count){
+      if(outcome?.status==='confirmed'){
+        cancel();box.textContent='Изменения склада подтверждены. Позиций: '+count+'.';
+        const reviewed=JSON.parse(snapshot);
+        const rows=(outcome.receipt||[]).filter(row=>reviewed[row.id]&&byId[row.id]);
+        appendPhotoList(box,'Подтверждённые позиции',rows.map(row=>{
+          const change=reviewed[row.id],quantity=change.d||0;
+          const action=quantity<0&&(change.kind==='tobar'||change.bar===true)?'перенос на стойку':quantity<0?'списание':quantity>0?'пополнение':change.bar?'на стойку':'со стойки';
+          return nm(byId[row.id])+' — '+action+(quantity?' · '+Math.abs(quantity)+' шт.':'')+' · остаток '+row.doc.wh;
+        }));
+        const journal=document.createElement('button');journal.type='button';journal.className='btn sm';journal.textContent='Открыть журнал';
+        journal.onclick=()=>{logF='all';if(globalThis.MixoraInterface)globalThis.MixoraInterface.navigate('journal');else go('log')};box.append(journal);
+      }else if(outcome?.status==='unknown')fail(Error('Результат записи не установлен. Проверьте журнал перед повтором.'));
+    }
+  };
+  ticket.open=review.onclick=()=>{if(!active)return;try{verify();openReview(context)}catch(e){fail(e)}};
 }
 async function aiCommitProposal(list){
   // Разные таблицы требуют серверной транзакции. Не начинать частичное сохранение.
   const kinds=new Set(list.map(a=>a.t));if(kinds.size!==1)throw new Error("заказ и метки нужно подтвердить отдельными предложениями");
   if(kinds.has("order")){
     if(!staffReady)throw new Error("нет права менять заказ");
-    const q={...orderQ};for(const a of list){const x=byId[a.id];if(!x)throw new Error("позиция удалена");if(a.qty&&flag(x,"slow"))throw new Error("позиция стала неликвидом");if(a.qty)q[a.id]=a.qty;else delete q[a.id]}
-    clearTimeout(oTimer);oTimer=null;const at=new Date().toISOString();
-    await db.doc("order/current").set({q,m:orderM,at});orderQ=q;lastOrderAt=at;
+    const q={...orderQ};
+    for(const a of list){
+      const x=byId[a.id];
+      if(!x)throw new Error("позиция удалена");
+      if(a.qty&&flag(x,"slow"))throw new Error("позиция стала неликвидом");
+      if(Object.hasOwn(a,'beforeDraft')&&a.beforeDraft!==globalThis.MixoraInterface?.orderDraftQuantity?.(a.id))throw new Error("Черновик заказа изменился. Сверьте позиции перед подтверждением.");
+      if(a.before!==undefined&&a.before!==oq(x))throw new Error("Количество в заказе изменилось после подготовки предложения. Сверьте заказ.");
+      if(a.qty)q[a.id]=a.qty;else delete q[a.id];
+    }
+    orderQ=q;
+    const ids=new Set(list.map(a=>a.id));
+    orderChecks=orderChecks.filter(c=>!ids.has(c.id));
+    for(const id of ids)orderChecks.push({id,value:orderValue({q},"q",id),version:orderVer+1});
+    const version=markOrderDirty();
+    render();
+    let saved;
+    try{saved=await flushOrder(version)}
+    catch(e){throw new Error("сохранение заказа не подтверждено. Изменения оставлены на экране. "+e.message)}
+    if(list.some(a=>(saved[a.id]||0)!==a.qty))throw new Error("предложение заменено более свежим изменением заказа.");
   }else{
     const docs={};for(const a of list){if(a.k==="slow"&&!can("slow")||a.k==="stop"&&!a.on&&!can("unstop"))throw new Error("нет права менять метку");
       const doc=docs[a.id]||(docs[a.id]={wh:wh(byId[a.id]),bar:onBar(byId[a.id]),...stock[a.id]});if(a.on)doc[a.k]=true;else delete doc[a.k]}
@@ -2028,12 +2724,12 @@ function aiSnapshot(){
 // src — «модель+кто читал фото» (см. sample в app/shim.js)
 const aiSrcTxt=s=>{const[m,o]=String(s).split("+");return[/^local/.test(m)?"🧑‍🔧 ПК":/^yandex/.test(m)?"Я YandexGPT":/gemini/.test(m)?"☁ Gemini":/claude/.test(m)?"✦ Claude":"",o==="yandex"?"📷 Яндекс":o==="sonnet"?"📷 Sonnet":""].filter(Boolean).join(" · ")};
 function aiSrc(el,s){const t=aiSrcTxt(s||"");if(!t)return;const m=document.createElement("small");m.className="msrc";m.textContent=t;el.append(m)}
-function aiBubble(role,text,cls){const d=document.createElement("div");d.className="msg "+role+(cls?" "+cls:"");d.textContent=text;$("#ai-log").append(d);aiScroll(true);return d}
+function aiBubble(role,text,cls){const d=document.createElement("div");if(role==="assistant")d._draftBeforeTurn=JSON.stringify(draft);d.className="msg "+role+(cls?" "+cls:"");d.textContent=text;$("#ai-log").append(d);aiScroll(true);return d}
 function aiScroll(force){const l=$("#ai-log");if(force||l.scrollHeight-l.scrollTop-l.clientHeight<120)l.scrollTop=l.scrollHeight}
 function fitChat(){requestAnimationFrame(()=>{const r=document.documentElement.style;r.setProperty("--chat-top",Math.max(0,$(".bar").getBoundingClientRect().bottom)+"px");const t=$("#tray");r.setProperty("--trayh",(t&&!t.hidden?t.offsetHeight:0)+"px");aiScroll(false)})}
 window.addEventListener("resize",()=>{if(st.tab==="ai")fitChat()});
 if(window.visualViewport)visualViewport.addEventListener("resize",()=>{if(st.tab==="ai")fitChat()});
-function aiErr(c){return({not_granted:"Ассистент не разрешён для этой страницы.",sampling_disabled:"Claude недоступен для этого аккаунта.",not_configured:"Ассистент ещё не подключён. Обратись к сотруднику с доступом к настройкам.",busy:"ИИ сейчас перегружен. Повтори вопрос через минуту.",rate_limited:"ИИ сейчас перегружен. Подожди минуту и повтори.",session_expired:"Нужно заново войти в claude.ai.",image_rejected:"Фото не подошло, попробуй другое.",refused:"Claude не стал отвечать на это. Сформулируй иначе.",prompt_too_large:"Слишком длинный разговор. Нажми «Новый разговор»."})[c]||"Не получилось. Попробуй ещё раз."}
+function aiErr(c){return({client_update_required:"Несовместимая версия клиента. Обновите Mixora и повторите запрос.",not_granted:"Ассистент не разрешён для этой страницы.",sampling_disabled:"Claude недоступен для этого аккаунта.",not_configured:"Ассистент ещё не подключён. Обратись к сотруднику с доступом к настройкам.",busy:"ИИ сейчас перегружен. Повтори вопрос вручную через минуту.",rate_limited:"ИИ сейчас перегружен. Повтори запрос вручную позже.",session_expired:"Сессия завершена. Закройте Mini App и откройте её заново через Telegram.",image_rejected:"Фото не подошло, попробуй другое.",refused:"Claude не стал отвечать на это. Сформулируй иначе.",prompt_too_large:"Слишком длинный разговор. Нажми «Новый разговор»."})[c]||"Исход запроса не подтверждён. Автоматического повтора не было; повторите вручную после проверки."}
 // Команды склада (/перенос /пополнить /списать /заказать /списать и заказать /найти): решение детерминированное,
 // без модели — быстрее, бесплатно и без риска, что модель напишет вызов функции текстом вместо настоящего вызова.
 // Разбор фото всё равно идёт через OCR на сервере (sampleFn.readLabels), а сверка с каталогом — тем же matchText,
@@ -2051,26 +2747,263 @@ function parseCmd(raw){const s=String(raw||"");const m=s.match(/^\s*\/\s*(.*)$/s
   else return null;
   const words=firstLine.split(/\s+/).filter(Boolean),tail=words.slice(Math.min(strip,words.length)).join(" ");
   return{cmd,args:(tail+"\n"+restLines).trim()}}
+function parsePhotoCommand(raw){
+  if(/[-−+]\s*\d|\d[.,]\d/.test(raw))return null;
+  let phrase=aiSelectionText(raw).trim().replace(/^пожалуйста /,'').replace(/ пожалуйста$/,'');
+  const quantity=phrase.match(/ (\d+)(?: (?:шт|штук[аи]?|упаков(?:ка|ки|ок)))?$/);
+  if(quantity)phrase=phrase.slice(0,quantity.index);
+  phrase=phrase.replace(/(?: (?:все|эти|все эти))?(?: банки)? (?:с фото|по фото|на фото)$/,'').replace(/ (?:все банки|эти банки)$/,'');
+  let cmd;
+  if(/^(?:спиши|списать|списание)(?: все)?(?: банки)?(?: со склада)?(?: на стойку| за стойку| за бар)?$/.test(phrase))cmd='spisat';
+  else if(aiPhotoTransferOnly(phrase)||/^(?:перенос|перекинь)(?: все)?(?: банки)?(?: со склада)?(?: на стойку| за стойку| за бар)?$/.test(phrase))cmd='perenos';
+  else if(/^(?:(?:пополни|пополнить|пополнение)(?: склад| склада)?|приход|оприходуй|оприходовать|привезли|пришло|(?:добавь|добавить|поставь|внеси|прими)(?: все)?(?: банки)? на склад)$/.test(phrase))cmd='popolnit';
+  else if(/^(?:(?:закажи|заказать)(?: все)?|(?:добавь|добавить|поставь|отправь|внеси)(?: все)?(?: банки)? в заказ|(?:собери|составь|сделай|оформи) заказ)$/.test(phrase))cmd='zakazat';
+  else if(aiPhotoRead(phrase)||/^(?:найти|найди|поиск|проверь наличие)(?: на складе)?$/.test(phrase))cmd='naiti';
+  return cmd?{cmd,args:quantity?quantity[1]:''}:null;
+}
+function photoConversationTools(tools,acc){
+  // The validated command paths own photo-based stock and order changes.
+  return photoTools(tools.filter(t=>t.name!=='stage_stock'&&t.name!=='set_order'),acc);
+}
 // Текст команды + фото (если есть) → matchText против каталога. Фото читает сервер (readLabels), без диалоговой модели.
-async function cmdFindIds(args,imgs,signal){if(signal?.aborted)throw new Error("Остановлено");let text=args||"",failed=0;
+// A completed inspection page has one ordered observation for every numbered label.
+// Validate once, then use exactly the same target-only labels for matching and review.
+function normalizeInspectionPage(text,items){
+  if(typeof text!=='string'||!Array.isArray(items)||items.length>200)return null;
+  const lines=text.split(/\r?\n/).map(line=>line.trim()).filter(Boolean);
+  const labels=[];
+  for(const line of lines){
+    if(/^Фокус:/.test(line))continue;
+    const label=line.match(/^Этикетка\s+(\d+)\s*:\s*(.*)$/);
+    if(label)labels.push({index:Number(label[1]),raw:label[2]});
+    else if(line!=='Банок не обнаружено.')return null;
+  }
+  if(!items.length)return !labels.length&&lines.includes('Банок не обнаружено.')?{text:'',targetCount:0,targets:[]}:null;
+  if(labels.length!==items.length||lines.includes('Банок не обнаружено.'))return null;
+  const field=(value,max)=>typeof value==='string'&&value.trim().length>0&&value.length<=max&&!/[\r\n\x00-\x1f]/.test(value);
+  const box=b=>Array.isArray(b)&&b.length===4&&b.every(n=>typeof n==='number'&&Number.isFinite(n)&&n>=0&&n<=1)&&b[2]>0&&b[3]>0&&b[0]+b[2]<=1.000001&&b[1]+b[3]<=1.000001;
+  const targets=[];
+  for(let i=0;i<items.length;i++){
+    const item=items[i],label=labels[i];
+    if(!item||typeof item!=='object'||Array.isArray(item)||item.label_index!==i+1||label.index!==item.label_index||!field(item.raw_label,361)||label.raw!==item.raw_label.trim()||!['target','fragment','uncertain'].includes(item.visibility)||!['high','low'].includes(item.confidence)||!field(item.reason,180)||!box(item.bbox))return null;
+    if(item.visibility==='target')targets.push(label);
+  }
+  return {text:targets.map(label=>'Этикетка '+label.index+': '+label.raw).join('\n'),targetCount:targets.length,targets};
+}
+// A choice applies to exactly one validated observation. Keep the original reading for review.
+async function clarifyInspectionLabels(pages,out,signal,scope,at) {
+  const pending=[],parts=[],ids=new Set();
+  const total=pages.reduce((sum,page)=>sum+page.targetCount,0);
+  for(const [index,page] of pages.entries()){
+    if(!page.match.not_found_lines.length){
+      parts.push([page.match]);
+      page.match.found.forEach(item=>ids.add(item.id));
+      continue;
+    }
+    const matches=[];
+    parts.push(matches);
+    for(const label of page.targets){
+      const match=matchPhotoText('Этикетка '+label.index+': '+label.raw,true,true);
+      matches.push(match);
+      if(match.found.length===1&&!match.found[0].ambiguous&&!match.not_found_lines.length){
+        ids.add(match.found[0].id);
+        continue;
+      }
+      // Suggestions already require one visible brand and a close catalog spelling.
+      // Never make the remainder actionable if another physical target cannot be resolved.
+      const options=match.suggestions?.[0]?.options;
+      if(!options?.length||options.some(option=>!byId[option.id]))return null;
+      options.forEach(option=>ids.add(option.id));
+      pending.push({page:index+1,label,match,options});
+    }
+  }
+  if(!pending.length)return null;
+  const selection=[...ids],signature=aiPhotoSignature(selection),draftBefore=JSON.stringify(draft);
+  const stale=()=>new Error('Данные изменились или истекли 5 минут. Пришлите фото заново. Ничего не подготовлено.');
+  const guard=()=>{
+    if(signal?.aborted)throw new Error('Остановлено');
+    if(!scope||photoWorkflowScope()!==scope||Date.now()-at>=300000||JSON.stringify(draft)!==draftBefore||
+      selection.some(id=>!byId[id])||aiPhotoSignature(selection)!==signature)throw stale();
+  };
+  const intent=aiPhotoIntent;
+  for(const [index,{page,label,match,options}] of pending.entries()){
+    guard();
+    out.classList.remove('wait');
+    out.textContent='По '+pages.length+' фото сопоставлено '+(total-pending.length+index)+' из '+total+' банок.\nФото '+page+', этикетка '+label.index+' — «'+label.raw+'». Выберите позицию, если она совпадает с банкой на фото.';
+    const actions=document.createElement('div');actions.className='hacts';out.append(actions);
+    const chosen=await new Promise((resolve,reject)=>{
+      let active=true;
+      const buttons=[];
+      const finish=(id,error)=>{
+        if(!active)return;
+        active=false;
+        buttons.forEach(b=>b.disabled=true);
+        clearTimeout(timer);
+        signal?.removeEventListener('abort',cancel);
+        pendingAiProposals.delete(cancel);
+        if(error)reject(error);else resolve(id);
+      };
+      const cancel=()=>{
+        if(!active)return;
+        if(aiPhotoIntent===intent)aiPhotoIntent=null;
+        finish(null,new Error('Уточнение отменено. Ничего не подготовлено.'));
+      };
+      const timer=setTimeout(()=>finish(null,stale()),Math.max(0,at+300000-Date.now()));
+      pendingAiProposals.add(cancel);
+      signal?.addEventListener('abort',cancel,{once:true});
+      const button=(text,click)=>{
+        const b=document.createElement('button');b.type='button';b.className='btn sm';b.textContent=text;b.onclick=click;
+        actions.append(b);buttons.push(b);
+      };
+      for(const option of options)button(ambName(option),()=>finish(option.id));
+      button('Отмена',cancel);
+      aiScroll(true);
+    });
+    guard();
+    const item=byId[chosen];
+    match.found=[{...aiItem(item),jars:1}];
+    match.not_found_lines=[];match.suggestions=[];
+    match.jars_by_brand={[item.b]:1};
+  }
+  pages.forEach((page,i)=>{page.match=mergePhotoMatches(parts[i])});
+  return at;
+}
+async function cmdFindIds(args,imgs,signal,options={}){if(signal?.aborted)throw new Error("Остановлено");let text=args||"",failed=0,photoRead=false,observations=[],photoTexts=null,inspectionPages=null;
+  const scope=options.inspection?photoWorkflowScope():null,at=options.inspection?(aiPhotoIntent?.at??Date.now()):null;
   if(imgs&&imgs.length&&sampleFn&&sampleFn.readLabels){
-    const r=await sampleFn.readLabels(imgs,signal);text=r.text||"";failed=r.failed||0;if(signal?.aborted)throw new Error("Остановлено");if(failed)throw new Error("Фото не удалось прочитать; ничего не изменено")}
-  if(imgs?.length&&db?.listPhotoCorrections){try{learnedPhoto=await db.listPhotoCorrections()}catch(e){learnedPhoto=[];console.warn("Mixora OCR corrections unavailable",e)}}
-  const m=matchText(text,!!(imgs&&imgs.length));if(m.ambiguous.length)throw new Error("Нужно уточнение."+ambTxt(m));return{m,text,failed}}
-const photoInspection=t=>!t||/^(?:(?:пожалуйста|привет)[,!.]?\s*)?(?:что\s+(?:на|здесь|тут)|разбери|распознай|распознать|прочитай|определи|перечисли|посмотри|проверь\s+фото)/i.test(t)&&!stockAsked(t)&&!ordAsked(t)&&!/микс|рекоменд|совет/i.test(t);
-function photoInspectionText(texts){let total=0;
+    const r=await sampleFn.readLabels(imgs,signal,options);observations=r.observations||[];photoTexts=Array.isArray(r.texts)?r.texts:null;
+    failed=r.failed||0;if(signal?.aborted)throw new Error("Остановлено");
+    if(failed){
+      const pages=photoTexts?.flatMap((page,index)=>page?.failed?[index+1]:[])||[];
+      if(options.inspection&&pages.length&&pages.every(number=>photoTexts[number-1].failed==="ocr_incomplete")){
+        const complete=photoTexts.filter((text,index)=>normalizeInspectionPage(text,observations[index])).length;
+        throw new Error("Сервис не завершил распознавание фото "+pages.join(", ")+". Прочитано "+complete+" из "+imgs.length+". Черновик не создан."+(complete?" При повторной отправке тех же фото в течение 5 минут Миксора использует сохранённые результаты.":""));
+      }
+      const timedOut=photoTexts?.flatMap((page,index)=>page?.failed==="ocr_timeout"?[index+1]:[])||[];
+      const malformed=photoTexts?.flatMap((page,index)=>page?.failed==="ocr_malformed"?[index+1]:[])||[];
+      const detail=(timedOut.length?" Сервис не успел ответить для фото "+timedOut.join(", ")+".":"")+(malformed.length?" Сервис вернул непроверяемые данные для фото "+malformed.join(", ")+".":"");
+      throw new Error("Фото не удалось прочитать"+(pages.length?": "+pages.join(', '):'')+"."+detail+" Ничего не подготовлено; автоматического повтора не было.");
+    }
+    if(options.inspection){
+      const invalid=[];
+      inspectionPages=Array.from({length:imgs.length},(_,index)=>{const page=normalizeInspectionPage(photoTexts?.[index],observations?.[index]);if(!page)invalid.push(index+1);return page});
+      if(photoTexts?.length!==imgs.length||!Array.isArray(observations)||observations.length!==imgs.length||invalid.length)throw new Error('Не удалось проверить результаты распознавания на фото '+(invalid.length?invalid:Array.from({length:imgs.length},(_,i)=>i+1)).join(', ')+'. Ничего не подготовлено; автоматического повтора не было.');
+      text=inspectionPages.map((page,index)=>'Фото '+(index+1)+':\n'+page.text).join('\n');
+    }else text=r.text||"";
+    photoRead=true;
+  }
+  let corrections=null;
+  if(imgs?.length&&db?.listPhotoCorrections){
+    try{corrections=await db.listPhotoCorrections()}catch(e){corrections=[];console.warn("Mixora OCR corrections unavailable",e)}
+  }
+  if(signal?.aborted||options.inspection&&photoWorkflowScope()!==scope)throw new Error('Чтение фото остановлено. Ничего не подготовлено.');
+  if(corrections!==null)learnedPhoto=corrections;
+  if(inspectionPages)inspectionPages.forEach(page=>{page.match=page.targetCount?matchPhotoText(page.text,true,true):mergePhotoMatches([])});
+  let clarificationAt=null;
+  if(options.out&&inspectionPages?.some(page=>page.match.not_found_lines.length)){
+    clarificationAt=await clarifyInspectionLabels(inspectionPages,options.out,signal,scope,at);
+  }
+  const m=inspectionPages?mergePhotoMatches(inspectionPages.map(page=>page.match)):matchText(text,!!(imgs&&imgs.length));
+  if(clarificationAt!==null)m.clarificationAt=clarificationAt;
+  if(m.ambiguous.length)throw new Error("Нужно уточнение."+ambTxt(m));return{m,text,failed,photoRead,observations,photoTexts,inspectionPages}}
+const photoInspection=t=>aiPhotoOnly(t)||/^(?:(?:пожалуйста|привет)[,!.]?\s*)?(?:что\s+(?:на|здесь|тут)|разбери|распознай|распознать|прочитай|определи|перечисли|посмотри|проверь\s+фото)/i.test(t)&&!stockAsked(t)&&!ordAsked(t)&&!/микс|рекоменд|совет/i.test(t);
+function photoInspectionText(texts,observations=[]){let total=0,counted=0;
  const pages=texts.map((text,index)=>{if(typeof text!=="string")return "Фото "+(index+1)+": не удалось прочитать.";
-  const labels=[...text.matchAll(/^Этикетка\s*\d+\s*:\s*(.*)$/gim)].map(m=>m[1].trim());
-  const found=[],unknown=[],uncertain=[];let count=0;
-  labels.forEach(label=>{if(!label||/[?…]|\.{2,}/.test(label)){uncertain.push(label||"?");return}count++;
+  const items=observations[index];
+  if(!Array.isArray(items))return "Фото "+(index+1)+": нет данных для подсчёта.";
+  const targets=items.filter(item=>item?.visibility==="target");
+  counted++;total+=targets.length;
+  const found=[],unknown=[],uncertain=[];
+  targets.forEach(item=>{const label=(item.raw_label||"").trim();if(!label||/[?…]|\.{2,}/.test(label)){uncertain.push(label||"?");return}
    const hit=photoMatchChunk(label,true,true).hit;
    if(hit.length===1){const x=hit[0];found.push(label+" → "+x.b+" "+x.n+(x.l?" ["+x.l+"]":""))}else if(hit.length>1)uncertain.push(label+" — неоднозначное совпадение в каталоге");else unknown.push(label)});
-  total+=count;return "Фото "+(index+1)+": прочитано "+count+" банок."+(found.length?"\nПо этикетке → каталог:\n"+found.map(l=>"• "+l).join("\n"):"")+(unknown.length?"\nНе найдены в каталоге:\n"+unknown.map(l=>"• "+l).join("\n"):"")+(uncertain.length?"\nСомнительные и обрезанные:\n"+uncertain.map(l=>"• "+l).join("\n"):"")+(!labels.length?"\nЭтикетки не прочитаны.":"")});
- return pages.join("\n\n")+"\n\nВсего прочитано: "+total+" банок. Сомнительные надписи в подсчёт не включены."}
+  return "Фото "+(index+1)+": банок — "+targets.length+"."+(found.length?"\nПо этикетке → каталог:\n"+found.map(l=>"• "+l).join("\n"):"")+(unknown.length?"\nНе найдены в каталоге:\n"+unknown.map(l=>"• "+l).join("\n"):"")+(uncertain.length?"\nСомнительные надписи:\n"+uncertain.map(l=>"• "+l).join("\n"):"")});
+ return pages.join("\n\n")+(counted?"\n\nВсего банок: "+total+(counted<texts.length?". Итог по фото, для которых доступен подсчёт.":"."):"")}
+async function clarifyPhotoTransfer(out,imgs,signal){
+ const {m,text,observations,photoTexts,inspectionPages}=await cmdFindIds('',imgs,signal,{inspection:true,out});
+ if(!aiRememberPhotoBatch(m,imgs.length,text,observations,photoTexts,inspectionPages)){out.textContent=aiPhotoBatchIssue;return}
+ const found=m.found.reduce((n,x)=>n+(x.jars||1),0),available=m.found.reduce((n,x)=>n+Math.min(x.jars||1,wh(byId[x.id])),0),missing=m.found.filter(x=>wh(byId[x.id])===0).reduce((n,x)=>n+(x.jars||1),0),partial=found-available-missing;
+ out.textContent='Найдено: '+found+' банок.\nДоступно на складе: '+available+'. Нет на складе: '+missing+'.'+(partial>0?' Не хватает при частичном остатке: '+partial+'.':'')+'\nУточните операцию и количество: какие банки переносить и какие добавить в заказ. Новые изменения не подготовлены.';
+}
 async function inspectPhoto(out,args,imgs,signal){
  lastPhotoIds=[];if(signal?.aborted)throw new Error("Остановлено");
- const r=await sampleFn.readLabels(imgs,signal,{inspection:true});if(signal?.aborted)throw new Error("Остановлено");
- out.textContent=photoInspectionText(r.texts||[{failed:true}])+ (r.failed?"\nНе все фото прочитаны; итог неполный.":"");
+ const readOnly=aiPhotoNegative(args);
+ const result=await cmdFindIds('',imgs,signal,{inspection:true,out:readOnly?null:out});
+ const pages=result.inspectionPages,matches=result.m;
+ if(!readOnly)aiRememberPhotoBatch(matches,imgs.length,result.text,result.observations,result.photoTexts,pages);
+ out.textContent=aiPhotoSummary(matches.found.map(x=>({id:x.id,qty:x.jars})));
+ const total=pages.reduce((n,p)=>n+p.targetCount,0);
+ if(matches.not_found_lines.length)out.textContent+='\nБанок на фото: '+total+'. Требуют уточнения: '+matches.not_found_lines.length+'.';
+ if(!args.trim()&&aiPhotoBatch)showPhotoActions(out,aiPhotoBatch);
+ if(!readOnly&&!aiPhotoBatch&&aiPhotoBatchIssue)out.textContent+='\n'+aiPhotoBatchIssue;
+ if(total){
+   const details=document.createElement('details'),label=document.createElement('summary'),list=document.createElement('ul');
+   label.textContent='Посмотреть этикетки';details.append(label);
+   for(const [i,page] of pages.entries())for(const line of page?.text.split('\n')||[]){
+     if(!line)continue;const li=document.createElement('li');li.textContent='Фото '+(i+1)+' · '+line;list.append(li);
+   }
+   details.append(list);out.append(details);
+ }
+}
+function showPhotoActions(out,batch){
+ out._photoMenu=true;
+ const choices=[
+   ['В заказ',review=>prepareSinglePhotoOrder(review,null)],
+   ['Перенести за стойку',review=>prepareSinglePhotoStock(review,true)],
+   ['Пополнить склад',review=>prepareSinglePhotoStock(review,false)],
+   ['Перенести и заказать с нулевым остатком',review=>showCombinedPhotoDraft(review,'Перенеси на стойку и закажи только позиции с нулевым остатком')]
+ ];
+ const available=batch.items.filter(({id})=>wh(byId[id])>0).length;
+ out.textContent+='\nЕсть на складе: '+available+' поз. · Нет на складе: '+(batch.items.length-available)+' поз.';
+ const group=document.createElement('div');group.className='hacts photo-actions';
+ const retire=()=>{for(const button of group.children)button.disabled=true;pendingAiProposals.delete(retire)};
+ for(const [label,prepare] of choices){
+   const button=document.createElement('button');button.type='button';button.className='btn sm';button.textContent=label;
+   button.onclick=()=>{
+     if(button.disabled||aiCtl||batch!==aiPhotoBatch)return;
+     cancelAiProposals();
+     try{aiEnsureDataReady();aiCheckPhotoBatch(batch)}
+     catch(e){out.textContent=e.message;out.classList.add('err');return}
+     const previous={draft,source:draftSource,confirmation:aiDraftConfirmation,plan:aiDraftWorkflowPlan,
+       ids:[...cmdDraftIds],transfers:aiPhotoTransferIds};
+     const details=Array.from(out.children).find(child=>child.tagName==='DETAILS');
+     out._photoMenu=false;
+     const choice={stockGuard:null,saving:false,cancel:()=>{
+       if(choice.saving||out._photoChoice!==choice||batch!==aiPhotoBatch)return;
+       cancelAiProposals();
+       if(choice.stockGuard&&choice.stockGuard===aiDraftConfirmation?.check&&Object.keys(draft).length){
+         draft=previous.draft;draftSource=previous.source;aiDraftConfirmation=previous.confirmation;
+         aiDraftWorkflowPlan=previous.plan;aiPhotoTransferIds=previous.transfers;
+         cmdDraftIds.clear();previous.ids.forEach(id=>cmdDraftIds.add(id));stockReviewGeneration++;saveDraft();
+       }
+       if(aiPhotoAction?.batch===batch){
+         const plan=aiPhotoAction;
+         for(const leg of ['stockState','orderState'])if(['prepared','pending'].includes(plan[leg]))plan[leg]='cancelled';
+         savePhotoWorkflow({status:workflowPlanStatus(plan.stockState,plan.orderState,'cancelled'),stock:plan.stockState,order:plan.orderState});
+         aiPhotoAction=null;
+       }
+       out._photoChoice=null;aiPhotoRemainder=null;
+       try{aiCheckPhotoBatch(batch);out.textContent=aiPhotoSummary(batch.items);showPhotoActions(out,batch);if(details)out.append(details)}
+       catch(e){out.textContent=e.message}
+       render();
+     }};
+     out._photoChoice=choice;
+     try{prepare(out)}catch(e){out.textContent=e.message;out.classList.add('err')}
+     if(!out.querySelector('.hacts button')&&out._photoChoice===choice){
+       const back=document.createElement('button');back.type='button';back.className='btn sm';back.textContent='К действиям с фото';back.onclick=choice.cancel;out.append(back);
+     }
+     render();
+   };
+   group.append(button);
+ }
+ pendingAiProposals.add(retire);out.append(group);
+}
+function showCombinedPhotoDraft(out,command){
+ aiPhotoAction=aiPhotoPlan(command);
+ out.textContent=aiPhotoPlanText(aiPhotoAction);
+ if(aiPhotoAction.status==='empty'){if(aiPhotoAction.alreadyOrdered.length)appendOrderDraftButton(out);return;}
+ if(aiPhotoAction.replace)aiOfferPhotoPlan(out,aiPhotoAction);
+ else aiPreparePhotoPlan(out);
 }
 // Corrections are suggestions only: NEVER stage stock, order or stop-list changes.
 let learnedPhoto=[];
@@ -2128,10 +3061,41 @@ function offerPhotoCorrection(out,ocr){
    finally{b.disabled=false}
  };
 }
-async function cmdNaiti(out,args,imgs){const{m,text}=await cmdFindIds(args,imgs,aiCtl.signal);
-  if(!m.found.length){out.textContent=(m.suggestions?.length?"Нет уверенного совпадения на фото.":"Не нашёл ничего на складе"+(args||(imgs&&imgs.length)?" по этому запросу":"")+". Пришли фото банок или напиши названия вкусов.")+photoSuggestionText(m)+(imgs?.length?learnedHints(text,m):"");if(imgs?.length)offerPhotoCorrection(out,text);return}
-  const lines=m.found.map(x=>{const it=byId[x.id];return "— "+x.brand+" "+x.name+(imgs&&imgs.length&&x.jars>1?" ×"+x.jars:"")+": на складе "+x.wh+(x.onBar?", на стойке: есть":", на стойке: нет")+(it&&flag(it,"slow")?" (неликвид)":"")+(it&&flag(it,"stop")?" (стоп)":"")});
-  out.textContent=(imgs&&imgs.length?"Распознано по каталогу:\n":"Нашёл на складе и стойке:\n")+lines.join("\n")+(m.not_found_lines.length?"\n\nНе распознано уверенно:\n"+m.not_found_lines.map(l=>"— "+l).join("\n"):"")+photoSuggestionText(m)+(imgs?.length?learnedHints(text,m):"");if(imgs?.length)offerPhotoCorrection(out,text)}
+async function readCommandItems(out,args,imgs){
+  const scope=photoWorkflowScope(),controller=aiCtl;
+  const result=await cmdFindIds(args,imgs,controller.signal,{inspection:!!imgs?.length,out});
+  if(controller!==aiCtl||controller.signal.aborted)throw Error('Остановлено.');
+  if(!imgs?.length)return result;
+  if(scope!==photoWorkflowScope())throw Error('Заведение или аккаунт изменились. Отправь фото заново.');
+  const {m,text,photoRead,observations,photoTexts,inspectionPages}=result;
+  if(!photoRead||!inspectionPages||!aiRememberPhotoBatch(m,imgs.length,text,observations,photoTexts,inspectionPages))
+    throw Error(aiPhotoBatchIssue||'Полная однозначная выборка фото не получена. Ничего не подготовлено.');
+  return result;
+}
+function appendPhotoList(out,title,lines){
+  if(!lines.length)return;
+  const details=document.createElement('details');
+  details.innerHTML='<summary>'+esc(title)+'</summary><ul>'+lines.map(line=>'<li>'+esc(line)+'</li>').join('')+'</ul>';
+  out.append(details);
+}
+function showSinglePhotoStock(out){
+  const batch=aiPhotoBatch;aiCheckPhotoBatch(batch);
+  const available=batch.items.filter(x=>wh(byId[x.id])>0).length;
+  out.textContent=aiPhotoSummary(batch.items)+'\nЕсть на складе: '+available+' поз. · Нет на складе: '+(batch.items.length-available)+' поз.';
+  appendPhotoList(out,'Проверить остатки по позициям',batch.items.map(({id,qty})=>{
+    const x=byId[id];
+    return nm(x)+(qty>1?' ×'+qty:'')+': '+(Object.hasOwn(stock,id)?'на складе '+wh(x):'нет складской записи')+', на стойке: '+(onBar(x)?'есть':'нет')+(flag(x,'slow')?' (неликвид)':'')+(flag(x,'stop')?' (стоп)':'');
+  }));
+}
+async function cmdNaiti(out,args,imgs){const{m,text}=await readCommandItems(out,args,imgs);
+  if(!m.found.length){out.textContent="Не нашёл ничего на складе"+(args?" по этому запросу":"")+". Пришли фото банок или напиши названия вкусов.";return}
+  if(imgs?.length){
+    showSinglePhotoStock(out);
+    const hints=learnedHints(text,m).trim();if(hints)appendPhotoList(out,'Подтверждённые соответствия',hints.split('\n').slice(1));
+    offerPhotoCorrection(out,text);return;
+  }
+  const lines=m.found.map(x=>{const it=byId[x.id];return "— "+x.brand+" "+x.name+": на складе "+x.wh+(x.onBar?", на стойке: есть":", на стойке: нет")+(it&&flag(it,"slow")?" (неликвид)":"")+(it&&flag(it,"stop")?" (стоп)":"")});
+  out.textContent="Нашёл на складе и стойке:\n"+lines.join("\n")+(m.not_found_lines.length?"\n\nНе распознано уверенно:\n"+m.not_found_lines.map(l=>"— "+l).join("\n"):"")+photoSuggestionText(m)}
 function transferQuantity(args){
  const text=String(args||"").trim();
  const matches=[...text.matchAll(/(?:^|\s)(\d+)\s*(?:шт\.?|штук[аи]?|упаков(?:ка|ки|ок))(?=\s|$)/gi)];
@@ -2141,39 +3105,109 @@ function transferQuantity(args){
  if(value!==null&&(!Number.isSafeInteger(value)||value<1||value>999))throw Error("Количество должно быть от 1 до 999.");
  return value;
 }
-async function cmdPerenos(out,args,imgs){const requested=transferQuantity(args);const{m}=await cmdFindIds(args,imgs,aiCtl.signal);
+function prepareSinglePhotoStock(out,transfer,requested=null,writeOff=false){
+  const batch=aiPhotoBatch;
+  aiCheckPhotoBatch(batch);
+  if(!can(transfer?'take':'add'))throw Error('Нет права менять склад.');
+  if(aiDraftWorkflowPlan&&aiDraftWorkflowPlan.stockState==='prepared')throw Error('Сначала заверши или отмени предыдущий план переноса и заказа. Его черновик сохранён.');
+  if(requested!==null&&batch.items.length!==1)throw Error('Укажи количество отдельно для каждого вкуса. Ничего не добавлено в черновик.');
+  const before=JSON.stringify(draft),hasDraft=Object.keys(draft).length>0;
+  const next={},changed=[],none=[],partial=[];
+  for(const {id,qty} of batch.items){
+    const x=byId[id],entry={},wanted=requested??qty;
+    const available=wh(x),n=transfer?Math.min(wanted,available):wanted;
+    if(transfer&&requested!==null&&available<wanted)throw Error('Нужно '+wanted+' шт., доступно на складе '+available+'. Ничего не добавлено в черновик.');
+    if(n<=0){none.push(x);continue}
+    if(n<wanted)partial.push(nm(x)+' — переносим '+n+' из '+wanted);
+    entry.d=transfer?-n:n;
+    if(transfer){entry.kind='tobar';if(onBar(x))delete entry.bar;else entry.bar=true}
+    next[id]=entry;changed.push({id,qty:n});
+  }
+  const install=()=>{
+    aiCheckPhotoBatch(batch);
+    if(JSON.stringify(draft)!==before)throw Error('Черновик изменился. Проверь актуальные правки и повтори команду.');
+    if(!can(transfer?'take':'add'))throw Error('Нет права менять склад.');
+    const check=aiPhotoLegGuard(changed,batch.at);
+    draft=next;draftSource='photo-combined';aiDraftWorkflowPlan=null;
+    aiPhotoTransferIds=new Set(transfer?changed.map(x=>x.id):[]);
+    cmdDraftIds.clear();changed.forEach(x=>cmdDraftIds.add(x.id));saveDraft();
+    aiDraftConfirmation={snapshot:JSON.stringify(draft),check};if(out._photoChoice)out._photoChoice.stockGuard=check;render();
+  };
+  const quantity=changed.reduce((n,x)=>n+x.qty,0);
+  const unit=quantity%10===1&&quantity%100!==11?'банка':quantity%10>=2&&quantity%10<=4&&(quantity%100<12||quantity%100>14)?'банки':'банок';
+  out.textContent=aiPhotoSummary(batch.items)+'\n'+(writeOff?'Списание со склада на стойку: ':transfer?'Переносим: ':'Пополнение: ')+quantity+' '+unit+' · Позиций: '+changed.length
+    +(none.length?'\nНет на складе ('+none.length+').':'')
+    +(partial.length?'\nЧастично доступно: '+partial.length+' поз.':'')
+    +(changed.length?'\n\nПроверь список и количество перед подтверждением.':'\nИзменения не подготовлены.');
+  if(changed.length){
+    const same=hasDraft&&before===JSON.stringify(next)&&!!aiDraftConfirmation&&aiDraftConfirmation.snapshot===before;
+    if(!hasDraft||same){install();if(same)out.textContent+='\nЭти количества уже в черновике.'}
+    else{
+      out.textContent+='\nТекущий черновик сохранён. Замена уберёт прежние правки и оставит только этот список с фото.';
+      appendPhotoList(out,'Новые позиции для замены',changed.map(x=>nm(byId[x.id])+' ×'+x.qty));
+      const box=document.createElement('div');box.className='hacts';
+      box.innerHTML='<button class="btn sm" type="button">Заменить текущий черновик</button>'+(out._photoChoice?'<button class="btn sm" type="button">Отмена</button>':'');out.append(box);
+      const [replace,back]=box.querySelectorAll('button');if(back)back.onclick=out._photoChoice.cancel;
+      const retire=()=>{replace.disabled=true;pendingAiProposals.delete(retire)};
+      pendingAiProposals.add(retire);
+      replace.onclick=()=>{if(replace.disabled)return;retire();try{install();box.textContent='Черновик заменён. Проверь его перед подтверждением.'}catch(e){box.textContent=e.message}aiStockReviewBox(out)};
+    }
+  }
+  appendPhotoList(out,'Проверить недостающие позиции',[...none.map(x=>nm(x)+(Object.hasOwn(stock,x.id)?' — нет на складе':' — нет складской записи')),...partial]);
+  if(transfer)aiRememberPhotoRemainder(none);
+  aiStockReviewBox(out);
+}
+async function cmdPerenos(out,args,imgs,writeOff=false){const requested=transferQuantity(args);const{m}=await readCommandItems(out,args,imgs);
+  if(imgs?.length)return prepareSinglePhotoStock(out,true,requested,writeOff);
   if(requested!==null){if(m.found.length!==1||m.not_found_lines.length){out.textContent="Укажи количество отдельно для каждого вкуса. Ничего не добавлено в черновик.";return}const it=byId[m.found[0].id];const avail=it?wh(it)+((draft[it.id]||{}).d||0):0;if(avail<requested){out.textContent="Нужно "+requested+" шт., доступно на складе "+avail+". Ничего не добавлено в черновик.";return}}
   const st=AI_TOOLS.find(f=>f.name==="stage_stock"),done=[],none=[];
   m.found.forEach(x=>{const it=byId[x.id];if(!it)return;const avail=wh(it)+((draft[it.id]||{}).d||0);
-    const n=requested!==null?requested:(imgs&&imgs.length&&x.jars)?Math.min(x.jars,avail):avail;
+    const n=requested??avail;
     if(n<1){none.push(it);return}try{st.execute({id:it.id,delta:-n,toBar:true});done.push([it,n])}catch(e){none.push(it)}});
   if(!done.length&&!none.length){out.textContent="Не нашёл на складе подходящих вкусов. Пришли фото банок или напиши названия.";return}
   render();
-  out.textContent="Перенос со склада на стойку, в черновике:\n"+(done.map(d=>"— "+d[0].b+" "+d[0].n+" ×"+d[1]).join("\n")||"(ничего)")
-   +(none.length?"\n\nНет на складе, не перенесены:\n"+none.map(x=>"— "+x.b+" "+x.n).join("\n"):"")
-   +"\n\nПроверь и нажми внизу «Списание / пополнение» → «Подтвердить»."}
-async function cmdPopolnit(out,args,imgs){const{m}=await cmdFindIds(args,imgs,aiCtl.signal);
+  out.textContent="Перенос со склада на стойку, в черновике:\n"+(done.map(d=>"— "+d[0].b+" "+d[0].n+" ×"+d[1]).join("\n")||"(ничего)")+(none.length?"\n\nНет на складе, не перенесены:\n"+none.map(x=>"— "+x.b+" "+x.n).join("\n"):"")+"\n\nПроверь и нажми внизу «Списание / пополнение» → «Подтвердить».";
+  aiStockReviewBox(out)}
+async function cmdPopolnit(out,args,imgs){const{m}=await readCommandItems(out,args,imgs);
+  if(imgs?.length)return prepareSinglePhotoStock(out,false,transferQuantity(args));
   if(!m.found.length){out.textContent="Не нашёл вкусы. Пришли фото банок или напиши названия.";return}
   const st=AI_TOOLS.find(f=>f.name==="stage_stock"),done=[];
-  m.found.forEach(x=>{const it=byId[x.id];if(!it)return;const n=(imgs&&imgs.length&&x.jars)?x.jars:1;
+  m.found.forEach(x=>{const it=byId[x.id];if(!it)return;const n=1;
     try{st.execute({id:it.id,delta:n});done.push([it,n])}catch(e){}});
   render();
   out.textContent="Пополнение, в черновике:\n"+done.map(d=>"— "+d[0].b+" "+d[0].n+" +"+d[1]).join("\n")
    +"\n\nПроверь и нажми внизу «Списание / пополнение» → «Подтвердить»."}
+function prepareSinglePhotoOrder(out,requested,remainder=null){
+    const batch=remainder||aiPhotoBatch;aiCheckPhotoBatch(batch);
+    if(requested!==null&&batch.items.length!==1)throw Error('Укажи количество отдельно для каждого вкуса. Заказ не подготовлен.');
+    const allowed=batch.items.filter(x=>!flag(byId[x.id],'slow')),excluded=batch.items.length-allowed.length;
+    const eligible=remainder?allowed.filter(x=>aiPhotoOrderQuantity(byId[x.id])<x.qty):allowed;
+    const p={list:[],photo:true,ask:true,reviewWarehouse:!remainder,selectionPolicy:null,beforeCommit:aiPhotoLegGuard(eligible,batch.at)};
+    const order=aiProposalTools(p).find(t=>t.name==='set_order');
+    for(const x of eligible)order.execute({id:x.id,qty:requested??x.qty});
+    out.textContent=aiPhotoSummary(batch.items)+'\nВ заказ: '+p.list.reduce((n,x)=>n+x.qty,0)+' шт. · Позиций: '+p.list.length
+      +(excluded?'\nНеликвид: '+excluded+' поз. исключено из заказа.':'')
+      +(allowed.length>eligible.length?'\nУже есть в заказе: '+(allowed.length-eligible.length)+' поз.':'')
+      +(p.list.length?'\nПроверь список и количество перед подтверждением.':'\nНет подходящих позиций для заказа.');
+    if(p.list.length)aiProposalBox(out,p);
+}
 async function cmdZakazat(out,args,imgs){let ids;
-  if(!args&&!(imgs&&imgs.length)){const find_items=AI_TOOLS.find(f=>f.name==="find_items");ids=find_items.execute({where:"none",limit:80}).items.map(x=>x.id)}
+  if(imgs?.length){await readCommandItems(out,args,imgs);return prepareSinglePhotoOrder(out,transferQuantity(args))}
+  if(!args){const find_items=AI_TOOLS.find(f=>f.name==="find_items");ids=find_items.execute({where:"none",limit:80}).items.map(x=>x.id)}
   else{const{m}=await cmdFindIds(args,imgs,aiCtl.signal);ids=m.found.map(x=>x.id)}
   if(!ids.length){out.textContent="Не нашёл вкусы для заказа.";return}
   aiOrdAsk=true;aiOrdPhoto=false;aiOrdSeen=new Set();
   const proposal={list:[],draft:{}};const set_order=aiProposalTools(proposal).find(f=>f.name==="set_order"),r=set_order.execute({ids,qty:1});
   out.textContent="Предлагается заказать по 1 шт.:\n"+(r.items.map(x=>"— "+x.brand+" "+x.name).join("\n")||"(ничего)")
    +(r.skipped&&r.skipped.length?"\n\nНе поставлены:\n"+r.skipped.map(s=>"— "+s).join("\n"):"");aiProposalBox(out,proposal)}
-async function cmdSpisatZakaz(out,args,imgs){const{m}=await cmdFindIds(args,imgs,aiCtl.signal);
+async function cmdSpisatZakaz(out,args,imgs){
+  if(imgs?.length)throw Error('Уточни команду: «Перенеси со склада. Остальное в заказ». Ничего не подготовлено.');
+  const{m}=await cmdFindIds(args,imgs,aiCtl.signal);
   const st=AI_TOOLS.find(f=>f.name==="stage_stock"),spisano=[],toOrder=[];
   // В заказ уходит то, что было на нуле ДО списания (вкуса не нашли на складе) — не то, что стало нулём
   // ПОСЛЕ списания. «Списать» теперь = «перенос» (решение Максима 2026-10-26): найденное на складе сразу на стойку
   m.found.forEach(x=>{const it=byId[x.id];if(!it)return;const avail=wh(it)+((draft[it.id]||{}).d||0);
-    const n=(imgs&&imgs.length&&x.jars)?Math.min(x.jars,avail):avail;
+    const n=avail;
     if(n>=1){try{st.execute({id:it.id,delta:-n,toBar:true});spisano.push([it,n]);return}catch(e){}}
     toOrder.push(it.id)});
   let r=null;const proposal={list:[],draft:{}};
@@ -2188,46 +3222,142 @@ async function cmdSpisatZakaz(out,args,imgs){const{m}=await cmdFindIds(args,imgs
 async function runCmd(cmd,out,args,imgs){
   // «Списать» и «перенос» — одна и та же команда (решение Максима 2026-10-26): найденное на складе
   // сразу переносится на стойку, отдельного «списания без переноса» больше нет
-  const fns={perenos:cmdPerenos,popolnit:cmdPopolnit,spisat:cmdPerenos,zakazat:cmdZakazat,spisat_zakaz:cmdSpisatZakaz,naiti:cmdNaiti};
+  const fns={perenos:cmdPerenos,popolnit:cmdPopolnit,spisat:(out,args,imgs)=>cmdPerenos(out,args,imgs,true),zakazat:cmdZakazat,spisat_zakaz:cmdSpisatZakaz,naiti:cmdNaiti};
   inCmd=true;try{await fns[cmd](out,args,imgs)}finally{inCmd=false}}
-async function aiSend(){
-  const box=$("#ai-in"),t=box.value.trim();if((!t&&!aiImgs.length)||aiCtl||!sampleFn)return;
-  cancelAiProposals();const imgs=aiImgs;aiImgs=[];if(imgs.length)lastPhotoIds=[];renderAiImgs();
-  const cmd=parseCmd(t);
-  if(cmd||imgs.length&&photoInspection(t)){
+async function aiSend(panel){
+  const fromPanel=Array.isArray(panel?.photos),box=fromPanel?$("#hsh-in"):$("#ai-in"),t=box.value.trim();
+  const imgs=fromPanel?panel.photos:aiImgs;
+  if((!t&&!imgs.length)||aiCtl||!sampleFn)return;
+  const clearAttachments=()=>{if(fromPanel)hImgs=[];else aiImgs=[]};
+  const photoContext=imgs.length||aiPhotoBatch||aiPhotoIntent||aiPhotoAction;
+  if(aiPhotoCombined(t)&&typeof orderRequest!=='undefined'&&orderRequest){clearAttachments();aiPhotoAction=null;aiPhotoIntent=null;aiPhotoBatch=null;attachMessagePhotos(aiBubble('user',t+(imgs.length?'  [фото: '+imgs.length+']':'')),imgs);box.value='';aiBubble('assistant','Результат предыдущего сохранения заказа не установлен. Сначала восстановите его; новый план не подготовлен.','err');renderAiImgs();render();return;}
+  if(photoContext)try{aiEnsureDataReady()}catch(e){cancelAiProposals();setStatus(e.message,true);aiBubble("assistant",e.message,"warn");return}
+  const remainder=!imgs.length&&aiPhotoRemainder&&/^(?:(?:добавь |поставь )?(?:остальное|остальные) в заказ|(?:остальное |остальные )?(?:добавь|поставь) в заказ|закажи остальное)$/.test(aiSelectionText(t).trim())?aiPhotoRemainder:null;
+  aiBeginOrderTurn(t);cancelAiProposals();clearAttachments();if(imgs.length){lastPhotoIds=[];aiOrderIntent=null;aiPhotoRemainder=null;photoAcc=null}renderAiImgs();
+  if(remainder){
+    aiPhotoRemainder=remainder;
+    aiBubble('user',t);box.value='';const out=aiBubble('assistant','');
+    try{
+      if(remainder.items.length)prepareSinglePhotoOrder(out,null,remainder);
+      else out.textContent='На исходных фото нет позиций с нулевым остатком для заказа.';
+    }catch(e){out.textContent=e.message;out.classList.add('err')}
+    aiStockReviewBox(out);render();return;
+  }
+  const pendingSingle=!imgs.length&&aiPhotoBatch&&!aiPhotoAction&&!aiPhotoIntent;
+  const followup=pendingSingle&&!aiPhotoNegative(t)&&parsePhotoCommand(t);
+  if(followup){
+    aiBubble('user',t);box.value='';const out=aiBubble('assistant','');
+    try{
+      const qty=transferQuantity(followup.args);
+      if(followup.cmd==='naiti')showSinglePhotoStock(out);
+      else if(followup.cmd==='zakazat')prepareSinglePhotoOrder(out,qty);
+      else prepareSinglePhotoStock(out,followup.cmd!=='popolnit',qty,followup.cmd==='spisat');
+    }catch(e){out.textContent=e.message;out.classList.add('err')}
+    aiConsumePhotoBatchNotice(out);aiStockReviewBox(out);render();return;
+  }
+  if(pendingSingle&&!aiPhotoNegative(t)&&!aiPhotoCombined(t)&&!aiPhotoCombinedAttempt(t)&&!aiOrderRest(t)&&!parseCmd(t)
+    &&(stockAsked(t)||ordAsked(t)||aiPhotoTransferAttempt(t))){
+    aiBeginPhotoTurn(t,false);aiBubble('user',t);box.value='';
+    const out=aiBubble('assistant','Уточни позиции и действие с фото. Новые изменения не подготовлены.');
+    aiConsumePhotoBatchNotice(out);aiStockReviewBox(out);render();return;
+  }
+  if(imgs.length&&!t)aiPhotoIntent=null;
+  if(aiPhotoCombined(t))aiPhotoIntent={kind:'combined',text:t,at:Date.now(),scope:photoWorkflowScope()};
+  aiBeginPhotoTurn(t,imgs.length);
+  const unclearCombined=photoContext&&!aiPhotoCombined(t)&&!aiPhotoNegative(t)&&(aiPhotoCombinedAttempt(t)||parseCmd(t)?.cmd==='spisat_zakaz');
+  if(unclearCombined&&!(imgs.length&&aiPhotoTransferAttempt(t))){
+    const message='Уточните операцию и количество. Для всех банок из последнего сообщения: «Перенеси со склада. Остальное в заказ». Ничего не подготовлено.';
+    aiPhotoAction={status:'rejected',error:message};
+    attachMessagePhotos(aiBubble('user',t+(imgs.length?'  [фото: '+imgs.length+']':'')),imgs);box.value='';
+    const out=aiBubble('assistant',message,'err');aiConsumePhotoBatchNotice(out);render();return;
+  }
+  if(aiPhotoNegative(t)){
+    attachMessagePhotos(aiBubble('user',t+(imgs.length?'  [фото: '+imgs.length+']':'')),imgs);box.value='';
+    const out=aiBubble('assistant',imgs.length?'Показываю фото без подготовки переноса и заказа.':'Перенос и заказ не подготовлены.',imgs.length?'wait':'');
+    if(imgs.length){aiCtl=new AbortController();aiUi();try{await inspectPhoto(out,t,imgs,aiCtl.signal)}catch(e){out.textContent=e?.message||'Фото не удалось прочитать.';out.classList.add('err')}out.classList.remove('wait');aiCtl=null;aiUi()}
+    render();return;
+  }
+  const continuePhotoIntent=aiPhotoIntentValid()&&(aiPhotoClarification(t)||imgs.length&&aiPhotoOnly(t));
+  if(aiPhotoCombined(t)||continuePhotoIntent||aiPhotoAction&&(aiOrderYes(t)||aiPhotoCancel(t))||aiPhotoIntentValid()&&aiOrderYes(t)){
+    attachMessagePhotos(aiBubble('user',t+(imgs.length?'  [фото: '+imgs.length+']':'')),imgs);box.value='';
+    const out=aiBubble('assistant','Проверяю выборку…','wait'),controller=new AbortController();aiCtl=controller;aiUi();
+    const current=()=>aiCtl===controller&&out.parentNode===$('#ai-log');
+    try{
+      if(aiPhotoCancel(t)){
+        const plan=aiPhotoAction;
+        if(plan?.status==='prepared'||plan?.status==='pending'){
+          for(const leg of ['stock','order']){
+            const state=workflowPlanLeg(plan,leg);
+            plan[leg+'State']=['pending','prepared'].includes(state)?'cancelled':state;
+          }
+          savePhotoWorkflow({status:workflowPlanStatus(plan.stockState,plan.orderState,'cancelled'),stock:plan.stockState,order:plan.orderState});
+        }
+        aiPhotoAction={status:'cancelled'};aiPhotoBatch=null;aiPhotoIntent=null;out.textContent='План отменён. Текущий черновик сохранён отдельно.'
+      }
+      else if(aiPhotoCombined(t)||continuePhotoIntent){
+        aiPhotoAction=null;
+        if(imgs.length){
+          const {m,text,photoRead,observations,photoTexts,inspectionPages}=await cmdFindIds('',imgs,controller.signal,{inspection:true,out});
+          if(!current()||controller.signal.aborted)throw Error('Остановлено.');
+          if(photoRead)aiRememberPhotoBatch(m,imgs.length,text,observations,photoTexts,inspectionPages);
+        }
+        if(!aiPhotoBatch){out.textContent=aiPhotoBatchIssue||'Не удалось подготовить полную однозначную выборку. Пришли все фото заново одним сообщением; намерение сохранено на 5 минут, ничего не подготовлено.'}
+        else showCombinedPhotoDraft(out,aiPhotoCombined(t)?t:aiPhotoIntent.text);
+      }else if(aiOrderYes(t)&&!aiPhotoAction)out.textContent='Нет актуальной полной выборки фото. Пришлите все фото одним сообщением; ничего не подготовлено.';
+      else aiPreparePhotoPlan(out);
+    }catch(e){
+      if(!current()||controller.signal.aborted){if(current())out.textContent='Остановлено.';return}
+      if(!aiPhotoAction)aiPhotoAction={error:e.message};out.textContent=e.message||'Предложение не подготовлено.';out.classList.add('err');
+    }finally{out.classList.remove('wait');if(aiCtl===controller){aiCtl=null;aiUi()}}
+    aiConsumePhotoBatchNotice(out);aiStockReviewBox(out);render();
+    const summary=out.childNodes?Array.from(out.childNodes).filter(n=>n.nodeType===3).map(n=>n.textContent).join('\n'):out.textContent;
+    aiTurns.push({role:'user',content:t},{role:'assistant',content:summary});aiView.push({role:'user',text:t},{role:'assistant',text:summary});aiKeep();return;
+  }
+  const cmd=imgs.length?parsePhotoCommand(t):parseCmd(t);
+  const unclearPhotoCommand=imgs.length&&!cmd&&(stockAsked(t)||ordAsked(t)||!!parseCmd(t)||aiPhotoTransferAttempt(t));
+  if(cmd||imgs.length&&photoInspection(t)||unclearPhotoCommand){
     attachMessagePhotos(aiBubble("user",(t||"Фото")+(imgs.length?"  [фото: "+imgs.length+"]":"")),imgs);box.value="";
-    const out=aiBubble("assistant","Ищу…","wait");aiCtl=new AbortController();aiUi();
-    try{if(cmd)await runCmd(cmd.cmd,out,cmd.args,imgs);else await inspectPhoto(out,t,imgs,aiCtl.signal)}
-    catch(e){out.textContent=(e&&e.message)||"Не получилось.";out.classList.add("err")}
-    out.classList.remove("wait");aiCtl=null;aiUi();render();return}
+    const out=aiBubble("assistant","Ищу…","wait"),controller=new AbortController();aiCtl=controller;aiUi();
+    try{
+      if(cmd)await runCmd(cmd.cmd,out,cmd.args,imgs);
+      else if(unclearPhotoCommand&&aiPhotoTransferAttempt(t))await clarifyPhotoTransfer(out,imgs,controller.signal);
+      else if(unclearPhotoCommand)out.textContent='Уточни действие с банками на фото: «найди на складе», «добавь на склад», «перенеси на стойку» или «добавь в заказ». Ничего не подготовлено.';
+      else await inspectPhoto(out,t,imgs,controller.signal);
+    }catch(e){out.textContent=e?.message||(e?.code?aiErr(e.code):"Не получилось.");out.classList.add("err")}
+    if(aiCtl!==controller)return;
+    if(out.parentNode===$('#ai-log')){out.classList.remove("wait");aiConsumePhotoBatchNotice(out);aiStockReviewBox(out)}
+    aiCtl=null;aiUi();render();return}
   aiOrdPhoto=imgs.length>0;aiOrdAsk=ordAsked(t);aiOrdSeen=new Set();photoAcc=imgs.length?photoAccNew():null;const acc=photoAcc;
   attachMessagePhotos(aiBubble("user",(t||"Фото")+(imgs.length?"  [фото: "+imgs.length+"]":"")),imgs);box.value="";
   aiTurns.push({role:"user",content:(t||"Разбери фото.")+(imgs.length?"\n(К сообщению приложено фото: "+imgs.length+")":"")});
   const out=aiBubble("assistant","Думаю…","wait");aiCtl=new AbortController();aiUi();
   const ambiguity=matchText(t);if(ambiguity.ambiguous.length){out.classList.remove("wait");out.textContent="Нужно уточнение."+ambTxt(ambiguity);aiTurns.pop();aiCtl=null;aiUi();return}
-  const proposal={list:[],stock:false,draft:JSON.parse(JSON.stringify(draft))};
+  const proposal={list:[],stock:false,draft:JSON.parse(JSON.stringify(draft)),requestText:t};
   const turns=[{role:"user",content:AI_RULES+"\n\n"+(imgs.length?PHOTO_RULES:aiSnapshot())},{role:"assistant",content:"Понял. Стойку вижу, работаю."},...aiTurns.slice(imgs.length?-1:-16)];
   try{
     const d0=JSON.stringify(draft);
-    const r=await sampleFn(turns,{tools:acc?photoTools(aiProposalTools(proposal),acc):aiProposalTools(proposal),signal:aiCtl.signal,images:imgs.length?imgs:undefined,photo:photoNote,onText:({text})=>{out.classList.remove("wait");out.textContent=text;aiScroll(false)}});
+    const r=await sampleFn(turns,{tools:acc?photoConversationTools(aiProposalTools(proposal),acc):aiProposalTools(proposal),signal:aiCtl.signal,images:imgs.length?imgs:undefined,photo:photoNote,onText:({text})=>{out.classList.remove("wait");out.textContent=text;aiScroll(false)}});
     if(aiCtl.signal.aborted)throw {code:"cancelled"};
+    aiFinishSelection(proposal,r.text);
     const head=acc?photoHead(acc):"";if(head)r.text=head+"\n\n"+r.text;
-    out.classList.remove("wait");out.textContent=r.text;aiSrc(out,r.src);aiProposalBox(out,proposal);if(acc&&acc.newf.length)newFlavorBox(out,acc.newf);if(aiOrdAsk&&!aiOrdSeen.size)orderFixBox(out,r.text,t,acc?Object.keys(acc.jars):null);if(acc&&Object.keys(acc.jars).length&&/перен|перекин|на\s+стойк(?!е)|за\s+стойк(?!ой)/i.test(t))photoMoveBox(out,acc.jars,d0);else if(stockAsked(t)&&JSON.stringify(draft)===d0)stockFixBox(out,r.text,acc&&acc.jars,/перен|перекин|на\s+стойк(?!е)|за\s+стойк(?!ой)/i.test(t));if(acc&&Object.keys(acc.jars).length)lastPhotoIds=Object.keys(acc.jars);if(r.photo)aiTurns[aiTurns.length-1].content=(t||"Разбери фото.")+"\n"+r.photo.join("\n\n");aiTurns.push({role:"assistant",content:r.text});
+    out.classList.remove("wait");out.textContent=r.text;aiSrc(out,r.src);aiProposalBox(out,proposal);if(acc&&acc.newf.length)newFlavorBox(out,acc.newf);if(aiOrdAsk&&!aiOrdSeen.size)orderFixBox(out,r.text,t,acc?Object.keys(acc.jars):null);if(stockAsked(t)&&JSON.stringify(draft)===d0)stockFixBox(out,r.text,acc&&acc.jars,/перен|перекин|на\s+стойк(?!е)|за\s+стойк(?!ой)/i.test(t));if(acc&&Object.keys(acc.jars).length)lastPhotoIds=Object.keys(acc.jars);if(r.photo)aiTurns[aiTurns.length-1].content=(t||"Разбери фото.")+"\n"+r.photo.join("\n\n");aiTurns.push({role:"assistant",content:r.text});
     aiView.push({role:"user",text:(t||"Фото")+(imgs.length?"  [фото: "+imgs.length+"]":"")},{role:"assistant",text:r.text,src:r.src||""});
   }catch(e){out.classList.remove("wait");
     if(e&&e.code==="cancelled"){out.textContent=(e.text||"")+(e.text?"\n":"")+"(остановлено)"}
     else{out.textContent=(e&&e.code!=="refused"&&e.text?e.text+"\n":"")+aiErr(e&&e.code);out.classList.add("err");if(e&&(e.code==="not_granted"||e.code==="sampling_disabled"||e.code==="not_configured"))sampleFn=null}
     aiTurns.pop();
   }
-  aiCtl=null;aiUi();render();aiKeep();
+  aiConsumePhotoBatchNotice(out);aiStockReviewBox(out);aiCtl=null;aiUi();render();aiKeep();
 }
 // Короткая память чата: последние 3 вопроса с ответами переживают перезапуск приложения (на этом устройстве,
 // сутки). Модели уходит та же история, что и без перезапуска, — лишних запросов нет, только эти строки в контексте.
 const KEEP_TURNS=6,KEEP_MS=864e5;
 const keepCut=turns=>{let k=turns.slice(-KEEP_TURNS);while(k.length&&k[0].role!=="user")k=k.slice(1);return k};
 // aiView идёт парами с aiTurns (вопрос — ответ), это то, что видно на экране
-function aiKeep(){try{const turns=keepCut(aiTurns);localStorage.setItem("polka-ai-chat",JSON.stringify({at:Date.now(),turns,view:aiView.slice(-turns.length)}))}catch(e){}}
-function aiRestore(){try{const c=JSON.parse(localStorage.getItem("polka-ai-chat")||"null");if(!c||Date.now()-c.at>KEEP_MS||!Array.isArray(c.turns))return;
+const aiChatScope=()=>typeof db?.actionScope==='function'?db.actionScope():db?.stockScope?.()||null;
+const aiChatKey=()=>aiChatScope()?"mixora-ai-chat:v2:"+aiChatScope():null;
+function aiKeep(){try{const key=aiChatKey();if(!key)return;const turns=keepCut(aiTurns);localStorage.setItem(key,JSON.stringify({at:Date.now(),scope:aiChatScope(),turns,view:aiView.slice(-turns.length)}))}catch(e){}}
+function aiRestore(){try{const key=aiChatKey();if(!key)return;const c=JSON.parse(localStorage.getItem(key)||"null");if(!c||c.scope!==aiChatScope()||Date.now()-c.at>KEEP_MS||!Array.isArray(c.turns))return;
   aiTurns=c.turns;aiView=c.view||[];aiView.forEach(m=>{const d=aiBubble(m.role,m.text);if(m.src)aiSrc(d,m.src)})}catch(e){aiTurns=[]}}
 function aiUi(){const busyAi=!!aiCtl;$("#ai-send").hidden=busyAi;$("#ai-stop").hidden=!busyAi;$("#ai-send").disabled=!sampleFn;$("#ai-in").disabled=!sampleFn;
   $("#ai-photo-l").hidden=!aiCanImg||!sampleFn;$("#ai-off").hidden=!!sampleFn}
@@ -2249,9 +3379,7 @@ $("#ai-stop").onclick=()=>aiCtl&&aiCtl.abort();
 $("#ai-in").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();aiSend()}});
 $("#ai-photo").addEventListener("change",e=>{aiImgs=[...e.target.files].slice(0,5);e.target.value="";renderAiImgs()});
 
-$("#ai-new").onclick=()=>{cancelAiProposals();if(aiCtl)aiCtl.abort();aiTurns=[];aiView=[];clearMessagePhotos($("#ai-log"));$("#ai-log").innerHTML="";aiImgs=[];renderAiImgs();$("#ai-in").value="";try{localStorage.removeItem("polka-ai-chat")}catch(e){}};
-document.querySelectorAll("[data-ai-command]").forEach(b=>b.onclick=()=>{const box=$("#ai-in");if(box.disabled)return;box.value=b.dataset.aiCommand+" "+box.value.replace(/^\/(списать и заказать|перенос|пополнить|списать|заказать|найти)\s*/,"");$("#ai-tools").open=false;box.focus()});
-aiRestore();
+$("#ai-new").onclick=()=>{cancelAiProposals();aiClearSelection();if(aiCtl)aiCtl.abort();aiTurns=[];aiView=[];clearMessagePhotos($("#ai-log"));$("#ai-log").innerHTML="";aiImgs=[];renderAiImgs();$("#ai-in").value="";try{const key=aiChatKey();if(key)localStorage.removeItem(key)}catch(e){}};
 (async()=>{try{sampleFn=await window.claude?.use?.("sample")}catch(e){sampleFn=null}
   if(sampleFn){try{const l=await sampleFn.limits();aiCanImg=!!l.images;if(l.images)$("#ai-photo").accept=l.images.mediaTypes.join(",")}catch(e){}}
   aiUi();hlpUi()})();
@@ -2331,10 +3459,12 @@ function hConvOf(tab){if(!hConv[tab]){const k=hKept()[tab],ok=k&&Date.now()-k.at
   const kv=ok?k.view||[]:[];hConv[tab]={turns:ok?k.turns:[],kv,view:[{role:"assistant",text:hlpHello(tab)},...kv]}}return hConv[tab]}
 // Помощники разделов помнят последние 3 вопроса так же, как главный чат (см. aiKeep): kv — пары вопрос/ответ
 // к c.turns. Кнопки «Подтвердить» не сохраняем — после перезапуска они уже неактуальны
-function hKept(){try{return JSON.parse(localStorage.getItem("polka-hlp-chat")||"{}")||{}}catch(e){return {}}}
+ const hChatScope=()=>typeof db?.actionScope==='function'?db.actionScope():db?.stockScope?.()||null;
+ const hChatKey=()=>hChatScope()?"mixora-hlp-chat:v2:"+hChatScope():null;
+ function hKept(){try{const key=hChatKey();if(!key)return{};const saved=JSON.parse(localStorage.getItem(key)||"null");return saved&&saved.scope===hChatScope()&&saved.tabs||{}}catch(e){return {}}}
 function hKeep(tab){try{const all=hKept(),c=hConv[tab],turns=keepCut(c.turns);
   if(turns.length)all[tab]={at:Date.now(),turns,view:c.kv.slice(-turns.length)};else delete all[tab];
-  localStorage.setItem("polka-hlp-chat",JSON.stringify(all))}catch(e){}}
+   const key=hChatKey();if(key)localStorage.setItem(key,JSON.stringify({scope:hChatScope(),tabs:all}))}catch(e){}}
 function hlpHello(tab){const ttl=tab==="home"?"Главная":TABS[tab]||"раздел";return "Я помощник раздела «"+ttl+"». Спроси, как здесь что работает, или попроси сделать дело. Ничего не меняю без твоего «Подтвердить»."}
 function hDraw(){const tab=hTab(),c=hConvOf(tab),H=HELP[tab]||HELP.home;
   $("#hsh-t").textContent="✨ Помощник · "+(tab==="home"?"Главная":TABS[tab]||"");
@@ -2351,6 +3481,10 @@ function hDraw(){const tab=hTab(),c=hConvOf(tab),H=HELP[tab]||HELP.home;
 function hOpen(){$("#hsh").hidden=false;$("#hsh-scrim").hidden=false;document.body.classList.add("hsh-on");hDraw()}
 function hClose(){$("#hsh").hidden=true;$("#hsh-scrim").hidden=true;document.body.classList.remove("hsh-on")}
 async function hSend(){const box=$("#hsh-in"),t=box.value.trim();if((!t&&!hImgs.length)||hCtl||!sampleFn)return;
+  if(hImgs.length&&(!t||photoInspection(t)||parsePhotoCommand(t)||parseCmd(t)||stockAsked(t)||ordAsked(t)||aiPhotoCombined(t)||aiPhotoTransferAttempt(t))){
+    if(aiCtl){setStatus('Дождись окончания ответа в чате и отправь фото ещё раз.',true);return}
+    go('ai');return aiSend({photos:hImgs});
+  }
   const tab=hTab(),c=hConvOf(tab),imgs=hImgs;hImgs=[];if(imgs.length)lastPhotoIds=[];box.value="";
   c.view.push({role:"user",text:(t||"Фото")+(imgs.length?"  [фото: "+imgs.length+"]":""),photos:imgs.length?photoSources(imgs):undefined});
   c.turns.push({role:"user",content:(t||"Разбери фото.")+(imgs.length?"\n(К сообщению приложено фото: "+imgs.length+")":"")});
@@ -2363,7 +3497,7 @@ async function hSend(){const box=$("#hsh-in"),t=box.value.trim();if((!t&&!hImgs.
   }
   const ambiguity=matchText(t);if(ambiguity.ambiguous.length){out.cls="";out.text="Нужно уточнение."+ambTxt(ambiguity);c.turns.pop();hCtl=null;hDraw();return}
   const acts={list:[],stock:false,draft:JSON.parse(JSON.stringify(draft)),photo:imgs.length>0,ask:ordAsked(t)};photoAcc=imgs.length?photoAccNew():null;const acc=photoAcc;
-  try{const r=await sampleFn([{role:"user",content:hlpSystem(tab,imgs.length>0)},{role:"assistant",content:"Понял."},...c.turns.slice(imgs.length?-1:-12)],{tools:acc?photoTools(hlpTools(tab,acts),acc):hlpTools(tab,acts),signal:hCtl.signal,images:imgs.length?imgs:undefined,photo:photoNote,
+  try{const r=await sampleFn([{role:"user",content:hlpSystem(tab,imgs.length>0)},{role:"assistant",content:"Понял."},...c.turns.slice(imgs.length?-1:-12)],{tools:acc?photoConversationTools(hlpTools(tab,acts),acc):hlpTools(tab,acts),signal:hCtl.signal,images:imgs.length?imgs:undefined,photo:photoNote,
       onText:({text})=>{out.cls="";out.text=text;if(hTab()===tab&&!$("#hsh").hidden)hDraw()}});
     if(hCtl.signal.aborted)throw {code:"cancelled"};
     const head=acc?photoHead(acc):"";if(head)r.text=head+"\n\n"+r.text;
@@ -2399,25 +3533,33 @@ function hlpUi(){$("#hlp-btn").hidden=!sampleFn||st.tab==="ai"||st.tab==="home"}
   try{db=await window.claude?.use?.("db")}catch(e){db=null}
   if(window.__demoDB)staffReady=true;
   else{try{const u=await window.claude?.use?.("user");staffReady=!!(u&&await u.isStaff())}catch(e){staffReady=false}}
+  if(db){loadScopedDraft();aiRestore();restorePhotoWorkflow()}
   render();
   if(!db){setStatus("Склад недоступен: открой страницу, войдя в claude.ai",true);render();return}
   setStatus("Склад подключён");
   // Graceful if schema migration has not been deployed yet.
   if(db.listPhotoCorrections)db.listPhotoCorrections().then(x=>{learnedPhoto=x||[]}).catch(e=>console.info("photo learning unavailable",e.message));
-  const recovery=$("#stock-recover");recovery.hidden=!db.hasPendingStock?.();
-  recovery.onclick=async()=>{if(busy)return;busy=true;recovery.disabled=true;
-    const reviewedKey="mixora-reviewed-stock:"+db.stockScope();
+  const recovery=$("#stock-recover");showStockRecovery();
+  recovery.onclick=async()=>{if(busy)return{status:"busy"};busy=true;recovery.disabled=true;
+    const reviewedKey="mixora-reviewed-stock:"+(typeof db?.actionScope==='function'?db.actionScope():db?.stockScope?.()),recoveryKey="mixora-reviewed-stock-recovery:"+db.stockScope();
+    let message="",outcome={status:"not-found"};
     try{const r=await db.recoverStock();if(r){r.rows.forEach(x=>stock[x.id]=x.doc);
-      const saved=JSON.parse(localStorage.getItem(reviewedKey)||"null");
-      if(saved&&JSON.stringify(saved.entries)===JSON.stringify(r.items)){const original=JSON.parse(saved.signature);
-        Object.keys(original).forEach(id=>{if(JSON.stringify(draft[id])===JSON.stringify(original[id])){delete draft[id];cmdDraftIds.delete(id)}});saveDraft();localStorage.removeItem(reviewedKey)}
-      setStatus("Результат восстановлен. Проверьте журнал перед следующим действием")}}
-    catch(e){if(/stock_/.test(e.message))localStorage.removeItem(reviewedKey);setStatus("Не восстановилось: "+e.message,true)}
-    finally{busy=false;recovery.disabled=false;recovery.hidden=!db.hasPendingStock?.();render()}};
+      const saved=JSON.parse(localStorage.getItem(reviewedKey)||"null"),recovery=JSON.parse(localStorage.getItem(recoveryKey)||"null");
+      if(recovery?.scope===db.stockScope()&&r.scope===recovery.scope&&recovery.requestId&&r.requestId===recovery.requestId&&JSON.stringify(recovery.entries)===JSON.stringify(r.items)){if(saved?.signature===recovery.signature){const original=JSON.parse(saved.signature);Object.keys(original).forEach(id=>{if(JSON.stringify(draft[id])===JSON.stringify(original[id])){delete draft[id];cmdDraftIds.delete(id)}});saveDraft();localStorage.removeItem(reviewedKey)}if(photoWorkflowEnvelope?.stock==='unknown'){const orderState=photoWorkflowEnvelope.order;if(aiDraftWorkflowPlan)aiDraftWorkflowPlan.stockState='confirmed';photoWorkflowEnvelope={...photoWorkflowEnvelope,stock:'confirmed',order:orderState,status:workflowPlanStatus('confirmed',orderState)};savePhotoWorkflow(photoWorkflowEnvelope)}localStorage.removeItem(recoveryKey)}
+      message="Результат восстановлен. Проверьте журнал перед следующим действием.";outcome={status:"recovered",receipt:r}}}
+    catch(e){if(/stock_/.test(e.message)){localStorage.removeItem(reviewedKey);localStorage.removeItem(recoveryKey)}message="Не удалось восстановить результат: "+e.message;outcome={status:"failed",message:e.message}}
+    finally{busy=false;recovery.disabled=false;showStockRecovery(message);render()}return outcome};
   {const tgw=window.Telegram&&window.Telegram.WebApp,sp=tgw&&tgw.initDataUnsafe&&tgw.initDataUnsafe.start_param;
    if(sp&&/^guest_/i.test(sp)){const gid=parseGuestCode(sp);if(gid)setTimeout(()=>openGuestMix(gid),400)}}
-  db.collection("stock").onSnapshot(s=>{for(const k in stock)delete stock[k];s.docs.forEach(d=>{stock[d.id]=d.data()});stockLoaded=true;render()},e=>setStatus("Склад не загрузился: "+e.message,true));
-  db.collection("order").onSnapshot(s=>{const d=s.docs.find(x=>x.id==="current");const od=d&&d.data();if(!oTimer&&!oSaving&&!oDirty&&(!lastOrderAt||(od&&Date.parse(od.at)>=Date.parse(lastOrderAt)))){orderQ=Object.assign({},od&&od.q);orderM=JSON.parse(JSON.stringify(od&&od.m||{}))}render()},()=>{});
+  db.collection("stock").onSnapshot(s=>{
+    for(const id of Object.keys(stock))delete stock[id];
+    s.docs.forEach(doc=>{stock[doc.id]=doc.data()});
+    stockLoaded=true;render()
+  },e=>{stockLoaded=false;setStatus("Склад не загрузился: "+e.message,true);render()});
+  restoreOrderDraft();
+  $("#order-save-retry").onclick=reviewOrderConflict;
+  db.collection("order").onSnapshot(s=>{orderLoaded=true;receiveOrder(s.docs.find(x=>x.id==="current")?.data())},
+    e=>{orderLoaded=false;setStatus("Заказ не загрузился: "+e.message,true);render()});
   db.collection("items").onSnapshot(s=>{let ch=false;s.docs.forEach(d=>{if(byId[d.id])return;const o=Object.assign({l:"",d:"",s:"name",t:[],bar:false},d.data(),{id:d.id});DATA.push(o);byId[d.id]=o;ch=true});if(ch)render()},()=>{});
   db.collection("strength").onSnapshot(s=>{strMap={};s.docs.forEach(d=>{strMap[d.id]=d.data().s});if(st.tab==="str"&&!document.activeElement.matches("select,input"))render()},()=>{});
   db.collection("pack").onSnapshot(s=>{packMap={};s.docs.forEach(d=>{packMap[d.id]=d.data().g});render()},()=>{});
@@ -2432,7 +3574,9 @@ function hlpUi(){$("#hlp-btn").hidden=!sampleFn||st.tab==="ai"||st.tab==="home"}
   db.collection("invites").onSnapshot(s=>{invites=s.docs.map(d=>Object.assign({id:d.id},d.data()));render()},()=>{});
   db.collection("mixes").onSnapshot(s=>{mixes=s.docs.map(d=>Object.assign({id:d.id},d.data()));seedMixes();render()},()=>{});
   db.collection("suppliers").onSnapshot(s=>{sups=s.docs.map(d=>Object.assign({id:d.id},d.data()));render()},()=>{});
-  db.collection("moves").orderBy("at","desc").limit(400).onSnapshot(s=>{moves=s.docs.map(d=>Object.assign({id:d.id},d.data()));render()},()=>{});
+  db.collection("moves").orderBy("at","desc").limit(400).onSnapshot(s=>{
+    moves=s.docs.map(d=>Object.assign({id:d.id},d.data()));journalReadState="ready";render()
+  },()=>{journalReadState="error";render()});
 })();
 
 
@@ -2704,7 +3848,8 @@ function renderJournal(){
   let last="";L.slice(0,200).forEach(m=>{const x=byId[m.item];if(!x)return;const d=new Date(m.at),dn=d.toLocaleDateString("ru-RU",{day:"numeric",month:"long"});if(dn!==last){html+='<h3 class="sub">'+dn+'</h3>';last=dn}
     html+='<div class="hfeed"><span><b>'+esc(nm(x))+'</b><br><small>'+esc(actText(m))+'</small></span><time>'+d.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})+'</time>'
      +(staffReady&&m.id&&canUndoMove(m)?'<button type="button" class="btn sm" data-undo="'+esc(m.id)+'">Отменить</button>':'')+'</div>'});
-  if(!L.length)html+='<p class="hintline">Записей нет.</p>';
+  if(journalReadState!=="ready")html+='<p role="status" class="hintline">'+(journalReadState==="error"?"Не удалось обновить журнал. Откройте раздел снова, чтобы повторить.":"Загружаем журнал…")+'</p>';
+  else if(!L.length)html+='<p class="hintline">Записей нет.</p>';
   $("#list").innerHTML=html}
 // Отмена последней версии позиции добавляет компенсацию, сохраняя исходный журнал.
 async function undoMove(id){if(!db||busy)return;const m=moves.find(x=>x.id===id);if(!m)return;
@@ -2943,3 +4088,17 @@ if(true){
   st.tab="home";render();
 }
 </script>
+
+<div id="mixora-connected-status" role="status">Подключаем каталог и остатки…</div>
+<script src="./app/menu/runtime.0dba2a26432e62d3.js"></script>
+<div id="mixora-work-menu" lang="ru" hidden inert>
+  <header class="wm-top"><div class="wm-frame wm-topin">
+    <button type="button" class="wm-brand" data-nav="home" aria-label="Mixora — на главную"><span class="wm-mark" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 159 96"><path d="M12.3 90.8C9.0 88.4 5.8 83.5 4.7 79.3C4.4 78.0 4.3 74.6 4.5 73.2C5.2 68.1 9.0 62.5 16.5 55.2C21.6 50.3 24.1 47.6 26.0 44.9C26.8 43.8 28.4 41.3 28.9 40.6C29.1 40.2 29.5 39.5 29.7 39.1C30.7 37.4 32.9 32.6 33.9 30.2C34.0 29.7 34.3 29.0 34.4 28.8C34.5 28.6 34.6 28.2 34.7 28.0C34.7 27.8 35.0 26.9 35.3 26.1C35.7 25.2 36.2 23.6 36.6 22.6C37.2 20.7 37.4 20.2 38.3 17.6C42.0 7.8 47.9 3.3 56.9 3.3C62.6 3.2 66.8 5.3 70.6 10.1C72.4 12.3 75.7 17.8 77.2 21.2C77.4 21.7 77.9 22.6 78.2 23.1C78.4 23.7 79.0 24.8 79.4 25.7C79.8 26.6 80.3 27.6 80.5 28.0C80.6 28.4 80.8 28.7 80.8 28.8C80.8 28.8 81.4 30.1 81.7 30.8C82.1 31.6 83.3 34.5 83.9 35.9C85.1 38.6 87.0 43.0 87.7 44.5C87.8 44.8 88.1 45.5 88.4 46.2C88.7 47.0 89.0 47.8 89.1 48.0C89.3 48.3 89.6 49.0 89.8 49.5C90.0 50.0 90.4 50.9 90.7 51.5C91.3 52.7 91.4 52.9 91.8 54.0C92.0 54.4 92.2 54.8 92.2 54.9C92.2 54.9 92.6 55.6 92.9 56.5C94.7 60.4 96.7 63.8 98.6 66.0C100.1 67.8 100.8 68.5 102.2 69.4C106.4 72.2 111.4 72.1 115.8 69.0C116.9 68.2 117.1 68.4 116.4 69.5C114.8 72.2 112.9 73.9 110.2 75.3C105.9 77.4 102.2 77.8 97.5 76.7C89.6 74.8 84.0 69.3 74.4 53.8C74.1 53.4 73.7 52.8 73.5 52.4C73.2 51.9 72.4 50.7 71.7 49.7C70.2 47.3 68.0 44.1 67.4 43.1C66.6 42.1 65.8 41.1 65.0 39.8C61.0 34.1 55.7 28.6 52.6 27.1C48.4 24.9 44.7 26.0 43.0 30.1C41.6 33.1 41.2 34.6 39.9 41.0C39.8 41.7 39.5 43.4 39.2 44.7C38.9 46.0 38.6 47.6 38.5 48.2C38.3 49.5 37.4 53.0 37.1 54.2C36.3 56.9 36.1 57.6 35.7 58.4C33.4 64.6 31.3 67.4 23.7 75.0C19.1 79.5 17.2 81.7 15.8 84.1C15.6 84.6 15.3 85.1 15.1 85.3C14.6 86.2 13.6 88.8 13.2 90.2C13.0 91.2 12.9 91.2 12.3 90.8ZM144.5 91.0C144.5 90.9 144.4 90.8 144.4 90.7C144.4 90.2 143.2 86.6 142.4 84.6C141.8 83.0 140.3 80.4 138.1 77.0C137.4 75.9 135.2 72.9 134.4 72.0C132.5 69.8 128.6 65.7 126.8 64.1C125.9 63.2 124.8 62.2 124.3 61.8C122.7 60.2 118.9 56.8 116.8 55.0C116.3 54.6 115.3 53.7 114.5 53.0C113.8 52.2 112.9 51.4 112.5 51.0C112.1 50.7 110.2 48.9 108.2 47.0C103.9 42.7 102.6 41.5 101.2 40.5C98.9 38.8 96.3 37.5 93.7 36.6C92.1 36.1 92.2 36.3 93.1 33.8C95.8 26.9 98.8 21.0 101.5 17.1C103.2 14.8 106.6 12.3 109.3 11.5C115.6 9.5 121.5 11.6 125.2 17.1C126.6 19.3 128.3 22.8 129.4 26.0C129.6 26.5 130.0 27.5 130.4 28.3C130.7 29.1 131.0 30.0 131.1 30.4C131.4 31.1 131.9 32.2 132.1 32.9C132.2 33.1 132.6 34.2 133.0 35.1C133.9 37.7 134.0 38.0 134.6 39.4C134.8 40.0 135.4 41.3 135.7 42.2C136.1 43.1 136.6 44.4 136.9 45.0C137.2 45.6 137.5 46.4 137.7 46.8C138.3 48.2 141.1 53.6 142.0 55.2C144.5 59.3 145.7 61.1 147.8 64.0C150.8 67.9 152.1 70.5 152.6 73.5C153.0 75.6 152.8 78.5 152.2 80.4C151.7 82.0 151.6 82.4 151.3 83.0C150.1 85.6 148.1 88.2 145.4 90.5C144.8 91.1 144.7 91.2 144.5 91.0Z" fill="#1e1e1e"/><path d="M47.5 40.5C50.5 38.2 54.5 39 57.5 42.5C64 51 70 63 78 72C84 78.5 91 82 99.5 83C93 88.5 85 90.5 77 88.5C69 86 62.5 78 57.5 70C53 62.5 48.5 54 46.5 49C45.3 45.5 45.6 42.3 47.5 40.5Z" fill="#6ba3a1"/></svg></span><span class="wm-word" aria-hidden="true">MIXOR<svg viewBox="0 0 14 17"><path d="M1.4 16.5 7 1.7l5.6 14.8" fill="none" stroke="currentColor" stroke-width="2.5"/></svg></span></button>
+    <div class="wm-headend"><span class="wm-demo wm-venue"><i aria-hidden="true"></i>Моё заведение</span><button type="button" data-nav="home" class="wm-homeback" hidden><span aria-hidden="true">←</span> Главная</button></div>
+  </div></header>
+  <main class="wm-frame wm-main" tabindex="-1"></main>
+  <nav class="wm-dock" aria-label="Основные разделы"><div class="wm-dock-inner"></div></nav>
+  <div class="wm-sr" data-live role="status" aria-live="polite" aria-atomic="true"></div>
+</div>
+<script src="./app/menu/view.b71ae0c37282e6aa.js"></script>
+<script src="./app/menu/client.b3d704aa1ccc4e3e.js"></script>

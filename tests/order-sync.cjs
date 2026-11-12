@@ -1,44 +1,93 @@
-const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
-const source=fs.readFileSync('src/stoika.html','utf8');
-const ctx=vm.createContext({console,Date,JSON,setTimeout,clearTimeout});
-vm.runInContext(`let orderQ={},orderM={},orderVer=0,lastOrderAt='',writes=[],pending=[],errors=[];
-const db={doc:()=>({set:p=>{writes.push(p);return new Promise((resolve,reject)=>pending.push({resolve,reject}))}})};
-const setStatus=m=>errors.push(m);
-const render=()=>{};
-${source.slice(source.indexOf('let oTimer=null'),source.indexOf('function addAllStop()'))}
-${source.slice(source.indexOf('function sendLink('),source.indexOf('let XL=null'))}
-globalThis.api={saveOrder,flushOrder,sendLink};`,ctx);
-const subscription=source.split('\n').find(l=>l.includes('db.collection("order").onSnapshot'));
-vm.runInContext('let receive;db.collection=()=>({onSnapshot:f=>receive=f});'+subscription,ctx);
-const run=s=>vm.runInContext(s,ctx);
-const tick=()=>new Promise(r=>setImmediate(r));
-(async()=>{
-  run('orderQ.a=1;saveOrder();clearTimeout(oTimer);oTimer=null;flushOrder()');
-  assert.equal(run('writes.length'),1);
-  run('orderQ.a=2;saveOrder();clearTimeout(oTimer);oTimer=null;flushOrder()');
-  assert.equal(run('writes.length'),1,'writes must be serialized');
-  assert.equal(run('writes[0].q.a'),1,'in-flight payload must be immutable');
-  run('receive({docs:[{id:"current",data:()=>({q:{a:1},at:lastOrderAt})}]})');
-  assert.equal(run('orderQ.a'),2,'background snapshot must not undo pending edits');
-  run('pending.shift().resolve()');await tick();
-  assert.equal(run('writes[1].q.a'),2);
-  run('delete orderQ.a;saveOrder();clearTimeout(oTimer);oTimer=null;pending.shift().resolve()');await tick();
-  assert.equal(run('writes[2].q.a'),undefined,'latest deletion must persist');
-  run('pending.shift().resolve()');await tick();
-  assert.equal(run('oDirty||oSaving'),false);
-  run('receive({docs:[]})');
-  assert.equal(run('orderQ.a'),undefined);
-  run('receive({docs:[{id:"current",data:()=>({q:{a:99},at:"2020-01-01T00:00:00Z"})}]})');
-  assert.equal(run('orderQ.a'),undefined,'stale snapshot must not resurrect deletion');
-  run('orderQ.a=3;saveOrder();clearTimeout(oTimer);oTimer=null;flushOrder();pending.shift().reject(Error("offline"))');await tick();
-  assert.equal(run('oDirty'),true,'failed write must protect local intent');
-  assert.equal(run('orderQ.a'),3);
-  assert.equal(run('errors.length'),1);
+const fs = require('node:fs');
+const vm = require('node:vm');
+const assert = require('node:assert/strict');
+const { randomUUID } = require('node:crypto');
+
+const source = fs.readFileSync('src/stoika.html', 'utf8');
+function section(start, end) {
+  const from = source.indexOf(start);
+  const to = source.indexOf(end, from + start.length);
+  assert.ok(from >= 0 && to > from, start);
+  return source.slice(from, to);
+}
+
+const ctx = vm.createContext({ console, crypto: { randomUUID } });
+const run = code => vm.runInContext(code, ctx);
+run(`
+  let orderQ = {}, orderM = {}, orderVer = 0;
+  const writes = [], pending = [], errors = [], storage = new Map(), timers = new Map();
+  let timerId = 0;
+  const setTimeout = callback => { timers.set(++timerId, callback); return timerId };
+  const clearTimeout = id => timers.delete(id);
+  function fireAutosave() {
+    if (!timers.has(oTimer)) throw Error('Manual edit did not schedule an autosave');
+    const callback = timers.get(oTimer);
+    timers.delete(oTimer);
+    callback();
+  }
+  const sessionStorage = {
+    getItem: k => storage.get(k) ?? null,
+    setItem: (k, v) => storage.set(k, v),
+    removeItem: k => storage.delete(k),
+  };
+  const db = {
+    orderScope: () => ({ venue: 'venue', actor: 1 }),
+    applyOrder: (id, changes, scope) => {
+      writes.push({ id, changes: JSON.parse(JSON.stringify(changes)), scope });
+      return new Promise((resolve, reject) => pending.push({ resolve, reject }));
+    },
+  };
+  const $ = () => null, setStatus = message => errors.push(message), render = () => {};
+  ${section('let oTimer=null', 'function addAllStop()')}
+  ${section('function sendLink(', 'let XL=null')}
+  restoreOrderDraft();
+  globalThis.api = {sendLink};
+`);
+const tick = () => new Promise(resolve => setImmediate(resolve));
+const changes = index => JSON.parse(run('JSON.stringify(writes[' + index + '].changes)'));
+function ack(revision, q, m = {}) {
+  run('pending.shift().resolve(' + JSON.stringify({ status: 'applied', order: { revision, q, m } }) + ')');
+  return tick();
+}
+
+(async () => {
+  run('receiveOrder({ revision:1, q:{existing:4}, m:{note:{b:"Other",n:"Manual",q:2}} })');
+  run('orderQ.a=1;saveOrder();fireAutosave()');
+  assert.deepEqual(changes(0), [{ map: 'q', id: 'a', before: null, after: 1 }]);
+  run('orderQ.a=2;saveOrder();fireAutosave()');
+  assert.equal(run('writes.length'), 1, 'rapid manual edits serialize');
+  run('receiveOrder({revision:2,q:{existing:4,remote:5},m:{note:{b:"Other",n:"Manual",q:2}}})');
+  assert.equal(run('orderQ.a'), 2, 'a poll cannot override the in-flight edit');
+  const manual = { note: { b: 'Other', n: 'Manual', q: 2 } };
+  await ack(3, { a: 1, existing: 4, remote: 5 }, manual);
+  assert.deepEqual(changes(1), [{ map: 'q', id: 'a', before: 1, after: 2 }]);
+  assert.equal(run('orderQ.remote'), 5);
+  assert.equal(run('orderM.note.q'), 2);
+  run('delete orderQ.a;saveOrder();fireAutosave()');
+  await ack(4, { a: 2, existing: 4, remote: 5 }, manual);
+  assert.deepEqual(changes(2), [{ map: 'q', id: 'a', before: 2, after: null }]);
+  await ack(5, { existing: 4, remote: 5 }, manual);
+  assert.equal(run('!!(oDirty||oSaving)'), false);
+  run('receiveOrder({revision:3,q:{a:99},m:{}})');
+  assert.equal(run('orderQ.a'), undefined, 'an old revision cannot resurrect a deletion');
+
+  run('orderQ.a=3;saveOrder();fireAutosave();pending.shift().reject(Error("offline"))');
+  await tick();
+  assert.equal(run('oDirty'), true);
+  assert.equal(run('orderQ.a'), 3);
+  assert.equal(run('errors.length'), 1);
+  assert.equal(run('JSON.parse(storage.get(orderDraftKey)).request.id'), run('writes[3].id'));
+  run('restoreOrderDraft();flushOrder()');
+  assert.equal(run('writes[4].id'), run('writes[3].id'), 'retry uses the original request ID');
+  assert.deepEqual(changes(4), changes(3));
+  await ack(6, { a: 3, existing: 4, remote: 5 }, manual);
+  assert.equal(run('storage.has(orderDraftKey)'), false);
+  assert.equal(run('orderQ.existing'), 4);
   const send=ctx.api.sendLink;
   for(const contact of ['@supplier','https://t.me/supplier','t.me/supplier/','https://telegram.me/supplier'])
     assert.equal(send({contact},'Заказ + 2'),'https://t.me/supplier?text='+encodeURIComponent('Заказ + 2'));
   assert.match(send({contact:'sales@supplier.ru'},'test'),/^mailto:sales@supplier.ru\?/);
   assert.match(send({contact:'https://wa.me/79991234567'},'test'),/^https:\/\/wa.me\/79991234567\?/);
   assert.equal(send({contact:''},'test'),'');
-  console.log('Order serialization, rapid changes, deletion, failure and supplier contacts passed');
-})().catch(e=>{console.error(e);process.exitCode=1});
+  console.log('Order autosave, serialization, acknowledgement, conflict-safe deltas, retry and supplier contacts passed');
+})().catch(error => { console.error(error); process.exitCode = 1 });

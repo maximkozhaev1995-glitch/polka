@@ -1,22 +1,22 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const source=fs.readFileSync('src/stoika.html','utf8');
 const tools=source.slice(source.indexOf('const AI_TOOLS='),source.indexOf('function aiSnapshot()'));
-const send=source.slice(source.indexOf('async function aiSend()'),source.indexOf('// Короткая память чата:'));
-const fixes=source.slice(source.indexOf('function orderFixBox('),source.indexOf('// «Перенеси со склада'));
+const send=source.slice(source.indexOf('async function aiSend(panel)'),source.indexOf('// Короткая память чата:'));
+const fixes=source.slice(source.indexOf('function orderFixBox('),source.indexOf('function newFlavorBox('));
 const ctx=vm.createContext({console,AbortController,setTimeout,clearTimeout});
 vm.runInContext(`
-let writes=[],fail=false,stock={a:{wh:3}},draft={},orderQ={},orderM={},lastOrderAt=null,oTimer=null;
+let orderVer=0,orderChecks=[],stockLoaded=true,orderLoaded=true,orderLoadState="ready";const orderValue=(o,k,id)=>o[k]?.[id]||0,markOrderDirty=()=>++orderVer,flushOrder=async()=>{if(fail)throw Error("API failed");writes.push({...orderQ});return {...orderQ}};let writes=[],fail=false,stock={a:{wh:3}},draft={},orderQ={},orderM={},lastOrderAt=null,oTimer=null;
 let staffReady=true,aiOrdPhoto=false,aiOrdAsk=true,aiOrdSeen=new Set(),inCmd=false,cmdDraftIds=new Set();
 const DATA=[{id:'a',b:'Brand',n:'A',l:'Strong',t:[]},{id:'b',b:'Brand',n:'B',t:[]}],byId=Object.fromEntries(DATA.map(x=>[x.id,x]));
 const wh=x=>stock[x.id]?.wh||0,onBar=x=>!!stock[x.id]?.bar,flag=(x,k)=>!!stock[x.id]?.[k],oq=x=>orderQ[x.id]||0;
 const nm=x=>x.b+' '+x.n,aiItem=x=>({id:x.id,brand:x.b,name:x.n}),ordGate=()=>null,can=()=>true;
 const saveDraft=()=>{},render=()=>{},saveOrder=()=>{throw Error('unexpected legacy save')},revertWish=()=>{},wishIdsFor=()=>[];
 const db={doc:path=>({set:async value=>{if(fail)throw Error('API failed');writes.push({path,value})}}),applyStock:async entries=>{if(fail)throw Error('API failed');writes.push({entries});return entries.map(e=>({id:e.id,doc:{...e.doc,revision:e.revision+1}}))}};
-const esc=s=>String(s);let boxes=[];const document={createElement:()=>{const buttons=[{},{}];const box={querySelectorAll:()=>buttons,buttons};boxes.push(box);return box}};
+const dedupeJournal=()=>{},aiStockKnown=()=>true,norm=s=>s.toLowerCase(),setStatus=()=>{},aiEnsureDataReady=()=>{};const esc=s=>String(s);let boxes=[];const document={createElement:()=>{const buttons=[{}, {}, {}];const box={querySelectorAll:()=>buttons,buttons};boxes.push(box);return box}};
 `+source.slice(source.indexOf('function stockEntry('),source.indexOf('async function toBar('))+tools+fixes+`
-let input={value:'поставь в заказ'},aiImgs=[],aiCtl=null,photoAcc=null,aiTurns=[],aiView=[],sampleFn;
+let input={append(){},focus(){},value:'поставь в заказ'},aiImgs=[],aiCtl=null,photoAcc=null,aiTurns=[],aiView=[],sampleFn;
 let cmdMatch={found:[],ambiguous:[],not_found_lines:[]};const matchText=()=>cmdMatch,ambTxt=()=>'';const $=()=>input,renderAiImgs=()=>{},parseCmd=()=>null,ordAsked=()=>true,photoAccNew=()=>({}),attachMessagePhotos=node=>node,aiBubble=()=>({classList:{remove(){},add(){}},append(){}}),aiUi=()=>{},AI_RULES='',aiSnapshot=()=>'',photoNote=()=>{},photoHead=()=>'',aiSrc=()=>{},aiScroll=()=>{},aiErr=()=>'',aiKeep=()=>{};
-`+source.slice(source.indexOf('async function cmdFindIds('),source.indexOf('async function aiSend()'))+send+`;globalThis.api={tools:AI_TOOLS,proposal:aiProposalTools,box:aiProposalBox,commit:aiCommitProposal,cancel:cancelAiProposals};`,ctx);
+`+source.slice(source.indexOf('async function cmdFindIds('),source.indexOf('async function aiSend(panel)'))+send+`;globalThis.api={tools:AI_TOOLS,proposal:aiProposalTools,box:aiProposalBox,commit:aiCommitProposal,cancel:cancelAiProposals};`,ctx);
 const run=s=>vm.runInContext(s,ctx);
 let count=0;async function test(name,fn){await fn();console.log('PASS',name);count++}
 (async()=>{
@@ -25,7 +25,7 @@ await test('repeat tool calls do not duplicate',()=>{run(`T.find(t=>t.name==='se
 await test('unknown product fails before persistence',()=>{assert.throws(()=>run(`T.find(t=>t.name==='set_order').execute({id:'missing',qty:1})`));assert.equal(run('writes.length'),0)});
 await test('cancel does not write',()=>{run(`api.box({append(){}},p);boxes.at(-1).buttons[1].onclick()`);assert.equal(run('writes.length'),0)});
 await test('double confirmation saves once',async()=>{run(`api.box({append(){}},p)`);await run('boxes.at(-1).buttons[0].onclick()');await run('boxes.at(-1).buttons[0].onclick()');assert.equal(run('writes.length'),1);assert.equal(run('orderQ.a'),2)});
-await test('API failure leaves order unchanged and cannot replay',async()=>{run(`fail=true;p={list:[{t:'order',id:'a',qty:9,txt:'A 9'}]};api.box({append(){}},p)`);await run('boxes.at(-1).buttons[0].onclick()');await run('boxes.at(-1).buttons[0].onclick()');assert.equal(run('orderQ.a'),2);assert.equal(run('writes.length'),1);run('fail=false')});
+await test('API failure retains the editable local order and cannot replay confirmation',async()=>{run(`fail=true;p={list:[{t:'order',id:'a',qty:9,txt:'A 9'}]};api.box({append(){}},p)`);await run('boxes.at(-1).buttons[0].onclick()');await run('boxes.at(-1).buttons[0].onclick()');assert.equal(run('orderQ.a'),9);assert.equal(run('writes.length'),1);run('fail=false;orderQ.a=2')});
 await test('flag proposal writes nothing',async()=>{run(`p={list:[],draft:{}};api.proposal(p).find(t=>t.name==='set_flag').execute({id:'a',flag:'stop',on:true})`);assert.equal(run('writes.length'),1);await run('api.commit(p.list)');assert.equal(run('writes.length'),2)});
 await test('mixed table batch is rejected before writes',async()=>{run(`p.list.push({t:'order',id:'a',qty:1})`);await assert.rejects(run('api.commit(p.list)'));assert.equal(run('writes.length'),2)});
 await test('stock tool is isolated until successful reply',()=>{run(`p={list:[],draft:{}};api.proposal(p).find(t=>t.name==='stage_stock').execute({id:'a',delta:-2,toBar:true})`);assert.equal(run('Object.keys(draft).length'),0);assert.equal(run('p.draft.a.d'),-2);assert.equal(run('writes.length'),2)});
