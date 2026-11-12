@@ -210,10 +210,17 @@ async function scenario(browser, mode) {
     await page.waitForFunction(()=>!aiCtl);
     assert.deepEqual(await menu.getByRole('button').allTextContents(),choices);
     assert.ok(await menu.getByRole('button').evaluateAll(nodes=>nodes.every(el=>el.getBoundingClientRect().right<=innerWidth+1 && el.scrollWidth<=el.clientWidth+1)));
+    const photoReply = await menu.locator('..').elementHandle();
     const first = await state();
     assert.deepEqual([...first.ids].sort(), stockRows.map(x=>x.flavor_id).sort());
     assert.deepEqual(first.draft,{}); assert.deepEqual(first.order,{});
     assert.equal(reads,5); assert.equal(hashes.size,5);
+    // A stock lookup retires pending confirmations but the original photo menu still has a valid batch.
+    await ui.locator('[data-ai-host] #ai-in').fill('Проверь наличие на складе');
+    await ui.locator('[data-ai-host] #ai-send').click();
+    await chat.getByText('Проверить остатки по позициям', {exact:true}).waitFor();
+    assert.ok(await menu.getByRole('button').evaluateAll(buttons=>buttons.length===4 && buttons.every(b=>!b.disabled)),
+      'Reading stock disabled the original photo menu');
     const assistantCount = await chat.locator('.msg.assistant').count();
     const inStock = rows.filter(x=>x.wh>0);
     const eligible = stockRows.filter(x=>!x.slow);
@@ -222,6 +229,10 @@ async function scenario(browser, mode) {
     for (const [i,name] of choices.entries()) {
       await menu.getByRole('button',{name,exact:true}).click();
       if(mode==='sparse'&&i===3)assert.match(await chat.innerText(),/без складской записи/i);
+      if (i === 3) {
+        assert.equal(await photoReply.evaluate(el=>el.querySelectorAll('[data-order-row]').length),zero.length);
+        assert.equal(await photoReply.evaluate((el,count)=>Array.from(el.querySelectorAll('summary')).some(s=>s.textContent==='Изменения склада — ещё не сохранены: '+count),inStock.length),true);
+      }
       const current=await state();
       assert.deepEqual(current.draft,Object.fromEntries(stockSets[i].map(x=>[x.flavor_id,i===2?1:-1])));
       assert.deepEqual(current.order,{});
