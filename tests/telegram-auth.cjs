@@ -17,12 +17,12 @@ await test('expired correctly signed Mini App payload is rejected',async()=>{con
 context.widget={id:42,first_name:'Test',auth_date:now};
 await test('valid Login Widget signature is accepted',async()=>{await run(`(async()=>{const dcs=Object.keys(widget).sort().map(k=>k+'='+widget[k]).join('\\n');widget.hash=hex(await hmac(new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(botToken))),dcs))})()`);assert.equal((await run('checkWidgetAuth(widget,botToken)')).id,42)});
 await test('tampered Widget identity is rejected',async()=>{assert.equal(await run('checkWidgetAuth({...widget,id:99},botToken)'),null)});
-const claims={sub:'42',tg_id:42,role:'authenticated',aud:'authenticated',iat:now,exp:now+3600};context.claims=claims;
+const claims={membership_epoch:'12345678-1234-4234-9234-123456789abc',sub:'42',tg_id:42,role:'authenticated',aud:'authenticated',iat:now,exp:now+3600};context.claims=claims;
 const sign=async value=>{context.payload=value;return run('signJwt(payload,testSecret)')};
 const verify=async jwt=>{context.request=new Request('https://local.test',{headers:{authorization:'Bearer '+jwt}});return run('tgId(request)')};
 await test('AI validates the HMAC-signed authenticated Telegram subject',async()=>{assert.equal(await verify(await sign(claims)),42)});
 await test('AI rejects tampered signatures and alg:none',async()=>{const t=await sign(claims);assert.equal(await verify(t.slice(0,-2)+'xx'),null);assert.equal(await verify(Buffer.from('{"alg":"none"}').toString('base64url')+'.'+Buffer.from(JSON.stringify(claims)).toString('base64url')+'.x'),null)});
-await test('AI rejects expired tokens, anon role and mismatched identity',async()=>{for(const extra of [{exp:now-1},{role:'anon'},{tg_id:99},{aud:'other'},{iat:now+500}])assert.equal(await verify(await sign({...claims,...extra})),null)});
+await test('AI rejects expired tokens, anon role and mismatched identity',async()=>{for(const extra of [{exp:now-1},{role:'anon'},{tg_id:99},{aud:'other'},{iat:now+500},{membership_epoch:undefined}])assert.equal(await verify(await sign({...claims,...extra})),null)});
 console.log(`${count} cryptographic Telegram/JWT tests passed; no real login or external API`);
 
 })().catch(e=>{console.error(e);process.exitCode=1});

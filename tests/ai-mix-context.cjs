@@ -3,7 +3,7 @@ const s=fs.readFileSync('src/stoika.html','utf8');
 const item=s.slice(s.indexOf('function aiStrength('),s.indexOf('const cnTxt='));
 const snap=s.slice(s.indexOf('function aiSnapshot()'),s.indexOf('// Кто ответил:'));
 const c=vm.createContext({});
-vm.runInContext(`const DATA=[{id:'known',b:'Brand',n:'Known',t:[]},{id:'unknown',b:'Brand',n:'Unknown',t:[]},{id:'stopped',b:'Brand',n:'Stopped',t:[]},{id:'warehouse',b:'Brand',n:'Warehouse',t:[]}];const strMap={known:7,stopped:3},stock={known:{slow:true},stopped:{stopAuto:true},warehouse:{slow:true}},draft={};const flag=(x,k)=>!!stock[x.id]?.[k],inStop=x=>flag(x,'stop')||flag(x,'stopAuto'),onBar=x=>x.id!=='warehouse',wh=()=>0,oq=()=>0,orderRows=()=>[];${item}${snap};globalThis.api={item:aiItem,snapshot:aiSnapshot,str:aiStrength,data:DATA,strMap};`,c);
+vm.runInContext(`const DATA=[{id:'known',b:'Brand',n:'Known',t:[]},{id:'unknown',b:'Brand',n:'Unknown',t:[]},{id:'stopped',b:'Brand',n:'Stopped',t:[]},{id:'warehouse',b:'Brand',n:'Warehouse',t:[]}];const stockLoaded=true;const strMap={known:7,stopped:3},stock={known:{wh:0,slow:true},stopped:{wh:0,stopAuto:true},warehouse:{wh:0,slow:true}},draft={};const tracked=x=>Object.hasOwn(stock,x.id);const flag=(x,k)=>!!stock[x.id]?.[k],inStop=x=>flag(x,'stop')||flag(x,'stopAuto'),onBar=x=>x.id!=='warehouse',wh=()=>0,oq=()=>0,orderRows=()=>[];${item}${snap};globalThis.api={item:aiItem,snapshot:aiSnapshot,str:aiStrength,data:DATA,strMap};`,c);
 const {api}=c;
 assert.equal(api.item(api.data[0]).strength,7);assert.equal(api.item(api.data[0]).slow,true);
 assert.equal(api.item(api.data[1]).strength,null,'missing strength must not become default 5');

@@ -1,0 +1,309 @@
+.mixora-connected body{margin:0;padding:0;background:#f5f7f3}
+.mixora-connected #mixora-connected-status{position:fixed;inset:0 0 auto;z-index:150;padding:10px 16px;background:#eef4ee;color:#183d33;font:14px/1.4 system-ui}
+.mixora-connected #mixora-connected-status[hidden]{display:none}
+.mixora-connected #mixora-work-menu{margin:0;min-height:100dvh}
+.mixora-connected #mixora-operation-dialog{max-width:34rem;width:calc(100% - 32px);border:1px solid #bdcfc1;border-radius:18px;padding:22px;font:16px/1.5 system-ui;color:var(--fg);background:var(--surface)}
+.mixora-connected #mixora-operation-dialog::backdrop{background:#10261b66}
+.mixora-connected #mixora-operation-dialog .btn{min-height:44px}
+.mixora-connected :is(#stock-recovery,#order-save-problem){position:fixed;z-index:151;inset:auto 12px max(84px,env(safe-area-inset-bottom));max-width:650px;margin-inline:auto}
+.mixora-connected #status{position:fixed;z-index:149;bottom:84px;left:16px;right:16px;width:fit-content;max-width:calc(100% - 32px);margin:auto;padding:8px 12px;border-radius:10px;background:var(--surface);box-shadow:0 2px 14px #10261b22}
+.mixora-connected #status:empty{display:none}
+.mixora-connected body[data-mixora-page=ai] #status:not(.err){display:none}
+.mixora-connected #chat{position:relative;inset:auto;max-width:none;width:100%;height:100%;min-height:0;margin:0;padding:0 12px;background:transparent;overflow:hidden;color:var(--ink);--fg:var(--ink);--muted:var(--secondary);--line:var(--edge);--bg:var(--surface);--accent:var(--ink)}
+.mixora-connected #chat[hidden]{display:none!important}
+.mixora-connected [data-ai-host]{flex:1;display:flex;min-height:0}
+.mixora-connected #chat .ai-log{overflow-anchor:none;padding-inline:0;scroll-behavior:auto}
+.mixora-connected #chat .ai-top{font-size:12px}
+.mixora-connected #chat .ai-in{flex:none;margin-bottom:max(8px,env(safe-area-inset-bottom));padding:6px}
+.mixora-connected #chat .ai-in .btn{font-size:14px;padding:0 10px}
+.mixora-connected #mixora-work-menu #chat .btn{background:var(--surface,#fffefa);color:var(--ink,#192a27);-webkit-text-fill-color:currentColor;border-color:var(--edge,#d6ded7);font-weight:600;opacity:1;transition:border-color .15s,box-shadow .15s}
+.mixora-connected #mixora-work-menu #chat .btn.go{background:var(--green,#173f3c);color:#fffefa;border-color:var(--green,#173f3c)}
+.mixora-connected #mixora-work-menu #chat .btn:disabled{background:var(--pale,#e8efea);color:var(--ink,#192a27);-webkit-text-fill-color:currentColor;border-color:var(--edge,#d6ded7);opacity:1;cursor:not-allowed;box-shadow:none}
+.mixora-connected #chat .ai-in textarea{font-size:16px}
+.mixora-connected #chat .msg{max-width:100%;overflow-wrap:anywhere}
+.mixora-connected #chat .msg.user{background:var(--pale,#e8efea);color:var(--ink,#192a27)}
+
+/* Compact conversation. Keep primary actions and safety cards out of disclosures. */
+.mixora-connected #chat{box-sizing:border-box;gap:8px;max-width:900px;margin-inline:auto;padding:0 4px}
+.mixora-connected #chat .ai-top{flex:none;min-height:44px;gap:12px}
+.mixora-connected #chat .ai-top .small{font-size:12px;line-height:1.35}
+.mixora-connected #chat .ai-log{flex:1 1 180px;min-height:96px;padding:8px 2px;gap:12px;scrollbar-width:thin}
+.mixora-connected #chat .msg{max-width:88%;padding:12px 14px;line-height:1.55;border-radius:16px;box-sizing:border-box}
+.mixora-connected #chat .msg.user{align-self:flex-end;border-bottom-right-radius:5px}
+.mixora-connected #chat .msg.assistant{align-self:flex-start;border:1px solid var(--edge);border-top-left-radius:5px;background:var(--surface);color:var(--ink)}
+.mixora-connected #chat .ai-in{min-width:0;padding:6px;border:1px solid var(--edge);border-radius:16px;background:var(--surface);align-items:flex-end;gap:6px;box-shadow:0 2px 8px #10261b08}
+.mixora-connected #chat .ai-in textarea{border:0;min-height:44px;max-height:120px;padding:11px 8px;background:transparent;line-height:1.4;box-sizing:border-box}
+.mixora-connected #chat .ai-in .btn{min-height:44px;height:auto;min-width:44px;border-radius:11px}
+.mixora-connected #chat :is(button,summary,textarea,select,input):focus-visible{outline:3px solid var(--green,#285f50);outline-offset:2px}
+@media(min-width:900px){.mixora-connected #chat{max-width:960px;padding-inline:16px}.mixora-connected #chat .msg{max-width:78%}}
+@media(max-height:650px){
+ .mixora-connected #chat{overflow-y:auto;overscroll-behavior:contain;gap:6px;padding-bottom:0}
+ .mixora-connected #chat .ai-log{flex:none;min-height:96px;max-height:30dvh}
+ .mixora-connected #chat .ai-in{position:sticky;bottom:0;z-index:4;margin-bottom:0;flex:none}
+}
+@media(prefers-reduced-motion:reduce){.mixora-connected #mixora-work-menu #chat .btn{transition:none}}
+/* iOS keyboards shrink visualViewport, not the CSS layout viewport. */
+.mixora-connected #mixora-work-menu[data-keyboard] #chat{overflow-y:auto;overscroll-behavior:contain;gap:6px;padding-bottom:0}
+.mixora-connected #mixora-work-menu[data-keyboard] #chat .ai-log{flex:none;min-height:96px;max-height:calc(var(--wm-room,480px)*.3)}
+.mixora-connected #mixora-work-menu[data-keyboard] #chat .ai-in{position:sticky;bottom:0;z-index:4;margin-bottom:0;flex:none}
+
+
+#mixora-work-menu{--ink:#192a27;--secondary:#52645f;--edge:#d6ded7;--green:#173f3c;--pale:#e8efea;--surface:#fffefa;--canvas:#f6f7f3;container:wm / inline-size;isolation:isolate;min-width:0;min-height:100svh;width:100%;background:var(--canvas);color:var(--ink);color-scheme:light;text-align:left;font:400 15px/1.42 "Inter","Segoe UI",Arial,sans-serif;-webkit-text-size-adjust:100%}
+#mixora-work-menu *,#mixora-work-menu *:before,#mixora-work-menu *:after{box-sizing:border-box}
+#mixora-work-menu [hidden]{display:none!important}
+#mixora-work-menu :is(.wm-brand,.wm-homeback,.wm-tile,.wm-row,.wm-action,.wm-link,.wm-step,.wm-input,.wm-back){font:inherit;color:inherit;line-height:inherit}
+#mixora-work-menu :is(.wm-brand,.wm-homeback,.wm-tile,.wm-row,.wm-action,.wm-link,.wm-step,.wm-back){cursor:pointer;-webkit-tap-highlight-color:transparent}
+#mixora-work-menu :is(button,input,select,textarea):focus-visible{outline:3px solid #197b72;outline-offset:3px}
+#mixora-work-menu .wm-sr{position:absolute;width:1px;height:1px;margin:-1px;clip-path:inset(50%);overflow:hidden;white-space:nowrap}
+#mixora-work-menu .wm-frame{width:min(100%,1040px);margin-inline:auto;padding-inline:clamp(16px,5.1cqw,58px);min-width:0}
+#mixora-work-menu .wm-top{border-bottom:1px solid var(--edge);background:#fafbf7}
+#mixora-work-menu .wm-topin,#mixora-work-menu .wm-headend,#mixora-work-menu .wm-brand,#mixora-work-menu .wm-demo,#mixora-work-menu .wm-homeback{display:flex;align-items:center}
+#mixora-work-menu .wm-topin{justify-content:space-between;gap:12px;min-height:72px}
+#mixora-work-menu .wm-brand{min-height:44px;padding:0;background:transparent;border:0;gap:9px}
+#mixora-work-menu .wm-mark{display:flex;width:36px;height:28px;align-items:center}
+#mixora-work-menu .wm-mark svg{display:block;width:100%;height:auto}
+#mixora-work-menu .wm-word{align-items:baseline;display:inline-flex;font-family:Arial,sans-serif;font-weight:750;font-size:21px;line-height:1;letter-spacing:-.75px}
+#mixora-work-menu .wm-word svg{width:14px;height:15px;display:inline-block}
+#mixora-work-menu .wm-headend{gap:20px}
+#mixora-work-menu .wm-demo{color:#546660;font-size:12px;line-height:1.1;gap:7px}
+#mixora-work-menu .wm-demo i{width:7px;height:7px;background:#6ba3a1;border-radius:50%}
+#mixora-work-menu .wm-homeback,#mixora-work-menu .wm-back,#mixora-work-menu .wm-link{min-height:44px;border:0;background:transparent;padding:0;font-weight:650;font-size:14px;color:#245b53}
+#mixora-work-menu .wm-homeback{gap:7px}
+#mixora-work-menu .wm-back{display:inline-flex;align-items:center;gap:7px;margin:0 0 8px}
+#mixora-work-menu .wm-ico{width:22px;height:22px;display:block;flex:none;fill:none;stroke:currentColor;stroke-width:1.65;stroke-linecap:round;stroke-linejoin:round}
+#mixora-work-menu .wm-main{outline:0;padding-block:36px 48px}
+#mixora-work-menu .wm-heading{margin:0 0 24px}
+#mixora-work-menu .wm-title{font:650 clamp(30px,4.4cqw,48px)/1.08 "Inter","Segoe UI",Arial,sans-serif;letter-spacing:-.055em;margin:0;color:var(--ink)}
+#mixora-work-menu .wm-sub{font-size:15px;margin:8px 0 0;color:var(--secondary)}
+#mixora-work-menu .wm-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+#mixora-work-menu .wm-tile{position:relative;isolation:isolate;display:flex;align-items:flex-start;flex-direction:column;justify-content:flex-start;min-width:0;min-height:145px;text-align:left;padding:18px;border:1px solid var(--edge);background:var(--surface);border-radius:16px;box-shadow:0 1px 2px #223f3106;transition:background-color .16s,border-color .16s,transform .16s}
+#mixora-work-menu .wm-ticon{--ti:#dcebe2;--tc:#38644e;display:grid;place-items:center;background:var(--ti);color:var(--tc);width:40px;height:40px;border-radius:12px;flex:0 0 auto}
+#mixora-work-menu .wm-tile[data-nav=off] .wm-ticon{--ti:#e6ece2;--tc:#526746}
+#mixora-work-menu .wm-tile[data-nav=stock] .wm-ticon{--ti:#e4eaf4;--tc:#425b7e}
+#mixora-work-menu .wm-tile[data-nav=stop] .wm-ticon{--ti:#f6e6e1;--tc:#9b5344}
+#mixora-work-menu .wm-tile[data-nav=order] .wm-ticon{--ti:#e3ecef;--tc:#3a626b}
+#mixora-work-menu .wm-tile[data-nav=slow] .wm-ticon{--ti:#f4ebd8;--tc:#846329}
+#mixora-work-menu .wm-tile[data-nav=sup] .wm-ticon{--ti:#eae6ef;--tc:#665278}
+#mixora-work-menu .wm-tile[data-nav=journal] .wm-ticon{--ti:#eae9e3;--tc:#5f5c49}
+#mixora-work-menu .wm-tn{display:block;margin-top:auto;padding-top:14px;font-size:21px;line-height:1.1;font-weight:650;letter-spacing:-.045em}
+#mixora-work-menu .wm-td{display:block;font-size:13px;line-height:1.3;color:var(--secondary);margin-top:5px}
+#mixora-work-menu .wm-tarrow{position:absolute;top:18px;right:16px;color:#86938e}
+#mixora-work-menu .wm-tarrow .wm-ico{width:16px;height:16px}
+#mixora-work-menu .wm-aitile{grid-column:1/-1;min-height:128px;flex-direction:row;align-items:center;gap:20px;overflow:hidden;background:var(--green);border-color:var(--green);color:#fffdf5;padding:24px 28px}
+#mixora-work-menu .wm-aitile .wm-ticon{width:53px;height:53px;border-radius:17px;color:#c6efc5;background:#ffffff0c;border:1px solid #89bca057}
+#mixora-work-menu .wm-aitile .wm-ticon .wm-ico{width:30px;height:30px}
+#mixora-work-menu .wm-aitile .wm-tn{margin:0;padding:0;font-size:clamp(23px,3.2cqw,31px);color:#fffdf5}
+#mixora-work-menu .wm-aitile .wm-td{color:#ccded5;font-size:14px}
+#mixora-work-menu .wm-awave{position:absolute;right:8%;top:-50%;width:min(43%,400px);height:210%;pointer-events:none;z-index:-1}
+#mixora-work-menu .wm-aitile .wm-tarrow{display:grid;place-items:center;position:static;margin-left:auto;flex:none;width:36px;height:36px;border-radius:50%;border:1px solid #94bab070;color:#d9ecdf}
+#mixora-work-menu .wm-aitile .wm-tarrow .wm-ico{width:17px;height:17px}
+#mixora-work-menu .wm-search{display:flex;align-items:center;gap:10px;padding:0 14px;height:44px;max-width:450px;border-radius:10px;background:var(--surface);border:1px solid #c9d4cb;color:var(--secondary);margin:0 0 18px}
+#mixora-work-menu .wm-search:focus-within{outline:2px solid #197b72;outline-offset:1px}
+#mixora-work-menu .wm-search .wm-ico{width:18px;height:18px}
+#mixora-work-menu .wm-search input{background:none;border:0;outline:0!important;width:100%;padding:3px 0;font:inherit;color:var(--ink);min-width:0}
+#mixora-work-menu .wm-search input::placeholder{color:#62736b}
+#mixora-work-menu .wm-list{overflow:hidden;border:1px solid var(--edge);border-radius:14px;background:var(--surface)}
+#mixora-work-menu .wm-line,#mixora-work-menu .wm-colhead{display:grid;grid-template-columns:minmax(0,1fr) minmax(88px,150px) 16px;align-items:center;column-gap:18px;text-align:left;width:100%;padding:13px 20px}
+#mixora-work-menu .wm-colhead{background:#edf1ea;color:#54665d;font-weight:600;font-size:12px;padding-block:9px}
+#mixora-work-menu .wm-colhead span:nth-child(2),#mixora-work-menu .wm-qty{text-align:right}
+#mixora-work-menu .wm-row:focus-visible{outline-offset:-3px}
+#mixora-work-menu .wm-row{margin:0;border:0;width:100%;background:transparent;color:var(--ink);text-align:left}
+#mixora-work-menu .wm-line + .wm-line,#mixora-work-menu .wm-colhead + .wm-line{border-top:1px solid #e3e8e0}
+#mixora-work-menu .wm-n{display:block;overflow-wrap:anywhere;font-size:16px;font-weight:650;line-height:1.2;letter-spacing:-.023em}
+#mixora-work-menu .wm-meta{display:block;font-size:13px;color:var(--secondary);line-height:1.28;margin-top:3px}
+#mixora-work-menu .wm-qty{font-size:15px;font-weight:650;white-space:nowrap;font-variant-numeric:tabular-nums}
+#mixora-work-menu .wm-line>.wm-ico{width:16px;height:16px;color:#6d8179}
+#mixora-work-menu .wm-empty{padding:24px 20px;color:var(--secondary);font-size:15px}
+#mixora-work-menu .wm-detail{max-width:610px}
+#mixora-work-menu .wm-detail .wm-heading{margin:0 0 20px}
+#mixora-work-menu .wm-props{border-top:1px solid var(--edge);margin:18px 0;padding:0}
+#mixora-work-menu .wm-props>div{display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:1px solid var(--edge);padding:12px 0}
+#mixora-work-menu .wm-props dt{color:var(--secondary)}
+#mixora-work-menu .wm-props dd{margin:0;text-align:right;font-weight:650}
+#mixora-work-menu .wm-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+#mixora-work-menu .wm-action{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 16px;font:650 14px/1.28 "Inter","Segoe UI",Arial,sans-serif;border:1px solid #bbc9c0;border-radius:10px;color:var(--green);background:var(--surface)}
+#mixora-work-menu .wm-action .wm-ico{width:17px;height:17px}
+#mixora-work-menu .wm-primary{border-color:var(--green);background:var(--green);color:#fff}
+#mixora-work-menu .wm-form{display:grid;gap:14px;max-width:460px}
+#mixora-work-menu .wm-form label{display:grid;gap:5px;color:var(--ink);font-size:14px;font-weight:650}
+#mixora-work-menu .wm-input{background:var(--surface);color:var(--ink);border:1px solid #bdc9bf;border-radius:9px;padding:9px 12px;min-height:44px;width:100%}
+#mixora-work-menu .wm-confirm{margin-top:18px;border:1px solid var(--edge);border-radius:14px;background:var(--surface);padding:16px}
+#mixora-work-menu .wm-h2{font-size:19px;font-weight:650;letter-spacing:-.035em;line-height:1.2;margin:0 0 12px}
+#mixora-work-menu .wm-confirm .wm-h2{margin:0}
+#mixora-work-menu .wm-confirm .wm-sub{margin:5px 0 12px}
+#mixora-work-menu .wm-notice{border-left:3px solid #4c8474;background:#e5eee6;color:#244e3e;padding:10px 12px;margin:0 0 16px;font-size:14px}
+#mixora-work-menu .wm-orderhead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+#mixora-work-menu .wm-orderhead .wm-heading{margin:0}
+#mixora-work-menu .wm-orderline{grid-template-columns:minmax(0,1fr) auto}
+#mixora-work-menu .wm-stepper{display:inline-flex;align-items:center;gap:2px}
+#mixora-work-menu .wm-stepper output{min-width:26px;text-align:center;font-size:15px}
+#mixora-work-menu .wm-step{display:grid;place-items:center;width:44px;height:44px;padding:0;background:transparent;border:1px solid #cfdbd1;border-radius:9px;font-size:19px;color:var(--green)}
+#mixora-work-menu .wm-step:disabled{opacity:.45;cursor:default}
+#mixora-work-menu .wm-recs{margin-top:25px}
+#mixora-work-menu .wm-recs .wm-action{min-height:40px}
+#mixora-work-menu .wm-journal{grid-template-columns:64px minmax(0,1fr)}
+#mixora-work-menu .wm-time{font-size:13px;font-variant-numeric:tabular-nums;color:var(--secondary)}
+#mixora-work-menu .wm-main[data-route=ai]{padding-block:20px 26px}
+#mixora-work-menu [data-ai-host]{min-width:0;--mx-chat-height:clamp(410px,calc(100svh - 118px),780px)}
+@media(hover:hover){#mixora-work-menu .wm-tile:hover{border-color:#8da79b;background:#f9fcf6;transform:translateY(-2px)}#mixora-work-menu .wm-aitile:hover{background:#1d4d49;border-color:#2c6760}#mixora-work-menu .wm-row:hover,#mixora-work-menu .wm-step:not(:disabled):hover{background:#eff4ed}#mixora-work-menu .wm-action:not(.wm-primary):hover{background:#edf3ec}#mixora-work-menu .wm-primary:hover{background:#235651}#mixora-work-menu .wm-homeback:hover,#mixora-work-menu .wm-back:hover{text-decoration:underline}}
+@media(prefers-reduced-motion:reduce){#mixora-work-menu .wm-tile{transition:none;transform:none!important}}
+@container wm (max-width:780px){#mixora-work-menu .wm-grid{grid-template-columns:repeat(2,minmax(0,1fr))}#mixora-work-menu .wm-tile{min-height:112px}#mixora-work-menu .wm-aitile{min-height:100px}}
+@container wm (max-width:520px){
+#mixora-work-menu .wm-frame{padding-inline:16px}#mixora-work-menu .wm-topin{min-height:58px}#mixora-work-menu .wm-mark{width:30px;height:23px}#mixora-work-menu .wm-brand{gap:7px}#mixora-work-menu .wm-word{font-size:19px}#mixora-work-menu .wm-word svg{width:12px;height:14px}#mixora-work-menu .wm-headend{gap:12px}#mixora-work-menu .wm-demo{font-size:11px}#mixora-work-menu .wm-main{padding-block:22px 26px}#mixora-work-menu .wm-heading{margin-bottom:16px}#mixora-work-menu .wm-title{font-size:32px}#mixora-work-menu .wm-sub{font-size:14px}
+#mixora-work-menu .wm-grid{gap:8px}#mixora-work-menu .wm-tile{border-radius:14px;min-height:106px;padding:11px 12px 12px}#mixora-work-menu .wm-ticon{width:30px;height:30px;border-radius:9px}#mixora-work-menu .wm-ticon>.wm-ico{width:19px;height:19px}#mixora-work-menu .wm-tarrow{top:12px;right:10px}#mixora-work-menu .wm-tarrow .wm-ico{width:14px;height:14px}
+#mixora-work-menu .wm-tn{font-size:18px;padding-top:8px}#mixora-work-menu .wm-td{font-size:12px;line-height:1.25;margin-top:4px}
+#mixora-work-menu .wm-aitile{min-height:87px;gap:11px;padding:14px 13px}#mixora-work-menu .wm-aitile .wm-ticon{width:39px;height:39px;border-radius:12px}#mixora-work-menu .wm-aitile .wm-ticon .wm-ico{width:25px;height:25px}#mixora-work-menu .wm-aitile .wm-tn{font-size:22px}#mixora-work-menu .wm-aitile .wm-td{font-size:12px}#mixora-work-menu .wm-aitile .wm-tarrow{width:29px;height:29px}#mixora-work-menu .wm-awave{right:3%;opacity:.4;width:30%}
+#mixora-work-menu .wm-line,#mixora-work-menu .wm-colhead{padding-inline:12px;column-gap:8px;grid-template-columns:minmax(0,1fr) minmax(55px,80px) 14px}#mixora-work-menu .wm-n{font-size:15px}#mixora-work-menu .wm-search input,#mixora-work-menu .wm-input{font-size:16px}
+#mixora-work-menu .wm-orderhead{align-items:flex-start;flex-direction:column}#mixora-work-menu .wm-orderline{grid-template-columns:minmax(0,1fr) auto}#mixora-work-menu .wm-journal{grid-template-columns:44px minmax(0,1fr)}#mixora-work-menu .wm-main[data-route=ai]{padding:12px 12px 14px}#mixora-work-menu [data-ai-host]{--mx-chat-height:clamp(410px,calc(100svh - 90px),780px)}
+}
+@container wm (max-width:340px){#mixora-work-menu .wm-frame{padding-inline:12px}#mixora-work-menu .wm-tile{padding-inline:10px}#mixora-work-menu .wm-tn{font-size:16px}#mixora-work-menu .wm-aitile .wm-ticon{display:none}#mixora-work-menu .wm-demo{font-size:10px}}
+
+/* Brand directory and inventory results */
+#mixora-work-menu .wm-brand-heading{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin:6px 0 12px}
+#mixora-work-menu .wm-brand-heading h2,#mixora-work-menu .wm-group-name{margin:0;color:var(--ink);font-weight:650;line-height:1.15;letter-spacing:-.035em}
+#mixora-work-menu .wm-brand-heading h2{font-size:23px}#mixora-work-menu .wm-group-name{font-size:18px}
+#mixora-work-menu .wm-directory{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+#mixora-work-menu .wm-brand-entry{display:grid;grid-template-columns:35px minmax(0,1fr) 16px;align-items:center;gap:12px;min-height:65px;padding:10px 15px;border:1px solid var(--edge);background:var(--surface);border-radius:12px;text-align:left;cursor:pointer;font:inherit;color:var(--ink)}
+#mixora-work-menu .wm-brand-entry strong{display:block;line-height:1.08;font-size:16px;letter-spacing:.015em}
+#mixora-work-menu .wm-brand-entry small{display:block;font-size:12px;color:var(--secondary);margin-top:3px}
+#mixora-work-menu .wm-brand-entry>.wm-ico{width:15px;height:15px;color:#63796e}
+#mixora-work-menu .wm-monogram{display:grid;place-items:center;width:35px;height:35px;border-radius:9px;color:#294f42;background:#e1ede4;font:700 12px/1 "Segoe UI",Arial,sans-serif;letter-spacing:-.04em}
+#mixora-work-menu [data-wm-brand=NORA] .wm-monogram{background:#f2e9d8;color:#745b30}
+#mixora-work-menu [data-wm-brand=SFERA] .wm-monogram{background:#e4e8f0;color:#475b72}
+#mixora-work-menu [data-wm-brand=LUNO] .wm-monogram{background:#eee4ee;color:#6c4b6b}
+#mixora-work-menu [data-wm-brand=VERDE] .wm-monogram{background:#e4ebd8;color:#4a673c}
+#mixora-work-menu .wm-inventory .wm-search{max-width:none;width:100%;margin-bottom:18px}
+#mixora-work-menu .wm-inventory{max-width:800px}
+#mixora-work-menu .wm-brand-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 12px}
+#mixora-work-menu .wm-brand-toolbar .wm-action{gap:8px}
+#mixora-work-menu .wm-monogram svg{display:block;width:27px;height:27px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+#mixora-work-menu .wm-stock-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+#mixora-work-menu .wm-stock-heading .wm-heading{margin:0}
+#mixora-work-menu .wm-brand-group + .wm-brand-group{margin-top:18px}
+#mixora-work-menu .wm-group-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 2px 8px}
+#mixora-work-menu .wm-group-head small{color:var(--secondary);font-size:13px}
+#mixora-work-menu .wm-inventory .wm-line{min-height:51px}
+#mixora-work-menu .wm-inventory .wm-n{font-weight:600}
+@media(hover:hover){#mixora-work-menu .wm-brand-entry:hover{border-color:#8da79b;background:#f3f8f0}}
+@container wm (max-width:540px){#mixora-work-menu .wm-directory{grid-template-columns:minmax(0,1fr)}#mixora-work-menu .wm-brand-entry{min-height:58px;padding:8px 12px}#mixora-work-menu .wm-brand-select{font-size:16px}#mixora-work-menu .wm-brand-heading h2{font-size:21px}}
+
+/* The dock follows the preview's scrollport on long pages.
+   On the chat screen only the history scrolls. */
+#mixora-work-menu{display:flex;flex-direction:column;min-height:var(--wm-room,100dvh)}
+#mixora-work-menu .wm-top{flex:none}
+#mixora-work-menu .wm-main{flex:1 0 auto}
+#mixora-work-menu .wm-dock{flex:none;position:sticky;bottom:0;z-index:6;width:100%;margin:0;background:var(--surface);border-top:1px solid #cbd6cd;padding:4px max(8px,env(safe-area-inset-right)) max(4px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left))}
+#mixora-work-menu .wm-dock-inner{width:min(100%,640px);margin:auto;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}
+#mixora-work-menu .wm-dock button{min-height:47px;min-width:0;display:flex;align-items:center;justify-content:center;gap:7px;border:0;border-radius:9px;background:transparent;color:#486056;cursor:pointer;font-family:inherit;font-size:14px;font-weight:600;line-height:1.15}
+#mixora-work-menu .wm-dock button[aria-current]{background:#e0eee5;color:#174d3b}
+#mixora-work-menu .wm-dock .wm-ico{width:20px;height:20px}
+#mixora-work-menu .wm-extra{display:grid;max-width:550px;border:1px solid var(--edge);border-radius:14px;overflow:hidden;background:var(--surface)}
+#mixora-work-menu .wm-extra button{display:flex;align-items:center;gap:13px;min-height:53px;border:0;background:transparent;padding:10px 15px;color:var(--ink);font:inherit;font-weight:600;text-align:left;cursor:pointer}
+#mixora-work-menu .wm-extra button+button{border-top:1px solid var(--edge)}
+#mixora-work-menu .wm-extra button .wm-ico:last-child{width:15px;height:15px;margin-left:auto}
+#mixora-work-menu .wm-extra button:focus-visible{outline-offset:-3px}
+#mixora-work-menu[data-route=ai]{height:var(--wm-room,100dvh);min-height:0}
+#mixora-work-menu .wm-main[data-route=ai]{flex:1 1 0;min-height:0;display:flex;flex-direction:column;padding-block:12px 8px}
+#mixora-work-menu [data-ai-host]{flex:1 1 0;min-height:0;display:flex;flex-direction:column}
+#mixora-work-menu [data-ai-host] .mx-chat{flex:1 1 0;height:auto;min-height:0}
+#mixora-work-menu .mc-foot{padding:7px clamp(8px,2vw,16px) 8px}
+#mixora-work-menu .mc-input-label{display:block;margin:0 0 4px 1px;font-size:12px;font-weight:650;color:#344f44}
+#mixora-work-menu .mc-compose{border:0;border-radius:0;background:transparent;padding:0;gap:6px;align-items:flex-end}
+#mixora-work-menu .mc-compose:focus-within{box-shadow:none}
+#mixora-work-menu .mc-compose textarea.mc-input{flex:1 1 0;width:auto;min-width:0;min-height:44px;padding:10px 11px;border:1.5px solid #91a99c;border-radius:10px;background:#fff;color:var(--mc-ink);align-self:stretch}
+#mixora-work-menu .mc-compose textarea.mc-input:focus{border-color:#286b55;outline:2px solid #a3c6b4;outline-offset:0}
+#mixora-work-menu .mc-compose [data-attach]{border-color:#d1ded4;background:#f3f6f1}
+#mixora-work-menu .mc-compose .mc-send:disabled{background:#e1eae2;color:#506659}
+@container wm (max-width:600px){
+ #mixora-work-menu .wm-dock-inner{gap:2px}
+ #mixora-work-menu .wm-dock button{gap:3px;flex-direction:column;font-size:11px;line-height:1.15;padding:3px 1px}
+ #mixora-work-menu .wm-main[data-route=ai]{padding:6px 8px}
+}
+@media(max-height:540px){
+ #mixora-work-menu[data-route=ai] .wm-topin{min-height:44px}
+ #mixora-work-menu .wm-main[data-route=ai]{padding-block:3px}
+ #mixora-work-menu .mc-head{padding-block:4px}
+ #mixora-work-menu .mc-foot{padding-block:3px}
+}
+@media(hover:hover){#mixora-work-menu .wm-dock button:hover,#mixora-work-menu .wm-extra button:hover{background:#edf3ec}}
+#mixora-work-menu .om-tools{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 16px}
+#mixora-work-menu .om-groups{display:grid;gap:16px}
+#mixora-work-menu .om-group .wm-h2{margin:0 0 6px}
+#mixora-work-menu .om-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:6px}
+#mixora-work-menu .om-card{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0;border:1px solid var(--edge);background:var(--surface);padding:5px 8px 5px 12px;border-radius:11px}
+#mixora-work-menu .om-card>span:first-child{overflow-wrap:anywhere;font-weight:600;line-height:1.25}
+#mixora-work-menu .om-qty{display:inline-flex;gap:3px;align-items:center;flex-shrink:0}
+#mixora-work-menu .om-qty .wm-step{width:38px;height:40px}
+#mixora-work-menu .om-qty .om-qty-input{width:40px;min-height:40px;height:40px;padding:2px;text-align:center;font-size:16px;font-variant-numeric:tabular-nums;appearance:textfield}
+#mixora-work-menu .om-qty-input::-webkit-inner-spin-button,#mixora-work-menu .om-qty-input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+#mixora-work-menu .om-brand-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px}
+#mixora-work-menu .om-brand-tags span{padding:5px 12px;border:1px solid var(--edge);border-radius:8px;background:var(--surface);font-weight:650}
+#mixora-work-menu .om-editor{margin:18px 0;max-width:450px}
+#mixora-work-menu .om-editor summary{cursor:pointer;padding:10px 0;color:var(--ink);font-weight:650}
+#mixora-work-menu .om-editor .wm-form{margin-top:6px}
+#mixora-work-menu .om-format{display:flex;gap:5px;margin:12px 0}
+#mixora-work-menu .om-preview{display:block;resize:vertical;height:clamp(140px,36dvh,320px);line-height:1.45;font:inherit}
+#mixora-work-menu .om-file{display:grid;gap:5px;padding:14px}
+#mixora-work-menu a.wm-action{text-decoration:none}
+@media(max-width:480px){#mixora-work-menu .om-qty .wm-step{width:36px}#mixora-work-menu .om-tools .wm-action{padding:9px 10px}#mixora-work-menu .wm-orderline>span:first-child{min-width:0;overflow-wrap:anywhere}}
+
+#mixora-work-menu [data-channel-preview]:not([hidden]){width:100%;border-inline-start:3px solid var(--green);padding:8px 12px;color:var(--ink);line-height:1.45}
+.mx-statuses{display:flex;flex-wrap:wrap;gap:3px;margin-top:3px}.mx-status-chip{display:inline-block;font:600 11px/1.35 system-ui;border:1px solid currentColor;border-radius:5px;padding:1px 5px;white-space:nowrap}button[data-undo]{margin-top:6px}
+
+#mixora-work-menu{height:var(--wm-room,100dvh);min-height:0;overflow:hidden}
+#mixora-work-menu .wm-main{flex:1 1 0;min-height:0;overflow-y:auto;overscroll-behavior-y:contain;scroll-padding-block:14px}
+#mixora-work-menu .wm-main[data-route=ai]{overflow:hidden}
+#mixora-work-menu:not([data-route=home]) .wm-top,#mixora-work-menu[data-keyboard] .wm-dock{display:none}
+#mixora-work-menu .wm-back{font-weight:700;background:var(--pale);color:var(--ink);border:1px solid var(--edge);border-radius:9px;padding:7px 13px;min-height:44px}
+#mixora-work-menu .wm-theme{width:min(550px,100%);justify-content:space-between;margin:0 0 12px}
+.wm-theme span{display:inline-flex;align-items:center;width:38px;height:23px;padding:3px;border-radius:20px;background:#82948b}
+.wm-theme span::before{content:"";width:17px;height:17px;border-radius:50%;background:white}
+.wm-theme[aria-pressed=true] span{justify-content:flex-end;background:#387d69}
+#mixora-work-menu[data-theme=dark]{--ink:#e8f0eb;--secondary:#aabeb4;--edge:#3c5147;--green:#265b4e;--pale:#293f34;--surface:#1b2822;--canvas:#121b17;color-scheme:dark}
+#mixora-work-menu[data-theme=dark] :is(.wm-top,.wm-colhead,.wm-notice,.wm-dock button[aria-current],.wm-extra button:hover,.wm-row:hover,.wm-brand-entry:hover,.wm-tile:hover){background:#273b31;color:#e1eee5}
+#mixora-work-menu[data-theme=dark] :is(button:not(.wm-primary),input,textarea,select){color:var(--ink);border-color:var(--edge)}
+#mixora-work-menu[data-theme=dark] :is(input,textarea,select):not([type=checkbox]),#mixora-work-menu[data-theme=dark] .wm-action:not(.wm-primary){background-color:var(--surface)}
+#mixora-work-menu[data-theme=dark] :is(.wm-demo,.wm-link,.wm-dock button,.wm-input-label,.mc-input-label){color:var(--secondary)}
+#mixora-work-menu[data-theme=dark] .wm-monogram{color:#1a3429}
+#mixora-work-menu[data-theme=dark] .wm-mark svg path:first-child,#mixora-work-menu[data-theme=dark] .wm-word svg path{fill:#d3e2d7}
+#mixora-work-menu[data-theme=dark] :is(.wm-line,.wm-dock,.wm-top){border-color:var(--edge)}
+#mixora-work-menu[data-theme=dark] .mx-chat{--mc-ink:#e8f0eb;--mc-muted:#adc1b5;--mc-line:#385043;--mc-leaf:#2b6959;--mc-bg:#16231c;--mc-pale:#253c30;color-scheme:dark}
+#mixora-work-menu[data-theme=dark] :is(.mc-head,.mc-foot,.mc-answer,.mc-compose,.mc-pop,.mc-photo,.mc-commands,.mc-suggest,.mc-ctrl,.mc-icon:not(.mc-send),.mc-attachment){background:var(--surface);color:var(--ink);border-color:var(--edge)}
+#mixora-work-menu[data-theme=dark] :is(.mc-count,.mc-who,.mc-sub,.mc-detail,.mc-input-label,.mc-lead,.wm-group-name){color:var(--ink)}
+#mixora-work-menu[data-theme=dark] :is(.mc-send:disabled,.mc-outcome){background:var(--pale);color:var(--secondary)}
+#mixora-work-menu[data-theme=dark] ::placeholder{color:#a4b7ac}
+
+
+#mixora-work-menu[data-route=ai] .wm-dock,#mixora-work-menu[data-route=ai] .mc-head,#mixora-work-menu [data-new-brand][hidden]{display:none}
+#mixora-work-menu .wm-main[data-route=ai]{padding-block:0;padding-inline:0}
+#mixora-work-menu .wm-chat-nav{flex:none;padding:4px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+#mixora-work-menu .wm-chat-nav a{display:inline-flex;align-items:center;min-height:44px;color:var(--ink);font-weight:650}
+#mixora-work-menu .wm-chat-nav .wm-back{margin:0}
+#mixora-work-menu .mx-chat{grid-template-rows:minmax(0,1fr) auto;border:0;border-radius:0}
+#mixora-work-menu .mc-foot{padding-bottom:max(7px,env(safe-area-inset-bottom))}
+#mixora-work-menu .wm-toggle::before{content:"";width:14px;height:14px;display:inline-grid;place-content:center;border:1px solid currentColor;border-radius:4px;font-size:12px}
+#mixora-work-menu .wm-toggle[aria-pressed=true]{background:var(--pale);color:var(--ink);border-color:var(--ink)}
+#mixora-work-menu .wm-toggle[aria-pressed=true]::before{content:"✓"}
+#mixora-work-menu .wm-list+.wm-controls:has([data-order-to=build]){margin-top:16px}
+
+#mixora-work-menu .wm-flavour-note{display:block;font:400 13px/1.35 system-ui;color:var(--wm-muted,inherit);opacity:.84;white-space:normal;margin:2px 0}
+#mixora-work-menu .wm-tasting-detail{font:400 15px/1.5 system-ui;margin:4px 0 14px}
+#mixora-work-menu .wm-window{overflow-anchor:none}
+#mixora-work-menu .wm-chunk{display:flow-root}
+#mixora-work-menu .wm-chunk .wm-list{border-radius:0;border-block-width:0}
+#mixora-work-menu button:active:not(:disabled){filter:brightness(.93)}
+@keyframes mx-sheen{from{background-position:150% center}to{background-position:-50% center}}
+@keyframes mx-answer-in{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+@keyframes mx-chips-in{from{opacity:0;visibility:hidden}1%{visibility:visible}to{opacity:1;visibility:visible}}
+@media(prefers-reduced-motion:no-preference){
+ .mc-thinking{background:linear-gradient(100deg,currentColor 20%,#81988e 48%,currentColor 76%);background-size:220% 100%;background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:mx-sheen 1.5s linear infinite}
+ .mc-arriving .mc-answer{animation:mx-answer-in 360ms ease-out both}
+ .mc-arriving .mc-chips{animation:mx-chips-in 300ms ease-out 360ms backwards}
+}
+
+#mixora-legacy-root,#mixora-work-menu[hidden]{display:none!important}
+.mixora-connected [data-native-host] .wrap{margin-inline:auto;max-width:860px}
+.mixora-connected [data-native-host] .topbar :is(#menu-btn,#home-btn){display:none}
+.mixora-connected [data-native-host] .bar{position:static;background:transparent}
+.mixora-connected body:not([data-mixora-page=inv]) :is(#tray,#otray){display:none!important}
+.mixora-connected body[data-mixora-page=inv] #tray{bottom:calc(72px + env(safe-area-inset-bottom,0px))}

@@ -8,7 +8,7 @@ const context=vm.createContext({localStorage,crypto:require('node:crypto').webcr
     if(fail)throw Error('stock_stale_revision');
     let rows=ledger.get(body.p_request_id);if(!rows){rows=body.p_items.map(e=>({id:e.id,doc:{...e.doc,revision:e.revision+1}}));ledger.set(body.p_request_id,rows)}
     if(loseReply){loseReply=false;throw Error('network disconnected after commit')}return rows}});
-const dbSource=shim.slice(shim.indexOf('  const db={'),shim.indexOf('    bulk:'))+'};globalThis.db=db;';
+const dbSource=shim.slice(shim.indexOf('  function stockDocument('),shim.indexOf('    bulk:'))+'};globalThis.db=db;';
 vm.runInContext(dbSource,context);
 const db=context.db,items=[{id:'a',revision:0,doc:{wh:2},kind:'in'}];
 let count=0;const test=async(n,f)=>{await f();console.log('PASS',n);count++};
@@ -22,7 +22,8 @@ await test('storage failure prevents a request from being sent',async()=>{const 
 // Execute the real review handler with a transactional API stub.
 const ui=vm.createContext({localStorage,window:{},console});
 vm.runInContext(`let stock={a:{wh:3,revision:4},b:{wh:2,revision:1}},draft={a:{d:-1},b:{d:1}},busy=false,fail=false,writes=0,closed=false;
-let nodes={'#dlg-ok':{disabled:false},'#stock-recover':{}},cmdDraftIds=new Set(),byId={a:{id:'a'},b:{id:'b'}};
+let draftOwnerScope='venue:1',draftSource='manual';
+let nodes={'#dlg-ok':{disabled:false},'#stock-recover':{},'#stock-recovery-message':{},'#stock-recovery':{}},cmdDraftIds=new Set(),byId={a:{id:'a'},b:{id:'b'}};
 const $=s=>nodes[s],wh=x=>stock[x.id].wh,saveDraft=()=>{},closeDlg=()=>closed=true,setStatus=()=>{},render=()=>{};
 const db={stockScope:()=> 'venue:1',hasPendingStock:()=>false,applyStock:async entries=>{writes++;if(fail)throw Error('stock_stale_revision');return entries.map(e=>({id:e.id,doc:{...e.doc,revision:e.revision+1}}))}};
 `+source.slice(source.indexOf('function stockEntry('),source.indexOf('async function toBar('))+

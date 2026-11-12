@@ -5,7 +5,8 @@ const port=await freePort(),origin=`http://127.0.0.1:${port}`;let dropNext=false
 let aiHandler=null;const aiLog=[];const misc=new Map();
 const source=fs.readFileSync('src/stoika.html','utf8'),shim=fs.readFileSync('app/shim.js','utf8');
 let html=source.replace('<script>',`<script>window.POLKA_CONFIG={url:${JSON.stringify(origin)},anon:"stand-anon"};</script><script>${shim}</script><script>`).replace(/<link[^>]+fonts\.googleapis[^>]*>/g,'');
-const token=Buffer.from('{"alg":"none"}').toString('base64url')+'.'+Buffer.from('{"sub":"1","tg_id":1,"role":"authenticated"}').toString('base64url')+'.local';
+const claims={sub:'1',tg_id:1,role:'authenticated',sid:crypto.randomUUID(),membership_epoch:crypto.randomUUID()};
+const token=Buffer.from('{"alg":"none"}').toString('base64url')+'.'+Buffer.from(JSON.stringify(claims)).toString('base64url')+'.local';
 const user={tg_id:1,venue_id:venue,name:'Local test manager',role:'manager',perms:[]};
 const server=http.createServer(async(req,res)=>{const url=new URL(req.url,origin);let raw='';for await(const b of req)raw+=b;let body;try{body=raw?JSON.parse(raw):{}}catch{body={}}
  const send=(code,value,type='application/json')=>{res.writeHead(code,{'content-type':type+'; charset=utf-8'});res.end(type==='application/json'?JSON.stringify(value):value)};
@@ -18,12 +19,21 @@ const server=http.createServer(async(req,res)=>{const url=new URL(req.url,origin
    const data=await r.json();aiLog.push({status:r.status,model:data.model,usage:data.usage,toolCalls:(data.content||[]).filter(b=>b.type==='tool_use').map(b=>({name:b.name,input:b.input})),text:(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('')});return send(r.status,data);
   }
   if(url.pathname==='/rest/v1/rpc/ai_hit')return send(200,1);
+  if(url.pathname==='/rest/v1/rpc/apply_order'){
+   const c=await pg.connect();
+   try{
+    await c.query('set role authenticated');
+    await c.query("select set_config('request.jwt.claims',$1,false)",[JSON.stringify(claims)]);
+    const r=await c.query('select public.apply_order($1,$2,$3::jsonb) result',[body.p_venue_id,body.p_request_id,JSON.stringify(body.p_changes)]);
+    return send(200,r.rows[0].result);
+   }finally{await c.end()}
+  }
   if(url.pathname==='/rest/v1/rpc/apply_stock'){
    rpcCalls++;if(expireNext){expireNext=false;return send(401,{message:'expired test token'})}
    const c=await pg.connect();try{await c.query('set role authenticated');await c.query("select set_config('request.jwt.claims',$1,false)",[JSON.stringify({sub:'1',tg_id:1,role:'authenticated'})]);const r=await c.query('select public.apply_stock($1,$2::jsonb) result',[body.p_request_id,JSON.stringify(body.p_items)]);if(dropNext){dropNext=false;res.writeHead(200,{'content-type':'application/json'});res.end('{');return}return send(200,r.rows[0].result)}finally{await c.end()}
   }
   if(url.pathname.startsWith('/rest/v1/')){
-   const table=url.pathname.slice(9);if(['stock','moves','users','flavors'].includes(table)){
+   const table=url.pathname.slice(9);if(['stock','moves','users','flavors','orders'].includes(table)){
     if(req.method!=='GET')return send(403,{message:'direct writes forbidden in local stand'});
     const query=table==='flavors'?'select * from flavors':`select * from ${table} where venue_id=$1${table==='moves'?' order by at desc,id desc':''}`;
     const c=await pg.connect();try{await c.query('set role authenticated');await c.query("select set_config('request.jwt.claims',$1,false)",[JSON.stringify({sub:'1',tg_id:1,role:'authenticated'})]);const r=await c.query(query,table==='flavors'?[]:[venue]);return send(200,r.rows)}finally{await c.end()}
@@ -39,6 +49,7 @@ let browser;
 const test=async(name,fn)=>{await fn();console.log('PASS',name);count++};
 try{
  await admin.query(fs.readFileSync('tests/fixtures/stock-baseline.sql','utf8'));
+ await admin.query(fs.readFileSync('tests/fixtures/access-baseline.sql','utf8'));
  await admin.query(`insert into venues values('${venue}');insert into users(tg_id,venue_id,name,role) values(1,'${venue}','Local manager','manager');`);
  for(const f of fs.readdirSync('supabase/migrations').sort())await admin.query(fs.readFileSync('supabase/migrations/'+f,'utf8'));
  await new Promise(ok=>server.listen(port,'127.0.0.1',ok));
@@ -50,7 +61,7 @@ try{
  await admin.query(`insert into flavors(id,brand,name,line) select id,brand,name,line from jsonb_to_recordset($1::jsonb) as t(id text,brand text,name text,line text)`,[JSON.stringify(catalog)]);
  const ids=catalog.slice(0,2).map(x=>x.id);
  await admin.query('insert into stock(venue_id,flavor_id,wh) select $1,x,2 from unnest($2::text[]) x',[venue,ids]);
- async function reset(pages=[page]){await admin.query('truncate moves,mixora_private.stock_requests');await admin.query('update stock set wh=2,revision=0,bar=false,stop=false,stop_auto=false,slow=false,retired=false');for(const p of pages){await p.goto(origin);await p.evaluate(()=>localStorage.clear());misc.clear();await p.reload();await p.waitForFunction(()=>stockLoaded&&!!sampleFn)} }
+ async function reset(pages=[page]){await admin.query('truncate moves,mixora_private.stock_requests,orders,mixora_private.order_requests');await admin.query('update stock set wh=2,revision=0,bar=false,stop=false,stop_auto=false,slow=false,retired=false');for(const p of pages){await p.goto(origin);await p.evaluate(()=>localStorage.clear());misc.clear();await p.reload();await p.waitForFunction(()=>stockLoaded&&!!sampleFn)} }
  const prepare=async(p,changes)=>p.evaluate(changes=>{draft=changes;saveDraft();openReview()},changes);
  const confirm=async p=>{await p.locator('#dlg-ok').click();await p.waitForFunction(()=>!busy);if(await p.locator('#status').evaluate(e=>e.classList.contains('err')))console.log('UI',await p.locator('#status').textContent())};
  const values=async()=>({stock:(await admin.query('select * from stock order by flavor_id')).rows,moves:(await admin.query('select * from moves order by id')).rows});
@@ -65,7 +76,7 @@ try{
   for(const legacy of ['master','manager']){await admin.query('update users set role=$1,perms=\'{}\' where tg_id=1',[legacy]);user.role=legacy;await reset();await page.waitForFunction(()=>staffReady);
    assert.equal(await page.locator('#view-sw,#role-sw,[data-pm]').count(),0);
    await prepare(page,{[ids[0]]:{d:1}});await confirm(page);await page.waitForFunction(()=>moves.length===1);
-   await page.locator('#bnav [data-n="log"]').click();assert.equal(await page.locator('#sect').textContent(),'Журнал');assert.equal(await page.locator('[data-undo]').count(),1);
+   await page.locator('#home-screen [data-home="log"]').click();assert.equal(await page.locator('#sect').textContent(),'Журнал');assert.equal(await page.locator('[data-undo]').count(),1);
    await page.evaluate(id=>undoMove(String(id)),(await values()).moves[0].id);assert.equal((await values()).moves.length,2);
   }
  });
@@ -73,18 +84,30 @@ try{
   await reset();await admin.query('update stock set stop=true,stop_auto=true,bar=false where flavor_id=$1',[ids[0]]);await page.reload();await page.waitForFunction(id=>stockLoaded&&stock[id]?.stopAuto,ids[0]);
   const before=await page.evaluate(id=>inStop(byId[id]),ids[0]);assert.equal(before,true);
   await page.evaluate(id=>openAdd(byId[id]),ids[0]);await page.locator('#a-ok').click();await page.waitForFunction(()=>!busy);
-  assert.equal((await values()).stock.find(x=>x.flavor_id===ids[0]).stop,true);
-  await prepare(page,{[ids[0]]:{d:2}});await confirm(page);const state=(await values()).stock.find(x=>x.flavor_id===ids[0]);assert.equal(state.stop,true);assert.equal(state.bar,false);
+  const afterAdd=(await values()).stock.find(x=>x.flavor_id===ids[0]);assert.equal(afterAdd.stop,true);
+  await page.waitForFunction(({id,revision})=>stock[id]?.revision===revision,{id:ids[0],revision:afterAdd.revision});
+  await prepare(page,{[ids[0]]:{d:2}});await confirm(page);const state=(await values()).stock.find(x=>x.flavor_id===ids[0]);assert.equal(state.stop,true);assert.equal(state.bar,false);assert.equal(state.wh,afterAdd.wh+2);
   await admin.query('update stock set wh=0,bar=true,stop=false,stop_auto=false where flavor_id=$1',[ids[1]]);await page.reload();await page.waitForFunction(()=>stockLoaded);assert.equal(await page.evaluate(id=>inStop(byId[id]),ids[1]),false);
  });
  await test('six photo commands ignore exact background matches and keep proposals uncommitted',async()=>{
   await reset();const result=await page.evaluate(async id=>{
-   const restore=sampleFn.readLabels;const central=byId[id];sampleFn.readLabels=async()=>({text:'Фото 1:\nФокус: '+central.b+'\nЭтикетка 1: '+central.b+' '+central.n+'\nЭтикетка 2: Jent Лимон\nЭтикетка 3: Starline Вишня',failed:0});
+   const restore=sampleFn.readLabels;const central=byId[id];
+   const labels=[central.b+' '+central.n,'Jent Лимон','Starline Вишня'];
+   const pageText=labels.map((raw,i)=>'Этикетка '+(i+1)+': '+raw).join('\n');
+   sampleFn.readLabels=async()=>({text:'Фото 1:\n'+pageText,texts:[pageText],observations:[labels.map((raw,i)=>({
+     label_index:i+1,raw_label:raw,visibility:i?'fragment':'target',confidence:'high',reason:i?'Фрагмент':'Полная этикетка',bbox:[0,0,0.3,0.3]
+   }))],failed:0});
    aiCtl=new AbortController();const result=[];
-   try{for(const cmd of ['naiti','perenos','popolnit','spisat','zakazat','spisat_zakaz']){cancelAiProposals();draft={};orderQ={};const out=document.createElement('div');await runCmd(cmd,out,'',[{}]);result.push({cmd,text:out.textContent,draft:Object.keys(draft),order:Object.keys(orderQ)})}}
+   try{for(const cmd of ['naiti','perenos','popolnit','spisat','zakazat','spisat_zakaz']){
+     cancelAiProposals();draft={};orderQ={};const out=document.createElement('div');
+     try{await runCmd(cmd,out,'',[{}])}catch(error){if(cmd!=='spisat_zakaz')throw error;out.textContent=error.message}
+     result.push({cmd,text:out.textContent,draft:Object.keys(draft),order:Object.keys(orderQ)});
+   }}
    finally{sampleFn.readLabels=restore;aiCtl=null;draft={};saveDraft();render()}return result;
   },ids[0]);
   for(const r of result){assert.ok(!r.text.includes('Jent'),r.cmd);assert.ok(!r.text.includes('Starline'),r.cmd);assert.ok(r.draft.every(id=>id===ids[0]),r.cmd);assert.deepEqual(r.order,[],r.cmd)}
+  assert.match(result.find(r=>r.cmd==='spisat_zakaz').text,/Уточни команду/);
+  assert.equal((await admin.query('select count(*)::int count from mixora_private.order_requests')).rows[0].count,0);
   assert.equal((await values()).moves.length,0);
  });
  if(process.env.RUN_CLAUDE==='1'){

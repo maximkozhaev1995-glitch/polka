@@ -13,7 +13,7 @@ const rest=async(path,opt)=>{calls.push({path,opt});
 const ctx=vm.createContext({rest,V:()=> 'venue-a',H:()=>({Authorization:'Bearer test'}),setTimeout:()=>{},bump:()=>{},listen:()=>({}),Map,session:{user:{tg_id:1}},localStorage:{getItem:()=>null}});
 vm.runInContext(shim.slice(shim.indexOf('  const MAP={'),shim.indexOf('  const subs={}'))+
  shim.slice(shim.indexOf('  const snapDocs='),shim.indexOf('  async function refresh('))+
- shim.slice(shim.indexOf('  const db={'),shim.indexOf('  const downloads='))+'globalThis.api=db;globalThis.read=snapDocs;',ctx);
+ shim.slice(shim.indexOf('  function stockDocument('),shim.indexOf('  const downloads='))+'globalThis.api=db;globalThis.read=snapDocs;',ctx);
 (async()=>{
  let docs=await ctx.read('strength');let values=Object.fromEntries(docs.map(d=>[d.id,d.data().s]));assert.deepEqual(values,{a:8,b:4});
  docs=await ctx.read('pack');assert.equal(docs[0].data().g,null);

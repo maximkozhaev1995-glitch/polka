@@ -14,8 +14,14 @@
   // Вне Telegram (обычный браузер) нет initData — входим через Telegram Login Widget,
   // его подпись проверяется на сервере отдельной функцией (см. tg-auth)
   let widgetAuth=null;
+  const sessionKey="mixora-auth:"+CFG.url;
+  let resumeToken=null,resumeProof=null;
+  const authProof=()=>tg&&tg.initData?"mini:"+new URLSearchParams(tg.initData).get("hash"):widgetAuth?"widget:"+String(widgetAuth.hash).toLowerCase():null;
+  try{const saved=JSON.parse(sessionStorage.getItem(sessionKey)||"null");resumeToken=saved?.token||null;resumeProof=saved?.proof||null}catch(e){}
+  const rememberToken=token=>{resumeToken=token;resumeProof=token?authProof():null;try{if(token)sessionStorage.setItem(sessionKey,JSON.stringify({token,proof:resumeProof}));else sessionStorage.removeItem(sessionKey)}catch(e){}};
   async function call(invite){
     const body={invite:invite||""};
+    if(authProof()===resumeProof&&(session?.token||resumeToken))body.session_token=session?.token||resumeToken;
     if(tg&&tg.initData)body.initData=tg.initData;else if(widgetAuth)body.widgetAuth=widgetAuth;
     const r=await fetch(CFG.url+"/functions/v1/tg-auth",{method:"POST",headers:{"Content-Type":"application/json",apikey:CFG.anon,Authorization:"Bearer "+CFG.anon},body:JSON.stringify(body)});
     return {ok:r.ok,status:r.status,body:await r.json().catch(()=>({}))};
@@ -24,7 +30,7 @@
   let refreshT=0,refreshP=null;
   const planRefresh=()=>{clearTimeout(refreshT);refreshT=setTimeout(()=>refreshSession().catch(()=>{}),11*3600e3)};
   function refreshSession(){
-    if(!refreshP)refreshP=call("").then(r=>{if(!r.ok)return false;session.token=r.body.token;session.user=r.body.user;planRefresh();return true}).finally(()=>{refreshP=null});
+    if(!refreshP)refreshP=call("").then(r=>{if(!r.ok){if(r.status===401){rememberToken(null);session.token=null;msg("Сессия завершена. Войдите через Telegram снова.");if(!tg||!tg.initData){widgetAuth=null;showWidget()}if(!wall.isConnected)document.body.appendChild(wall)}return false;}session.token=r.body.token;rememberToken(session.token);session.user=r.body.user;planRefresh();return true}).finally(()=>{refreshP=null});
     return refreshP;
   }
   function showWidget(){
@@ -41,11 +47,11 @@
     if(!tg||!tg.initData){if(!widgetAuth){showWidget();return}}
     let code=invite||"";if(!code)try{code=localStorage.getItem("polka-invite")||""}catch(e){}
     let r;try{r=await call(code)}catch(e){msg("Нет связи. Проверьте интернет и откройте снова.");return}
-    if(r.ok){try{localStorage.removeItem("polka-invite")}catch(e){}session={token:r.body.token,user:r.body.user};planRefresh();wall.remove();resolveReady(session);return}
+    if(r.ok){try{localStorage.removeItem("polka-invite")}catch(e){}session={token:r.body.token,user:r.body.user};rememberToken(session.token);planRefresh();wall.remove();resolveReady(session);return}
     const e=r.body.error;
     if(e==="need_invite"||e==="bad_invite"){msg(e==="bad_invite"?"Код не подошёл. Проверьте и введите снова.":"Введите код приглашения, который дал управляющий.");$("#lg-form").hidden=false;return}
-    if(e==="bad_signature")widgetAuth=null;
-    msg(e==="bad_signature"?(tg&&tg.initData?"Не удалось подтвердить вход. Закройте и откройте приложение заново.":"Не удалось подтвердить вход. Попробуйте войти через Telegram ещё раз."):"Что-то пошло не так, попробуйте позже.");
+    if(e==="bad_signature"||e==="session_expired"){rememberToken(null);if(session)session.token=null;widgetAuth=null;}
+    msg(e==="session_expired"?"Сессия завершена. Закройте приложение и войдите через Telegram снова.":e==="bad_signature"?(tg&&tg.initData?"Не удалось подтвердить вход. Закройте и откройте приложение заново.":"Не удалось подтвердить вход. Попробуйте войти через Telegram ещё раз."):"Что-то пошло не так, попробуйте позже.");
     if(!tg||!tg.initData)showWidget();
   }
   window.addEventListener("DOMContentLoaded",()=>{
@@ -56,12 +62,22 @@
   // ===== база =====
   const H=()=>({apikey:CFG.anon,Authorization:"Bearer "+session.token,"Content-Type":"application/json"});
   const V=()=>session.user.venue_id;
-  async function rest(path,opt,again){const r=await fetch(CFG.url+"/rest/v1/"+path,Object.assign({headers:H()},opt));if(r.status===401&&!again&&await refreshSession().catch(()=>false)){if(opt&&opt.headers&&opt.headers.Authorization)opt=Object.assign({},opt,{headers:Object.assign({},opt.headers,H())});return rest(path,opt,true)}if(!r.ok){let t="";try{t=(await r.json()).message}catch(e){}throw new Error(t||("HTTP "+r.status))}const t=await r.text();return t?JSON.parse(t):null}
+  async function rest(path,opt,again){
+    const actor=session.user.tg_id,venue=V(),scope=db.actionScope();
+    const r=await fetch(CFG.url+"/rest/v1/"+path,Object.assign({headers:H()},opt));
+    if(r.status===401&&!again&&await refreshSession().catch(()=>false)){
+      if(venue!==V()||actor!==session.user.tg_id||scope!==db.actionScope())throw Error("Сменилось заведение или сессия. Откройте действие заново.");
+      if(opt?.headers?.Authorization)opt=Object.assign({},opt,{headers:Object.assign({},opt.headers,H())});
+      return rest(path,opt,true);
+    }
+    if(!r.ok){let message="";try{message=(await r.json()).message}catch(e){}throw Error(message||("HTTP "+r.status))}
+    const text=await r.text();return text?JSON.parse(text):null;
+  }
   const iso=x=>x?new Date(x).toISOString():undefined;
   const MAP={
     stock:{table:"stock",key:"flavor_id",
       list:()=>"stock?select=flavor_id,wh,bar,stop,stop_auto,slow,retired,revision&venue_id=eq."+V(),
-      toDoc:r=>{const d={wh:r.wh,bar:r.bar,revision:r.revision};if(r.stop)d.stop=true;if(r.stop_auto)d.stopAuto=true;if(r.slow)d.slow=true;if(r.retired)d.retired=true;return d},
+      toDoc:r=>stockDocument(r),
       fromDoc:(id,o)=>{const b={venue_id:V(),flavor_id:id,wh:o.wh||0,stop:!!o.stop,stop_auto:!!o.stopAuto,slow:!!o.slow,retired:!!o.retired};if(typeof o.bar==="boolean")b.bar=o.bar;return b},
       conflict:"venue_id,flavor_id"},
     moves:{table:"moves",key:"id",
@@ -121,7 +137,7 @@
   };
   const subs={};
   const snapDocs=async c=>{
-    if(c==="order"){const rows=await rest("orders?select=items&venue_id=eq."+V());return rows.length?[{id:"current",data:()=>rows[0].items}]:[]}
+    if(c==="order"){const rows=await rest("orders?select=items,revision&venue_id=eq."+V());return rows.length?[{id:"current",data:()=>({...rows[0].items,revision:rows[0].revision})}]:[]}
     if(c==="strength"||c==="pack"){
       const m=MAP[c],field=c==="strength"?"strength":"pack_g";
       // Shared values remain defaults. A venue override never edits the catalog.
@@ -132,12 +148,61 @@
       return [...rows.values()].map(r=>({id:r.flavor_id,data:()=>m.toDoc(r)}));
     }
     const m=MAP[c];if(!m)return[];const rows=await rest(m.list());return rows.map(r=>({id:String(r[m.key]),data:()=>m.toDoc(r)}))};
-  async function refresh(c){const s=subs[c];if(!s)return;try{const docs=await snapDocs(c);const h=JSON.stringify(docs.map(d=>[d.id,d.data()]));if(h!==s.hash){s.hash=h;s.fns.forEach(f=>f({docs}))}}catch(e){s.errs.forEach(f=>f(e))}}
+  async function refresh(c){
+    const s=subs[c];if(!s)return;
+    const sequence=c==="moves"?(s.request=(s.request||0)+1):0;
+    function current(){if(!sequence)return true;if(sequence<s.delivered)return false;s.delivered=sequence;return true}
+    try{
+      const docs=await snapDocs(c);if(!current())return;
+      const h=JSON.stringify(docs.map(d=>[d.id,d.data()]));
+      if(h!==s.hash){s.hash=h;s.fns.forEach(f=>f({docs}))}
+    }catch(e){if(!current())return;s.hash="";s.errs.forEach(f=>f(e))}
+  }
   setInterval(()=>{if(!document.hidden&&session)Object.keys(subs).forEach(refresh)},6000);
   document.addEventListener("visibilitychange",()=>{if(!document.hidden&&session)Object.keys(subs).forEach(refresh)});
   const bump=c=>setTimeout(()=>refresh(c),150);
   const listen=c=>({onSnapshot:(f,err)=>{const s=subs[c]||(subs[c]={fns:[],errs:[],hash:""});s.fns.push(f);if(err)s.errs.push(err);refresh(c)}});
+  function stockDocument(r){
+    const doc={wh:r.wh,bar:r.bar,revision:r.revision};
+    if(r.stop)doc.stop=true;
+    if(r.stopAuto||r.stop_auto)doc.stopAuto=true;
+    if(r.slow)doc.slow=true;
+    if(r.retired)doc.retired=true;
+    return doc;
+  }
+  async function submitPendingStock(key,pending){
+    const saved=JSON.stringify(pending);
+    const clear=()=>{if(localStorage.getItem(key)===saved)localStorage.removeItem(key)};
+    try{
+      const result=await rest("rpc/apply_stock",{method:"POST",body:JSON.stringify(pending.body)});
+      const rows=result.map(row=>({...row,doc:stockDocument(row.doc)}));
+      clear();bump("stock");bump("moves");
+      return rows;
+    }catch(e){if(/^stock_/.test(e.message))clear();throw e}
+  }
   const db={
+    referenceScope:()=>db.actionScope(),
+    referenceChunks:async kind=>{
+      if(!["official","thirdparty","flvr"].includes(kind))throw Error("reference_dataset_invalid");
+      const scope=db.referenceScope();
+      if(!scope)throw Error("reference_session_required");
+      const path="reference_catalog_chunks?select=dataset,part,total_parts,content,sha256&dataset=eq."+kind+"&order=part.asc&limit=512";
+      const rows=await rest(path,{method:"GET",cache:"no-store"});
+      if(scope!==db.referenceScope())throw Error("reference_scope_changed");
+      return rows;
+    },
+    venueName:async()=>{
+      const venue=V(),actor=session.user.tg_id;
+      const rows=await rest("venues?select=name&id=eq."+encodeURIComponent(venue)+"&limit=1");
+      return venue===V()&&actor===session.user.tg_id&&typeof rows?.[0]?.name==="string"?rows[0].name.trim():"";
+    },
+    orderScope:()=>({venue:V(),actor:session.user.tg_id}),
+    applyOrder:async(id,changes,scope)=>{
+      if(scope?.venue!==V()||scope?.actor!==session.user.tg_id)throw Error("Сменилось заведение или учётная запись");
+      const result=await rest("rpc/apply_order",{method:"POST",body:JSON.stringify({p_venue_id:scope.venue,p_request_id:id,p_changes:changes})});
+      bump("order");
+      return result;
+    },
     // Venue-scoped, read-only at application level except user-approved correction writes.
     listPhotoCorrections:async()=>rest("photo_corrections?select=raw_label,flavor_id,confirmed_at&venue_id=eq."+V()+"&order=confirmed_at.desc&limit=500"),
     savePhotoCorrection:async(raw,flavorId)=>{
@@ -148,8 +213,19 @@
       await rest("photo_corrections?on_conflict=venue_id,raw_label",{method:"POST",headers:Object.assign(H(),{Prefer:"resolution=merge-duplicates,return=minimal"}),body:JSON.stringify({venue_id:V(),raw_label,flavor_id:String(flavorId),confirmed_at:new Date().toISOString()})});
       return true;
     },
+    refreshMoves:()=>refresh("moves"),
     stockScope:()=>V()+":"+session.user.tg_id,
+    actionScope:()=>{
+      try{
+        const token=session?.token;
+        if(!token||!session.user?.venue_id||!session.user?.tg_id)return null;
+        const claims=JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+        if(!claims.sid||!claims.membership_epoch)return null;
+        return [V(),session.user.tg_id,claims.sid,claims.membership_epoch].join(':');
+      }catch{return null}
+    },
     hasPendingStock:()=>!!localStorage.getItem("mixora-stock-pending:"+V()+":"+session.user.tg_id),
+    pendingStockRequestId:()=>{try{return JSON.parse(localStorage.getItem("mixora-stock-pending:"+V()+":"+session.user.tg_id)||"null")?.body?.p_request_id||null}catch(e){return null}},
     // Persist request identity BEFORE sending. Unknown outcomes can only replay the
     // exact original request; a different intent is blocked until it is resolved.
     applyStock:async items=>{
@@ -157,15 +233,13 @@
       const signature=JSON.stringify(items);let saved=localStorage.getItem(key),pending=saved?JSON.parse(saved):null;
       if(pending&&pending.signature!==signature)throw new Error("Есть неподтверждённый результат склада. Повторите прежнее действие или восстановите его через журнал.");
       if(!pending){pending={signature,body:{p_request_id:crypto.randomUUID(),p_items:items}};localStorage.setItem(key,JSON.stringify(pending))}
-      try{const result=await rest("rpc/apply_stock",{method:"POST",body:JSON.stringify(pending.body)});
-        localStorage.removeItem(key);bump("stock");bump("moves");return result;
-      }catch(e){if(/stock_/.test(e.message)){localStorage.removeItem(key)}throw e}
+      return submitPendingStock(key,pending);
     },
     recoverStock:async()=>{
       const key="mixora-stock-pending:"+V()+":"+session.user.tg_id,saved=localStorage.getItem(key);if(!saved)return null;
       const pending=JSON.parse(saved);
-      try{const result=await rest("rpc/apply_stock",{method:"POST",body:JSON.stringify(pending.body)});localStorage.removeItem(key);bump("stock");bump("moves");return {rows:result,items:pending.body.p_items}}
-      catch(e){if(/stock_/.test(e.message))localStorage.removeItem(key);throw e}
+      const rows=await submitPendingStock(key,pending);
+      return {rows,items:pending.body.p_items,requestId:pending.body.p_request_id,scope:key.slice("mixora-stock-pending:".length)};
     },
     bulk:async(c,ids,o)=>{if(c==="stock"||c==="moves")throw new Error("Используйте складскую операцию");const m=MAP[c];
       if(c==="strength"||c==="pack"){
@@ -179,7 +253,7 @@
     doc:p=>{const [c,id]=p.split("/");return{
       set:async o=>{
         if(c==="stock"||c==="moves")throw new Error("Используйте складскую операцию");
-        if(c==="order"){await rest("orders?on_conflict=venue_id",{method:"POST",headers:Object.assign(H(),{Prefer:"resolution=merge-duplicates"}),body:JSON.stringify({venue_id:V(),items:o,updated_at:new Date().toISOString()})});bump(c);return}
+        if(c==="order")throw Error("Используйте сохранение позиций заказа");
         const m=MAP[c];if(m.patch){await rest(m.table+"?"+m.key+"=eq."+encodeURIComponent(id)+(m.table==="flavors"?"":"&venue_id=eq."+V()),{method:"PATCH",body:JSON.stringify(m.fromDoc(id,o))});bump(c);return}
         await rest(m.table+"?on_conflict="+(m.conflict||m.key),{method:"POST",headers:Object.assign(H(),{Prefer:"resolution=merge-duplicates"}),body:JSON.stringify(m.fromDoc(id,o))});bump(c)},
       delete:async()=>{if(c==="stock"||c==="moves")throw new Error("Журнал нельзя удалять");const m=MAP[c];await rest(m.table+"?"+m.key+"=eq."+encodeURIComponent(id)+"&venue_id=eq."+V(),{method:"DELETE"});bump(c)}}},
@@ -199,43 +273,60 @@
   const downloads={save:async({filename,data})=>{const b=new Blob([data],{type:"application/octet-stream"}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download=filename;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(u);a.remove()},1500)}};
   // ИИ-ассистент: цикл «запрос → инструменты → ответ» выполняется здесь, ключ ИИ остаётся на сервере
   const imgToBlock=file=>new Promise((res,rej)=>{const fr=new FileReader();fr.onerror=()=>rej({code:"image_rejected"});fr.onload=()=>{const im=new Image();im.onerror=()=>rej({code:"image_rejected"});im.onload=()=>{const k=Math.min(1,1280/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);res({type:"image",source:{type:"base64",media_type:"image/jpeg",data:c.toDataURL("image/jpeg",.75).split(",")[1]}})};im.src=fr.result};fr.readAsDataURL(file)});
-  const wait=(ms,signal)=>new Promise((res,rej)=>{const t=setTimeout(res,ms);if(signal)signal.addEventListener("abort",()=>{clearTimeout(t);rej({name:"AbortError"})},{once:true})});
   async function callAI(body,signal,onWait){
-    // Бесплатный Gemini иногда отвечает «занят» или «слишком много запросов»: ждём и пробуем ещё два раза
-    for(let a=0;;a++){
-      const r=await fetch(CFG.url+"/functions/v1/ai",{method:"POST",signal,headers:H(),body:JSON.stringify(body)});
-      const j=await r.json().catch(()=>({}));
-      if(r.ok)return j;
-      const e=j.error||(r.status===401?"session_expired":"server_error");
-      if((e==="busy"||(e==="rate_limited"&&j.scope!=="daily"))&&a<2){if(onWait)onWait(a);await wait(a?9000:5000,signal);continue}
-      throw {code:e==="not_configured"?"not_configured":e,text:""}}}
+    // Запрос может быть платным, поэтому неизвестный исход нельзя автоматически повторять.
+    const r=await fetch(CFG.url+"/functions/v1/ai",{method:"POST",signal,headers:H(),body:JSON.stringify(body)});
+    const j=await r.json().catch(()=>({}));
+    if(r.ok)return j;
+    const e=j.error||(r.status===401?"session_expired":"server_error");
+    throw {code:e==="not_configured"?"not_configured":e,text:""}}
   // Распознаёт фото без обращения к диалоговой модели (ocr_only) — для команд (/перенос и т.п.), где
   // решение детерминированное и модель не нужна. Возвращает сырой текст по каждому фото (может быть {failed})
   // и ocr — кто читал (sonnet/yandex), для подписи под ответом.
   const readPhotos=async(images,signal,inspection=false)=>{
+    const readerSession=typeof session!=="undefined"?session:null;
+    const readerScope=()=>readerSession?.token&&readerSession?.user?JSON.stringify([readerSession.user.venue_id,readerSession.user.tg_id]):null;
+    const scope=readerScope();
     const blocks=await Promise.all(images.map(imgToBlock));
     let ocr="";
     // Распознаём каждое фото отдельным запросом (ocr_only) — иначе на нескольких фото разом функция
     // Supabase упирается в свой лимит времени (150 с) и падает без ответа («Не получилось»).
     // Отдельные запросы быстрее по одному и не считаются в дневной лимит (там модель не вызывается).
-    // Не прочиталось — пробуем ещё раз; не вышло и со второго раза — фото помечаем как непрочитанное,
-    // а не пустым текстом: иначе дальше уверенно решают, что на фото ни одного вкуса
-    const texts=await Promise.all(blocks.map(async b=>{
-      let err="";
-      for(let a=0;a<2;a++){
-        try{const r=await callAI({system:"",messages:[{role:"user",content:[b]}],tools:[],ocr_only:true,...(inspection?{photo_mode:"inspection"}:{})},signal,()=>{});
-          if(inspection&&!r.inspection){err="inspection_unavailable";break}
-          if(!r.ocr){err="not_read";continue}
-          ocr=r.ocr;return (r.ocr_texts||[])[0]||""}
-        catch(e){if(e&&e.name==="AbortError")return {failed:"cancelled"};err=e&&e.code||"network";console.warn("photo read failed:",err)}}
-      return {failed:err}}));
-    return {texts,ocr}};
+    // Каждый снимок отправляется один раз: неизвестный исход платного запроса нельзя повторять.
+    const observations=[];
+    // Retain just the last selection in this signed-in tab. Use the exact JPEG sent to OCR.
+    const reusable=inspection&&scope&&blocks.every(b=>typeof b.source?.data==="string");
+    const previous=reusable&&readPhotos.last?.session===readerSession&&readPhotos.last.scope===scope&&Date.now()-readPhotos.last.at<=300000?readPhotos.last.pages:null;
+    const pages=new Map();
+    const readPage=async (b,index)=>{
+      try{const entry=reusable&&previous?.get(b.source.data);
+        const cached=entry&&Date.now()-entry.at<=300000&&entry.response;
+        const r=cached||await callAI({system:"",messages:[{role:"user",content:[b]}],tools:[],ocr_only:true,...(inspection?{photo_mode:"inspection",observation_schema_version:1}:{})},signal,()=>{});
+        if(inspection&&r.inspection!==true)return {failed:"inspection_unavailable"};
+        if(inspection&&(r.observation_schema_version!==1||!Array.isArray(r.observations)||r.observations.length!==1||!Array.isArray(r.observations[0])||!Array.isArray(r.ocr_texts)||r.ocr_texts.length!==1||typeof r.ocr_texts[0]!=="string"))return {failed:"inspection_contract"};
+        if(!r.ocr)return {failed:"not_read"};
+        if(reusable&&normalizeInspectionPage(r.ocr_texts[0],r.observations[0]))pages.set(b.source.data,cached?entry:{at:Date.now(),response:r});
+        if(inspection&&Array.isArray(r.observations?.[0]))observations[index]=r.observations[0];
+        ocr=r.ocr;return (r.ocr_texts||[])[0]||""}
+      catch(e){if(e?.code==="client_update_required")throw e;if(e&&e.name==="AbortError")return {failed:"cancelled"};const err=e&&e.code||"network";console.warn("photo read failed:",err);return {failed:err}}};
+    const texts=[];
+    if(inspection){
+      for(const [index,block] of blocks.entries()){
+        if(signal?.aborted||reusable&&(session!==readerSession||scope!==readerScope()))throw new Error("Остановлено");
+        texts.push(await readPage(block,index));
+      }
+      if(reusable){
+        if(signal?.aborted||session!==readerSession||scope!==readerScope())throw new Error("Остановлено");
+        readPhotos.last={session:readerSession,scope,at:Date.now(),pages};
+      }
+    }else texts.push(...await Promise.all(blocks.map(readPage)));
+    return {texts,ocr,observations}};
   // Текст команды (/перенос, /пополнить, …): читает фото, без обращения к диалоговой модели.
   // Возвращает {text, failed} — text уже в формате «Этикетка N: …», готов для matchText на клиенте.
   const readLabels=async(images,signal,options={})=>{
-    const{texts}=await readPhotos(images,signal,!!options.inspection);
+    const{texts,observations}=await readPhotos(images,signal,!!options.inspection);
     const failed=texts.filter(t=>t&&t.failed).length;
-    return {texts,text:texts.map((t,i)=>typeof t==="string"?"Фото "+(i+1)+":\n"+t:"").filter(Boolean).join("\n"),failed,total:texts.length}};
+    return {texts,text:texts.map((t,i)=>typeof t==="string"?"Фото "+(i+1)+":\n"+t:"").filter(Boolean).join("\n"),failed,total:texts.length,...(options.inspection?{observations}:{})}};
   const sample=async(turns,opts)=>{
     opts=opts||{};
     const first=turns[0]&&turns[0].role==="user"?turns[0].content:"";
