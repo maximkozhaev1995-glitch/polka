@@ -2576,14 +2576,17 @@ function showPhotoActions(out,batch){
  const available=batch.items.filter(({id})=>wh(byId[id])>0).length;
  out.textContent+='\nЕсть на складе: '+available+' поз. · Нет на складе: '+(batch.items.length-available)+' поз.';
  const group=document.createElement('div');group.className='hacts photo-actions';
- const retire=()=>{for(const button of group.children)button.disabled=true;pendingAiProposals.delete(retire)};
+ // Choosing from a photo message only opens a preview. Retire the resulting confirmations separately.
  for(const [label,prepare] of choices){
    const button=document.createElement('button');button.type='button';button.className='btn sm';button.textContent=label;
    button.onclick=()=>{
-     if(button.disabled||aiCtl||batch!==aiPhotoBatch)return;
+     if(aiCtl){setStatus('Дождитесь ответа Миксоры и выберите действие ещё раз.');return}
+     try{
+       if(batch!==aiPhotoBatch)throw Error('Эта выборка фото больше не активна. Выберите действие под последним набором фото или пришлите нужные фото заново.');
+       aiEnsureDataReady();
+       aiCheckPhotoBatch(batch);
+     }catch(e){group.replaceWith(document.createTextNode(e.message));return}
      cancelAiProposals();
-     try{aiEnsureDataReady();aiCheckPhotoBatch(batch)}
-     catch(e){out.textContent=e.message;out.classList.add('err');return}
      const previous={draft,source:draftSource,confirmation:aiDraftConfirmation,plan:aiDraftWorkflowPlan,
        ids:[...cmdDraftIds],transfers:aiPhotoTransferIds};
      const details=Array.from(out.children).find(child=>child.tagName==='DETAILS');
@@ -2616,7 +2619,7 @@ function showPhotoActions(out,batch){
    };
    group.append(button);
  }
- pendingAiProposals.add(retire);out.append(group);
+ out.append(group);
 }
 function showCombinedPhotoDraft(out,command){
  aiPhotoAction=aiPhotoPlan(command);
