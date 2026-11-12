@@ -21,9 +21,16 @@ async function fixture(photoText = 'Фокус: Musthave\nЭтикетка 1: Mu
     from: table => ({ select() { return this; }, eq() { return this; }, order() { return this; }, limit() { return {data:[],error:null}; }, maybeSingle() { return {data:table==='users'?{tg_id:123,venue_id:'offline-venue',membership_epoch:epoch}:null,error:null}; } }),
     rpc: async () => ({data:1,error:null}),
   });
-  const sandbox = { Anthropic, createClient, Response, Request, Headers, TextEncoder, TextDecoder, atob, btoa, AbortSignal, setTimeout, crypto:webcrypto, URL, console:{log(){},error(){},warn(){}}, fetch:()=>{throw Error('NETWORK_FORBIDDEN');}, Deno:{env:{get:key=>fakeEnv[key]},serve:fn=>{handler=fn;}} };
+  const sandbox = { Anthropic, createClient, Response, Request, Headers, TextEncoder, TextDecoder, atob, btoa, AbortSignal, setTimeout, crypto:webcrypto, URL, console:{log(){},error(){},warn(){}}, fetch: async (url, init) => {
+      assert.equal(String(url), 'https://router.cheap/v1/chat/completions');
+      requestedModel = JSON.parse(init.body).model;
+      assert.equal(requestedModel, 'gpt-6.1-sol');
+      modelCalls++;
+      return Response.json({model:requestedModel,choices:[{finish_reason:'stop',message:{role:'assistant',content:'test reply'}}]});
+    }, Deno:{env:{get:key=>fakeEnv[key]},serve:fn=>{handler=fn;}} };
   const code = stripTypeScriptTypes(source.replace(/^import .*;\r?\n/gm,''));
-  vm.runInNewContext(code,sandbox);
+  const adapter = fs.readFileSync(new URL('../supabase/functions/ai/sol-adapter.mjs', import.meta.url), 'utf8').replace(/^export /gm, '');
+  vm.runInNewContext(adapter+'\n'+code,sandbox);
   const b64 = data => Buffer.from(JSON.stringify(data)).toString('base64url');
   const now = Math.floor(Date.now()/1000);
   const unsigned = b64({alg:'HS256',typ:'JWT'})+'.'+b64({role:'authenticated',aud:'authenticated',sub:'123',tg_id:123,membership_epoch:epoch,iat:now,exp:now+600});
@@ -50,11 +57,11 @@ test('production normal photo reader still defaults to Sonnet',async()=>{
   assert.equal(body.ocr_texts.length,1);
   assert.equal(f.state().modelCalls,1);
 });
-test('production text assistant retains the current provider',async()=>{
+test('production text assistant selects Sol',async()=>{
   const f=await fixture();
   const r=await f.call({system:'offline fixture',messages:[{role:'user',content:'hello'}],tools:[]});
   assert.equal(r.status,200);
-  assert.equal((await r.json()).model,'claude-haiku-5-5');
+  assert.equal((await r.json()).model,'gpt-6.1-sol');
   assert.equal(f.state().modelCalls,1);
 });
 
